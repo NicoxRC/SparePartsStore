@@ -6,6 +6,8 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { isUniqueViolation } from '../common/utils/database-error.util';
+import { escapeLike } from '../common/utils/escape-like.util';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
@@ -42,8 +44,15 @@ export class ProductsService {
       updatedBy: { id: createdById } as Product['updatedBy'],
     });
 
-    const saved = await this.productsRepository.save(product);
-    return ProductResponseDto.fromEntity(saved);
+    try {
+      const saved = await this.productsRepository.save(product);
+      return ProductResponseDto.fromEntity(saved);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Reference already in use');
+      }
+      throw error;
+    }
   }
 
   async findAll(
@@ -54,8 +63,8 @@ export class ProductsService {
 
     if (search) {
       qb.andWhere(
-        '(product.reference ILIKE :search OR product.description ILIKE :search)',
-        { search: `%${search}%` },
+        "(product.reference ILIKE :search ESCAPE '\\' OR product.description ILIKE :search ESCAPE '\\')",
+        { search: `%${escapeLike(search)}%` },
       );
     }
 
@@ -127,8 +136,15 @@ export class ProductsService {
 
     product.updatedBy = { id: updatedById } as Product['updatedBy'];
 
-    const saved = await this.productsRepository.save(product);
-    return ProductResponseDto.fromEntity(saved);
+    try {
+      const saved = await this.productsRepository.save(product);
+      return ProductResponseDto.fromEntity(saved);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Reference already in use');
+      }
+      throw error;
+    }
   }
 
   async remove(id: string): Promise<void> {

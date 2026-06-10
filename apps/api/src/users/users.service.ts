@@ -9,6 +9,9 @@ import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { UserRole } from '../common/enums/user-role.enum';
+import { isUniqueViolation } from '../common/utils/database-error.util';
+import { escapeLike } from '../common/utils/escape-like.util';
 import { CreateUserDto } from './dto/create-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
@@ -42,8 +45,15 @@ export class UsersService {
       updatedBy: { id: createdById } as User,
     });
 
-    const saved = await this.usersRepository.save(user);
-    return UserResponseDto.fromEntity(saved);
+    try {
+      const saved = await this.usersRepository.save(user);
+      return UserResponseDto.fromEntity(saved);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Email already in use');
+      }
+      throw error;
+    }
   }
 
   async findAll(
@@ -54,8 +64,8 @@ export class UsersService {
 
     if (search) {
       qb.andWhere(
-        '(user.email ILIKE :search OR user.firstName ILIKE :search OR user.lastName ILIKE :search)',
-        { search: `%${search}%` },
+        "(user.email ILIKE :search ESCAPE '\\' OR user.firstName ILIKE :search ESCAPE '\\' OR user.lastName ILIKE :search ESCAPE '\\')",
+        { search: `%${escapeLike(search)}%` },
       );
     }
 
@@ -111,6 +121,15 @@ export class UsersService {
       throw new BadRequestException('You cannot deactivate your own account.');
     }
 
+    if (
+      dto.role !== undefined &&
+      dto.role !== UserRole.ADMIN &&
+      id === updatedById &&
+      user.role === UserRole.ADMIN
+    ) {
+      throw new BadRequestException('You cannot change your own admin role.');
+    }
+
     if (dto.email && dto.email !== user.email) {
       const existing = await this.findByEmail(dto.email);
       if (existing && existing.id !== id) {
@@ -127,8 +146,15 @@ export class UsersService {
 
     user.updatedBy = { id: updatedById } as User;
 
-    const saved = await this.usersRepository.save(user);
-    return UserResponseDto.fromEntity(saved);
+    try {
+      const saved = await this.usersRepository.save(user);
+      return UserResponseDto.fromEntity(saved);
+    } catch (error) {
+      if (isUniqueViolation(error)) {
+        throw new ConflictException('Email already in use');
+      }
+      throw error;
+    }
   }
 
   async remove(id: string, requestUserId: string): Promise<void> {
