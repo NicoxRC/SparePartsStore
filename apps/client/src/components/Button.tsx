@@ -10,13 +10,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800 disabled:bg-blue-300',
+    'bg-[#1E2A4A] text-white hover:bg-[#27365E] active:bg-[#16203A] disabled:bg-[#1E2A4A]/40',
   secondary:
-    'bg-gray-100 text-gray-900 hover:bg-gray-200 active:bg-gray-300 disabled:bg-gray-50 disabled:text-gray-400',
+    'bg-white text-[#1E2A4A] border border-[#D8DCE6] hover:bg-[#F0F2F6] active:bg-[#E4E8EF] disabled:bg-gray-50 disabled:text-gray-400',
   danger:
-    'bg-red-600 text-white hover:bg-red-700 active:bg-red-800 disabled:bg-red-300',
+    'bg-[#C2483A] text-white hover:bg-[#A93C30] active:bg-[#8F3327] disabled:bg-[#C2483A]/40',
   ghost:
-    'bg-transparent text-gray-700 hover:bg-gray-100 active:bg-gray-200 disabled:text-gray-300',
+    'bg-transparent text-[#3F4654] hover:bg-[#1E2A4A]/5 active:bg-[#1E2A4A]/10 disabled:text-gray-300',
 };
 
 export function Button({
@@ -29,7 +29,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-base font-semibold transition-colors disabled:cursor-not-allowed ${variantClasses[variant]} ${className}`}
+      className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-lg px-4 py-3 text-base font-semibold transition-colors disabled:cursor-not-allowed sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm ${variantClasses[variant]} ${className}`}
       disabled={disabled || isLoading}
       {...rest}
     >

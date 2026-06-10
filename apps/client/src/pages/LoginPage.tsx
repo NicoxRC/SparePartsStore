@@ -33,7 +33,7 @@ export function LoginPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold text-gray-900">Iniciar sesión</h2>
+      <h2 className="text-lg font-semibold text-[#1E2A4A]">Iniciar sesión</h2>
 
       {loginError && <Alert variant="error">{loginError}</Alert>}
 

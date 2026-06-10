@@ -22,41 +22,43 @@ export function ProductCard({
   isDeleting,
 }: ProductCardProps) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex h-full flex-col rounded-xl border border-[#E4E8EF] bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold text-gray-900">
+          <p className="truncate text-base font-semibold text-[#1E2A4A]">
             {product.description}
           </p>
-          <p className="text-sm text-gray-500">Ref: {product.reference}</p>
+          <span className="mt-1 inline-block rounded border border-[#D8DCE6] bg-[#F7F6F4] px-1.5 py-0.5 font-mono text-xs text-[#3F4654]">
+            {product.reference}
+          </span>
         </div>
-        <p className="shrink-0 text-base font-bold text-blue-600">
+        <p className="shrink-0 text-base font-bold text-[#E8853A]">
           {currencyFormatter.format(product.salePrice)}
         </p>
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-gray-600">
+      <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-[#3F4654]">
         <div>
-          <dt className="text-xs uppercase tracking-wide text-gray-400">Costo</dt>
+          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Costo</dt>
           <dd>{currencyFormatter.format(product.cost)}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-gray-400">Departamento</dt>
+          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Departamento</dt>
           <dd className="truncate">{product.department}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-gray-400">Grupo</dt>
+          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Grupo</dt>
           <dd className="truncate">{product.group}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-gray-400">Línea</dt>
+          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Línea</dt>
           <dd className="truncate">{product.line}</dd>
         </div>
       </dl>
 
-      <div className="mt-4 flex gap-2">
+      <div className="mt-4 flex gap-2 sm:mt-auto sm:pt-4">
         <Link to={`/products/${product.id}/edit`} className="flex-1">
-          <Button variant="secondary" type="button">
+          <Button variant="secondary" type="button" className="w-full">
             Editar
           </Button>
         </Link>

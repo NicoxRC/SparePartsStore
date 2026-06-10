@@ -3,9 +3,9 @@ import type { ReactNode } from 'react';
 type AlertVariant = 'error' | 'success' | 'info';
 
 const variantClasses: Record<AlertVariant, string> = {
-  error: 'bg-red-50 text-red-700 border-red-200',
-  success: 'bg-green-50 text-green-700 border-green-200',
-  info: 'bg-blue-50 text-blue-700 border-blue-200',
+  error: 'bg-[#FBEAE7] text-[#A93C30] border-[#F0CFC8]',
+  success: 'bg-[#E9F3EC] text-[#2F6B45] border-[#CFE6D7]',
+  info: 'bg-[#EEF1F7] text-[#1E2A4A] border-[#D8DCE6]',
 };
 
 interface AlertProps {

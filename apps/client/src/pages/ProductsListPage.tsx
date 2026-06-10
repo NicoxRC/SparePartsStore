@@ -58,30 +58,36 @@ export function ProductsListPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold text-gray-900">Productos</h1>
-        <Link to="/products/new">
+        <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+          Productos
+        </h1>
+        <Link to="/products/new" className="shrink-0">
           <Button type="button">+ Nuevo</Button>
         </Link>
       </div>
 
       <div className="flex flex-col gap-2">
-        <TextField
-          label="Buscar"
-          placeholder="Referencia o descripción"
-          value={filters.search ?? ''}
-          onChange={(e) => updateFilter({ search: e.target.value })}
-        />
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
+          <div className="sm:flex-1">
+            <TextField
+              label="Buscar"
+              placeholder="Referencia o descripción"
+              value={filters.search ?? ''}
+              onChange={(e) => updateFilter({ search: e.target.value })}
+            />
+          </div>
 
-        <button
-          type="button"
-          onClick={() => setShowFilters((prev) => !prev)}
-          className="self-start text-sm font-medium text-blue-600"
-        >
-          {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
-        </button>
+          <button
+            type="button"
+            onClick={() => setShowFilters((prev) => !prev)}
+            className="self-start text-sm font-medium text-[#1E2A4A] underline decoration-[#D8DCE6] underline-offset-4 hover:decoration-[#1E2A4A] sm:mb-2.5 sm:self-auto"
+          >
+            {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
+          </button>
+        </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-2 rounded-lg border border-[#E4E8EF] bg-white p-3 sm:grid-cols-3 sm:gap-3 sm:p-4">
             <TextField
               label="Departamento"
               placeholder="Todos"
@@ -119,7 +125,7 @@ export function ProductsListPage() {
           {productsQuery.data.data.length === 0 ? (
             <Alert variant="info">No se encontraron productos.</Alert>
           ) : (
-            <div className="flex flex-col gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {productsQuery.data.data.map((product) => (
                 <ProductCard
                   key={product.id}
@@ -145,8 +151,8 @@ export function ProductsListPage() {
       {productPendingDelete && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
           <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
-            <h2 className="text-lg font-semibold text-gray-900">Eliminar producto</h2>
-            <p className="mt-2 text-sm text-gray-600">
+            <h2 className="text-lg font-semibold text-[#1E2A4A]">Eliminar producto</h2>
+            <p className="mt-2 text-sm text-[#3F4654]">
               ¿Seguro que deseas eliminar{' '}
               <span className="font-medium">{productPendingDelete.description}</span>?
               Esta acción no se puede deshacer.
