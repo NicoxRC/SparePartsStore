@@ -1,0 +1,3 @@
+- [tsconfig decisions](project_tsconfig_decisions.md) — why apps/api uses commonjs/node and which options (nodenext, isolatedModules, resolvePackageJsonExports) were removed
+- [folder names](project_folder_names.md) — actual folders are api/ and client/, not backend/ and frontend/ as the Requirements doc says
+- [infra decisions](project_infra.md) — docker-compose runs DB only, env var layout, local dev credentials
