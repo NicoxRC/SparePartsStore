@@ -1,5 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
+import { AdminRoute } from './components/AdminRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { AuthLayout } from './layouts/AuthLayout';
@@ -7,6 +8,8 @@ import { AuthenticatedLayout } from './layouts/AuthenticatedLayout';
 import { LoginPage } from './pages/LoginPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsListPage } from './pages/ProductsListPage';
+import { UserFormPage } from './pages/UserFormPage';
+import { UsersListPage } from './pages/UsersListPage';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,6 +35,12 @@ function App() {
                 <Route path="/products" element={<ProductsListPage />} />
                 <Route path="/products/new" element={<ProductFormPage />} />
                 <Route path="/products/:id/edit" element={<ProductFormPage />} />
+
+                <Route element={<AdminRoute />}>
+                  <Route path="/users" element={<UsersListPage />} />
+                  <Route path="/users/new" element={<UserFormPage />} />
+                  <Route path="/users/:id/edit" element={<UserFormPage />} />
+                </Route>
               </Route>
             </Route>
 

@@ -1,12 +1,15 @@
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
-const navItems = [
-  { to: '/products', label: 'Productos', icon: '📦' },
-];
-
 export function AuthenticatedLayout() {
   const { user, logout } = useAuth();
+
+  const navItems = [
+    { to: '/products', label: 'Productos', icon: '📦' },
+    ...(user?.role === 'admin'
+      ? [{ to: '/users', label: 'Usuarios', icon: '👥' }]
+      : []),
+  ];
 
   return (
     <div className="flex min-h-screen flex-col bg-[#F7F6F4] lg:flex-row">
