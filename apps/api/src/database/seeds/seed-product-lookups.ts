@@ -388,13 +388,19 @@ async function seedLookup<T extends LookupEntity>(
     created++;
   }
 
-  console.log(`${label}: created ${created}, skipped ${skipped} (already existed)`);
+  console.log(
+    `${label}: created ${created}, skipped ${skipped} (already existed)`,
+  );
 }
 
 async function seed(): Promise<void> {
   await dataSource.initialize();
 
-  await seedLookup(dataSource.getRepository(Department), DEPARTMENTS, 'Departments');
+  await seedLookup(
+    dataSource.getRepository(Department),
+    DEPARTMENTS,
+    'Departments',
+  );
   await seedLookup(dataSource.getRepository(Group), GROUPS, 'Groups');
   await seedLookup(dataSource.getRepository(Brand), BRANDS, 'Brands');
 

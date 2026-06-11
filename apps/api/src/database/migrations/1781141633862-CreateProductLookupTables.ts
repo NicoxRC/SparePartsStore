@@ -6,9 +6,7 @@ import {
   TableIndex,
 } from 'typeorm';
 
-export class CreateProductLookupTables1781141633862
-  implements MigrationInterface
-{
+export class CreateProductLookupTables1781141633862 implements MigrationInterface {
   name = 'CreateProductLookupTables1781141633862';
 
   private readonly tables = ['departments', 'product_groups', 'brands'];

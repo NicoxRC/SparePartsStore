@@ -8,6 +8,7 @@ import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
+import { useExportArticulos } from '../hooks/useExport';
 import { useBrands, useDepartments, useGroups } from '../hooks/useLookups';
 import { useDeleteProduct, useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
@@ -45,6 +46,7 @@ export function ProductsListPage() {
   const departmentsQuery = useDepartments();
   const groupsQuery = useGroups();
   const brandsQuery = useBrands();
+  const exportMutation = useExportArticulos();
 
   const updateFilter = (patch: Partial<ProductsQuery>) => {
     setFilters((prev) => ({ ...prev, ...patch, page: 1 }));
@@ -66,9 +68,21 @@ export function ProductsListPage() {
         <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
           Productos
         </h1>
-        <Link to="/products/new" className="shrink-0">
-          <Button type="button">+ Nuevo</Button>
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          {isAdmin && (
+            <Button
+              type="button"
+              variant="secondary"
+              isLoading={exportMutation.isPending}
+              onClick={() => void exportMutation.mutateAsync()}
+            >
+              Exportar
+            </Button>
+          )}
+          <Link to="/products/new" className="shrink-0">
+            <Button type="button">+ Nuevo</Button>
+          </Link>
+        </div>
       </div>
 
       <div className="flex flex-col gap-2">
@@ -135,6 +149,10 @@ export function ProductsListPage() {
 
       {deleteMutation.isError && (
         <Alert variant="error">{getApiErrorMessage(deleteMutation.error)}</Alert>
+      )}
+
+      {exportMutation.isError && (
+        <Alert variant="error">{getApiErrorMessage(exportMutation.error)}</Alert>
       )}
 
       {productsQuery.isPending && <Spinner label="Cargando productos…" />}

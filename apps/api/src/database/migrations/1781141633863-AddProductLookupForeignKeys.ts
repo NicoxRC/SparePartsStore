@@ -6,9 +6,7 @@ import {
   TableIndex,
 } from 'typeorm';
 
-export class AddProductLookupForeignKeys1781141633863
-  implements MigrationInterface
-{
+export class AddProductLookupForeignKeys1781141633863 implements MigrationInterface {
   name = 'AddProductLookupForeignKeys1781141633863';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

@@ -5,6 +5,7 @@ import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { AuthModule } from './auth/auth.module';
 import { BrandsModule } from './brands/brands.module';
 import { DepartmentsModule } from './departments/departments.module';
+import { ExportModule } from './export/export.module';
 import { GroupsModule } from './groups/groups.module';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module';
     DepartmentsModule,
     GroupsModule,
     BrandsModule,
+    ExportModule,
   ],
 })
 export class AppModule {}
