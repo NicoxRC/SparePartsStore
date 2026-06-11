@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  changePassword as changePasswordRequest,
   getMe,
   login as loginRequest,
   logout as logoutRequest,
@@ -55,6 +56,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
+
+  const changePasswordMutation = useMutation({
+    mutationFn: changePasswordRequest,
+    onSuccess: (data) => {
+      setTokens(data.accessToken, data.refreshToken);
+      setUser((current) =>
+        current ? { ...current, mustChangePassword: false } : current,
+      );
+      setChangePasswordError(null);
+    },
+    onError: (error: unknown) => {
+      setChangePasswordError(
+        getApiErrorMessage(error, 'No se pudo cambiar la contraseña. Intenta de nuevo.'),
+      );
+    },
+  });
+
   const isLoading = hasTokens && user === null && meQuery.isPending;
 
   // If token-based rehydration failed (invalid/expired tokens that
@@ -77,6 +96,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     loginError,
     isLoggingIn: loginMutation.isPending,
+    changePassword: async (payload) => {
+      await changePasswordMutation.mutateAsync(payload);
+    },
+    isChangingPassword: changePasswordMutation.isPending,
+    changePasswordError,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

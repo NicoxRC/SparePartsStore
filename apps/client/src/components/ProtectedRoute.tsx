@@ -3,7 +3,7 @@ import { useAuth } from '../hooks/useAuth';
 import { Spinner } from './Spinner';
 
 export function ProtectedRoute() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const location = useLocation();
 
   if (isLoading) {
@@ -16,6 +16,14 @@ export function ProtectedRoute() {
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user?.mustChangePassword && location.pathname !== '/change-password') {
+    return <Navigate to="/change-password" replace />;
+  }
+
+  if (!user?.mustChangePassword && location.pathname === '/change-password') {
+    return <Navigate to="/products" replace />;
   }
 
   return <Outlet />;

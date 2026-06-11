@@ -41,6 +41,7 @@ export class UsersService {
       firstName: dto.firstName,
       lastName: dto.lastName,
       role: dto.role,
+      mustChangePassword: true,
       createdBy: { id: createdById } as User,
       updatedBy: { id: createdById } as User,
     });
@@ -142,7 +143,10 @@ export class UsersService {
     if (dto.lastName !== undefined) user.lastName = dto.lastName;
     if (dto.role !== undefined) user.role = dto.role;
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
-    if (dto.password) user.passwordHash = await this.hashPassword(dto.password);
+    if (dto.password) {
+      user.passwordHash = await this.hashPassword(dto.password);
+      user.mustChangePassword = true;
+    }
 
     user.updatedBy = { id: updatedById } as User;
 
@@ -168,6 +172,28 @@ export class UsersService {
 
   async updateLastLogin(id: string): Promise<void> {
     await this.usersRepository.update(id, { lastLoginAt: new Date() });
+  }
+
+  async changePassword(
+    id: string,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<User> {
+    const user = await this.findOne(id);
+
+    const valid = await this.validatePassword(
+      currentPassword,
+      user.passwordHash,
+    );
+    if (!valid) {
+      throw new BadRequestException('Current password is incorrect');
+    }
+
+    user.passwordHash = await this.hashPassword(newPassword);
+    user.mustChangePassword = false;
+    user.updatedBy = { id } as User;
+
+    return this.usersRepository.save(user);
   }
 
   async hashPassword(password: string): Promise<string> {

@@ -55,10 +55,22 @@ function redirectToLogin() {
   }
 }
 
+function isPasswordChangeRequired(error: AxiosError): boolean {
+  const data = error.response?.data as { error?: string } | undefined;
+  return error.response?.status === 403 && data?.error === 'PasswordChangeRequired';
+}
+
 api.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalRequest = error.config as RetriableRequestConfig | undefined;
+
+    if (isPasswordChangeRequired(error)) {
+      if (window.location.pathname !== '/change-password') {
+        window.location.href = '/change-password';
+      }
+      return Promise.reject(error);
+    }
 
     if (
       error.response?.status !== 401 ||

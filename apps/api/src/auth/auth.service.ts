@@ -52,6 +52,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         role: user.role,
+        mustChangePassword: user.mustChangePassword,
       },
     };
   }
@@ -65,6 +66,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      mustChangePassword: user.mustChangePassword,
     };
 
     const [accessToken, refreshToken] = await Promise.all([

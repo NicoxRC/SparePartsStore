@@ -27,6 +27,11 @@ export class JwtRefreshStrategy extends PassportStrategy(
     if (!user) {
       throw new UnauthorizedException('Invalid refresh token');
     }
-    return { id: user.id, email: user.email, role: user.role };
+    return {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
+    };
   }
 }

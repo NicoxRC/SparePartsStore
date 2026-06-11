@@ -27,6 +27,9 @@ export class User extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   isActive: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  mustChangePassword: boolean;
+
   @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt: Date | null;
 

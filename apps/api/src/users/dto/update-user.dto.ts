@@ -2,9 +2,10 @@ import {
   IsBoolean,
   IsEmail,
   IsEnum,
+  IsNotEmpty,
   IsOptional,
   IsString,
-  MinLength,
+  MaxLength,
 } from 'class-validator';
 import { UserRole } from '../../common/enums/user-role.enum';
 
@@ -27,7 +28,8 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsString()
-  @MinLength(8)
+  @IsNotEmpty()
+  @MaxLength(72)
   password?: string;
 
   @IsOptional()

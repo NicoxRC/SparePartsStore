@@ -6,6 +6,7 @@ export class AuthUserDto {
   firstName: string;
   lastName: string;
   role: UserRole;
+  mustChangePassword: boolean;
 }
 
 export class TokenPairDto {

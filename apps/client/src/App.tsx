@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext';
 import { AuthLayout } from './layouts/AuthLayout';
 import { AuthenticatedLayout } from './layouts/AuthenticatedLayout';
 import { CatalogsPage } from './pages/CatalogsPage';
+import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { LoginPage } from './pages/LoginPage';
 import { LookupFormPage } from './pages/LookupFormPage';
 import { LookupListPage } from './pages/LookupListPage';
@@ -34,6 +35,8 @@ function App() {
             </Route>
 
             <Route element={<ProtectedRoute />}>
+              <Route path="/change-password" element={<ChangePasswordPage />} />
+
               <Route element={<AuthenticatedLayout />}>
                 <Route path="/products" element={<ProductsListPage />} />
                 <Route path="/products/new" element={<ProductFormPage />} />

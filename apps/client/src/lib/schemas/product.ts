@@ -11,11 +11,12 @@ export const productFormSchema = z.object({
     .string()
     .trim()
     .min(1, 'La descripción es obligatoria.')
-    .max(255, 'Máximo 255 caracteres.'),
+    .max(255, 'Máximo 255 caracteres.')
+    .transform((value) => value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()),
   salePrice: z.coerce
     .number({ message: 'El precio debe ser un número.' })
-    .positive('El precio debe ser mayor a 0.')
-    .int('El precio debe ser un número entero.'),
+    .int('El precio debe ser un número entero.')
+    .min(500, 'El precio mínimo es $500.'),
   stock: z.coerce
     .number({ message: 'El stock debe ser un número.' })
     .int('El stock debe ser un número entero.')

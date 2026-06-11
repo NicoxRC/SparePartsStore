@@ -1,5 +1,5 @@
 import { createContext } from 'react';
-import type { AuthUser, LoginPayload } from '../services/auth';
+import type { AuthUser, ChangePasswordPayload, LoginPayload } from '../services/auth';
 
 export interface AuthContextValue {
   user: AuthUser | null;
@@ -9,6 +9,9 @@ export interface AuthContextValue {
   logout: () => Promise<void>;
   loginError: string | null;
   isLoggingIn: boolean;
+  changePassword: (payload: ChangePasswordPayload) => Promise<void>;
+  isChangingPassword: boolean;
+  changePasswordError: string | null;
 }
 
 export const AuthContext = createContext<AuthContextValue | undefined>(undefined);

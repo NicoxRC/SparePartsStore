@@ -3,7 +3,6 @@ import {
   IsInt,
   IsNotEmpty,
   IsNumber,
-  IsPositive,
   IsString,
   IsUUID,
   Min,
@@ -17,11 +16,16 @@ export class CreateProductDto {
 
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }: { value: string }) =>
+    value
+      ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+      : value,
+  )
   description: string;
 
   @Type(() => Number)
   @IsNumber()
-  @IsPositive()
+  @Min(500)
   salePrice: number;
 
   @Type(() => Number)

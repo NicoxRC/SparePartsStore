@@ -29,7 +29,8 @@ export const userFormSchema = z.object({
   role,
   password: z
     .string()
-    .min(8, 'La contraseña debe tener al menos 8 caracteres.'),
+    .min(1, 'La contraseña es obligatoria.')
+    .max(72, 'Máximo 72 caracteres.'),
 });
 
 export const userEditFormSchema = z.object({
@@ -37,14 +38,7 @@ export const userEditFormSchema = z.object({
   firstName,
   lastName,
   role,
-  password: z
-    .string()
-    .trim()
-    .refine((value) => value.length === 0 || value.length >= 8, {
-      message: 'La contraseña debe tener al menos 8 caracteres.',
-    })
-    .optional()
-    .or(z.literal('')),
+  password: z.string().trim().max(72, 'Máximo 72 caracteres.').optional().or(z.literal('')),
 });
 
 /** Shape of the raw form fields. */

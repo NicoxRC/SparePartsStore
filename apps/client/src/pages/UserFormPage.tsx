@@ -119,14 +119,20 @@ export function UserFormPage() {
           </SelectField>
 
           <TextField
-            label={isEditMode ? 'Nueva contraseña (opcional)' : 'Contraseña'}
+            label={isEditMode ? 'Nueva contraseña (opcional)' : 'Contraseña temporal'}
             type="password"
             autoComplete="new-password"
-            placeholder={isEditMode ? 'Dejar en blanco para no cambiar' : 'Mínimo 8 caracteres'}
+            placeholder={isEditMode ? 'Dejar en blanco para no cambiar' : 'Ej: 1234'}
             error={errors.password?.message}
             {...register('password')}
           />
         </div>
+
+        <p className="text-sm text-[#8B92A3]">
+          {isEditMode
+            ? 'Si asignas una nueva contraseña, el usuario deberá cambiarla al iniciar sesión.'
+            : 'Puedes asignar una contraseña simple. El usuario deberá cambiarla al iniciar sesión por primera vez.'}
+        </p>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button

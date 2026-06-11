@@ -4,7 +4,6 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
-  IsPositive,
   IsString,
   IsUUID,
   Min,
@@ -20,12 +19,17 @@ export class UpdateProductDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }: { value: string }) =>
+    value
+      ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+      : value,
+  )
   description?: string;
 
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @IsPositive()
+  @Min(500)
   salePrice?: number;
 
   @IsOptional()

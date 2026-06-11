@@ -8,6 +8,7 @@ export class UserResponseDto {
   lastName: string;
   role: UserRole;
   isActive: boolean;
+  mustChangePassword: boolean;
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -20,6 +21,7 @@ export class UserResponseDto {
     dto.lastName = user.lastName;
     dto.role = user.role;
     dto.isActive = user.isActive;
+    dto.mustChangePassword = user.mustChangePassword;
     dto.lastLoginAt = user.lastLoginAt ? user.lastLoginAt.toISOString() : null;
     dto.createdAt = user.createdAt.toISOString();
     dto.updatedAt = user.updatedAt.toISOString();
