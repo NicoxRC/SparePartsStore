@@ -4,12 +4,11 @@ import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
 import { ProductCard } from '../components/ProductCard';
-import { SelectField } from '../components/SelectField';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
 import { useExportArticulos } from '../hooks/useExport';
-import { useBrands, useDepartments, useGroups } from '../hooks/useLookups';
 import { useDeleteProduct, useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import type { ProductResponse, ProductsQuery } from '../services/products';
@@ -43,9 +42,6 @@ export function ProductsListPage() {
 
   const productsQuery = useProducts(query);
   const deleteMutation = useDeleteProduct();
-  const departmentsQuery = useDepartments();
-  const groupsQuery = useGroups();
-  const brandsQuery = useBrands();
   const exportMutation = useExportArticulos();
 
   const updateFilter = (patch: Partial<ProductsQuery>) => {
@@ -107,42 +103,30 @@ export function ProductsListPage() {
 
         {showFilters && (
           <div className="grid grid-cols-1 gap-2 rounded-lg border border-[#E4E8EF] bg-white p-3 sm:grid-cols-3 sm:gap-3 sm:p-4">
-            <SelectField
+            <SearchableSelect
               label="Departamento"
+              resource="departments"
               value={filters.departmentId ?? ''}
-              onChange={(e) => updateFilter({ departmentId: e.target.value })}
-            >
-              <option value="">Todos</option>
-              {departmentsQuery.data?.data.map((department) => (
-                <option key={department.id} value={department.id}>
-                  {department.name}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
+              onChange={(value) => updateFilter({ departmentId: value })}
+              placeholder="Todos"
+              clearLabel="Todos"
+            />
+            <SearchableSelect
               label="Grupo"
+              resource="groups"
               value={filters.groupId ?? ''}
-              onChange={(e) => updateFilter({ groupId: e.target.value })}
-            >
-              <option value="">Todos</option>
-              {groupsQuery.data?.data.map((group) => (
-                <option key={group.id} value={group.id}>
-                  {group.name}
-                </option>
-              ))}
-            </SelectField>
-            <SelectField
+              onChange={(value) => updateFilter({ groupId: value })}
+              placeholder="Todos"
+              clearLabel="Todos"
+            />
+            <SearchableSelect
               label="Marca"
+              resource="brands"
               value={filters.brandId ?? ''}
-              onChange={(e) => updateFilter({ brandId: e.target.value })}
-            >
-              <option value="">Todas</option>
-              {brandsQuery.data?.data.map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {brand.name}
-                </option>
-              ))}
-            </SelectField>
+              onChange={(value) => updateFilter({ brandId: value })}
+              placeholder="Todas"
+              clearLabel="Todas"
+            />
           </div>
         )}
       </div>

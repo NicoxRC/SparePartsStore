@@ -5,10 +5,9 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { CurrencyField } from '../components/CurrencyField';
-import { SelectField } from '../components/SelectField';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
-import { useBrands, useDepartments, useGroups } from '../hooks/useLookups';
 import { useCreateProduct, useProduct, useUpdateProduct } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import {
@@ -31,10 +30,6 @@ export function ProductFormPage() {
   const productQuery = useProduct(id);
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct(id ?? '');
-
-  const departmentsQuery = useDepartments();
-  const groupsQuery = useGroups();
-  const brandsQuery = useBrands();
 
   const {
     register,
@@ -96,20 +91,6 @@ export function ProductFormPage() {
     return <Alert variant="error">{getApiErrorMessage(productQuery.error)}</Alert>;
   }
 
-  if (departmentsQuery.isPending || groupsQuery.isPending || brandsQuery.isPending) {
-    return <Spinner label="Cargando catálogos…" />;
-  }
-
-  if (departmentsQuery.isError || groupsQuery.isError || brandsQuery.isError) {
-    return (
-      <Alert variant="error">
-        {getApiErrorMessage(
-          departmentsQuery.error ?? groupsQuery.error ?? brandsQuery.error,
-        )}
-      </Alert>
-    );
-  }
-
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
@@ -161,6 +142,7 @@ export function ProductFormPage() {
           min="0"
           placeholder="0"
           error={errors.stock?.message}
+          onFocus={(e) => e.target.select()}
           {...register('stock')}
         />
 
@@ -174,42 +156,51 @@ export function ProductFormPage() {
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <SelectField
-            label="Departamento"
-            error={errors.departmentId?.message}
-            {...register('departmentId')}
-          >
-            <option value="">Selecciona...</option>
-            {departmentsQuery.data?.data.map((department) => (
-              <option key={department.id} value={department.id}>
-                {department.name}
-              </option>
-            ))}
-          </SelectField>
-          <SelectField
-            label="Grupo"
-            error={errors.groupId?.message}
-            {...register('groupId')}
-          >
-            <option value="">Selecciona...</option>
-            {groupsQuery.data?.data.map((group) => (
-              <option key={group.id} value={group.id}>
-                {group.name}
-              </option>
-            ))}
-          </SelectField>
-          <SelectField
-            label="Marca"
-            error={errors.brandId?.message}
-            {...register('brandId')}
-          >
-            <option value="">Selecciona...</option>
-            {brandsQuery.data?.data.map((brand) => (
-              <option key={brand.id} value={brand.id}>
-                {brand.name}
-              </option>
-            ))}
-          </SelectField>
+          <Controller
+            name="departmentId"
+            control={control}
+            render={({ field }) => (
+              <SearchableSelect
+                label="Departamento"
+                resource="departments"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.departmentId?.message}
+                name={field.name}
+                allowCreate
+              />
+            )}
+          />
+          <Controller
+            name="groupId"
+            control={control}
+            render={({ field }) => (
+              <SearchableSelect
+                label="Grupo"
+                resource="groups"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.groupId?.message}
+                name={field.name}
+                allowCreate
+              />
+            )}
+          />
+          <Controller
+            name="brandId"
+            control={control}
+            render={({ field }) => (
+              <SearchableSelect
+                label="Marca"
+                resource="brands"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.brandId?.message}
+                name={field.name}
+                allowCreate
+              />
+            )}
+          />
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
