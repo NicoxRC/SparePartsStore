@@ -36,12 +36,10 @@ export function LookupFormPage({ resource, title, basePath }: LookupFormPageProp
   } = useForm<LookupFormInput, unknown, LookupFormValues>({
     resolver: zodResolver(lookupFormSchema),
     defaultValues: {
-      code: '',
       name: '',
     },
     values: itemQuery.data
       ? {
-          code: itemQuery.data.code,
           name: itemQuery.data.name,
         }
       : undefined,
@@ -81,21 +79,12 @@ export function LookupFormPage({ resource, title, basePath }: LookupFormPageProp
         className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6"
         noValidate
       >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TextField
-            label="Código"
-            placeholder="Ej: ABC-123"
-            className="font-mono"
-            error={errors.code?.message}
-            {...register('code')}
-          />
-          <TextField
-            label="Nombre"
-            placeholder="Nombre"
-            error={errors.name?.message}
-            {...register('name')}
-          />
-        </div>
+        <TextField
+          label="Nombre"
+          placeholder="Nombre"
+          error={errors.name?.message}
+          {...register('name')}
+        />
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button

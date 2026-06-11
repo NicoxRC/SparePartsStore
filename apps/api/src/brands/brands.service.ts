@@ -1,12 +1,7 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
 import { CreateBrandDto } from './dto/create-brand.dto';
 import { BrandResponseDto } from './dto/brand-response.dto';
@@ -25,27 +20,15 @@ export class BrandsService {
     dto: CreateBrandDto,
     createdById: string,
   ): Promise<BrandResponseDto> {
-    const existing = await this.findByCode(dto.code);
-    if (existing) {
-      throw new ConflictException('Code already in use');
-    }
-
     const brand = this.brandsRepository.create({
-      code: dto.code,
+      code: await this.generateCode(),
       name: dto.name,
       createdBy: { id: createdById } as Brand['createdBy'],
       updatedBy: { id: createdById } as Brand['updatedBy'],
     });
 
-    try {
-      const saved = await this.brandsRepository.save(brand);
-      return BrandResponseDto.fromEntity(saved);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Code already in use');
-      }
-      throw error;
-    }
+    const saved = await this.brandsRepository.save(brand);
+    return BrandResponseDto.fromEntity(saved);
   }
 
   async findAll(
@@ -55,10 +38,9 @@ export class BrandsService {
     const qb = this.brandsRepository.createQueryBuilder('brand');
 
     if (search) {
-      qb.andWhere(
-        "(brand.code ILIKE :search ESCAPE '\\' OR brand.name ILIKE :search ESCAPE '\\')",
-        { search: `%${escapeLike(search)}%` },
-      );
+      qb.andWhere("brand.name ILIKE :search ESCAPE '\\'", {
+        search: `%${escapeLike(search)}%`,
+      });
     }
 
     qb.orderBy('brand.createdAt', 'DESC')
@@ -86,10 +68,6 @@ export class BrandsService {
     return brand;
   }
 
-  async findByCode(code: string): Promise<Brand | null> {
-    return this.brandsRepository.findOne({ where: { code } });
-  }
-
   async update(
     id: string,
     dto: UpdateBrandDto,
@@ -97,31 +75,32 @@ export class BrandsService {
   ): Promise<BrandResponseDto> {
     const brand = await this.findOne(id);
 
-    if (dto.code && dto.code !== brand.code) {
-      const existing = await this.findByCode(dto.code);
-      if (existing && existing.id !== id) {
-        throw new ConflictException('Code already in use');
-      }
-      brand.code = dto.code;
-    }
-
     if (dto.name !== undefined) brand.name = dto.name;
 
     brand.updatedBy = { id: updatedById } as Brand['updatedBy'];
 
-    try {
-      const saved = await this.brandsRepository.save(brand);
-      return BrandResponseDto.fromEntity(saved);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Code already in use');
-      }
-      throw error;
-    }
+    const saved = await this.brandsRepository.save(brand);
+    return BrandResponseDto.fromEntity(saved);
   }
 
   async remove(id: string): Promise<void> {
     const brand = await this.findOne(id);
     await this.brandsRepository.softRemove(brand);
+  }
+
+  /**
+   * Brands still carry an internal `code` (used by the Sisco export), but
+   * it is no longer managed from the UI, so new entries get the next free
+   * numeric code automatically.
+   */
+  private async generateCode(): Promise<string> {
+    const result = await this.brandsRepository
+      .createQueryBuilder('brand')
+      .withDeleted()
+      .select('MAX(CAST(brand.code AS INTEGER))', 'max')
+      .where("brand.code ~ '^[0-9]+$'")
+      .getRawOne<{ max: string | null }>();
+
+    return String((result?.max ? Number(result.max) : 0) + 1);
   }
 }

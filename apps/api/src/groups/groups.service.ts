@@ -1,12 +1,7 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { GroupResponseDto } from './dto/group-response.dto';
@@ -25,27 +20,15 @@ export class GroupsService {
     dto: CreateGroupDto,
     createdById: string,
   ): Promise<GroupResponseDto> {
-    const existing = await this.findByCode(dto.code);
-    if (existing) {
-      throw new ConflictException('Code already in use');
-    }
-
     const group = this.groupsRepository.create({
-      code: dto.code,
+      code: await this.generateCode(),
       name: dto.name,
       createdBy: { id: createdById } as Group['createdBy'],
       updatedBy: { id: createdById } as Group['updatedBy'],
     });
 
-    try {
-      const saved = await this.groupsRepository.save(group);
-      return GroupResponseDto.fromEntity(saved);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Code already in use');
-      }
-      throw error;
-    }
+    const saved = await this.groupsRepository.save(group);
+    return GroupResponseDto.fromEntity(saved);
   }
 
   async findAll(
@@ -55,10 +38,9 @@ export class GroupsService {
     const qb = this.groupsRepository.createQueryBuilder('group');
 
     if (search) {
-      qb.andWhere(
-        "(group.code ILIKE :search ESCAPE '\\' OR group.name ILIKE :search ESCAPE '\\')",
-        { search: `%${escapeLike(search)}%` },
-      );
+      qb.andWhere("group.name ILIKE :search ESCAPE '\\'", {
+        search: `%${escapeLike(search)}%`,
+      });
     }
 
     qb.orderBy('group.createdAt', 'DESC')
@@ -86,10 +68,6 @@ export class GroupsService {
     return group;
   }
 
-  async findByCode(code: string): Promise<Group | null> {
-    return this.groupsRepository.findOne({ where: { code } });
-  }
-
   async update(
     id: string,
     dto: UpdateGroupDto,
@@ -97,31 +75,32 @@ export class GroupsService {
   ): Promise<GroupResponseDto> {
     const group = await this.findOne(id);
 
-    if (dto.code && dto.code !== group.code) {
-      const existing = await this.findByCode(dto.code);
-      if (existing && existing.id !== id) {
-        throw new ConflictException('Code already in use');
-      }
-      group.code = dto.code;
-    }
-
     if (dto.name !== undefined) group.name = dto.name;
 
     group.updatedBy = { id: updatedById } as Group['updatedBy'];
 
-    try {
-      const saved = await this.groupsRepository.save(group);
-      return GroupResponseDto.fromEntity(saved);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Code already in use');
-      }
-      throw error;
-    }
+    const saved = await this.groupsRepository.save(group);
+    return GroupResponseDto.fromEntity(saved);
   }
 
   async remove(id: string): Promise<void> {
     const group = await this.findOne(id);
     await this.groupsRepository.softRemove(group);
+  }
+
+  /**
+   * Groups still carry an internal `code` (used by the Sisco export), but
+   * it is no longer managed from the UI, so new entries get the next free
+   * numeric code automatically.
+   */
+  private async generateCode(): Promise<string> {
+    const result = await this.groupsRepository
+      .createQueryBuilder('group')
+      .withDeleted()
+      .select('MAX(CAST(group.code AS INTEGER))', 'max')
+      .where("group.code ~ '^[0-9]+$'")
+      .getRawOne<{ max: string | null }>();
+
+    return String((result?.max ? Number(result.max) : 0) + 1);
   }
 }

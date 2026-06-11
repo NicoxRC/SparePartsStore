@@ -67,7 +67,7 @@ export function LookupListPage({
 
       <TextField
         label="Buscar"
-        placeholder="Código o nombre"
+        placeholder="Nombre"
         value={search}
         onChange={(e) => handleSearchChange(e.target.value)}
       />
@@ -94,10 +94,7 @@ export function LookupListPage({
                   className="flex flex-col gap-2 rounded-xl border border-[#E4E8EF] bg-white p-4 shadow-sm"
                 >
                   <div>
-                    <span className="inline-block rounded border border-[#D8DCE6] bg-[#F7F6F4] px-1.5 py-0.5 font-mono text-xs text-[#3F4654]">
-                      {item.code}
-                    </span>
-                    <p className="mt-1 truncate text-base font-semibold text-[#1E2A4A]">
+                    <p className="truncate text-base font-semibold text-[#1E2A4A]">
                       {item.name}
                     </p>
                   </div>

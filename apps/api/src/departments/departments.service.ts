@@ -1,12 +1,7 @@
-import {
-  ConflictException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { DepartmentResponseDto } from './dto/department-response.dto';
@@ -25,27 +20,15 @@ export class DepartmentsService {
     dto: CreateDepartmentDto,
     createdById: string,
   ): Promise<DepartmentResponseDto> {
-    const existing = await this.findByCode(dto.code);
-    if (existing) {
-      throw new ConflictException('Code already in use');
-    }
-
     const department = this.departmentsRepository.create({
-      code: dto.code,
+      code: await this.generateCode(),
       name: dto.name,
       createdBy: { id: createdById } as Department['createdBy'],
       updatedBy: { id: createdById } as Department['updatedBy'],
     });
 
-    try {
-      const saved = await this.departmentsRepository.save(department);
-      return DepartmentResponseDto.fromEntity(saved);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Code already in use');
-      }
-      throw error;
-    }
+    const saved = await this.departmentsRepository.save(department);
+    return DepartmentResponseDto.fromEntity(saved);
   }
 
   async findAll(
@@ -55,10 +38,9 @@ export class DepartmentsService {
     const qb = this.departmentsRepository.createQueryBuilder('department');
 
     if (search) {
-      qb.andWhere(
-        "(department.code ILIKE :search ESCAPE '\\' OR department.name ILIKE :search ESCAPE '\\')",
-        { search: `%${escapeLike(search)}%` },
-      );
+      qb.andWhere("department.name ILIKE :search ESCAPE '\\'", {
+        search: `%${escapeLike(search)}%`,
+      });
     }
 
     qb.orderBy('department.createdAt', 'DESC')
@@ -90,10 +72,6 @@ export class DepartmentsService {
     return department;
   }
 
-  async findByCode(code: string): Promise<Department | null> {
-    return this.departmentsRepository.findOne({ where: { code } });
-  }
-
   async update(
     id: string,
     dto: UpdateDepartmentDto,
@@ -101,31 +79,32 @@ export class DepartmentsService {
   ): Promise<DepartmentResponseDto> {
     const department = await this.findOne(id);
 
-    if (dto.code && dto.code !== department.code) {
-      const existing = await this.findByCode(dto.code);
-      if (existing && existing.id !== id) {
-        throw new ConflictException('Code already in use');
-      }
-      department.code = dto.code;
-    }
-
     if (dto.name !== undefined) department.name = dto.name;
 
     department.updatedBy = { id: updatedById } as Department['updatedBy'];
 
-    try {
-      const saved = await this.departmentsRepository.save(department);
-      return DepartmentResponseDto.fromEntity(saved);
-    } catch (error) {
-      if (isUniqueViolation(error)) {
-        throw new ConflictException('Code already in use');
-      }
-      throw error;
-    }
+    const saved = await this.departmentsRepository.save(department);
+    return DepartmentResponseDto.fromEntity(saved);
   }
 
   async remove(id: string): Promise<void> {
     const department = await this.findOne(id);
     await this.departmentsRepository.softRemove(department);
+  }
+
+  /**
+   * Departments still carry an internal `code` (used by the Sisco export),
+   * but it is no longer managed from the UI, so new entries get the next
+   * free numeric code automatically.
+   */
+  private async generateCode(): Promise<string> {
+    const result = await this.departmentsRepository
+      .createQueryBuilder('department')
+      .withDeleted()
+      .select('MAX(CAST(department.code AS INTEGER))', 'max')
+      .where("department.code ~ '^[0-9]+$'")
+      .getRawOne<{ max: string | null }>();
+
+    return String((result?.max ? Number(result.max) : 0) + 1);
   }
 }

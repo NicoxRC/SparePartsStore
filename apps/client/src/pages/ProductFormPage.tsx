@@ -106,7 +106,7 @@ export function ProductFormPage() {
           <TextField
             label="Referencia"
             placeholder="Ej: ABC-123"
-            className="font-mono"
+            className="font-mono uppercase"
             error={errors.reference?.message}
             {...register('reference')}
           />

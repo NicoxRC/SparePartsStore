@@ -36,7 +36,7 @@ export function CreateLookupDialog({
     formState: { errors },
   } = useForm<LookupFormInput, unknown, LookupFormValues>({
     resolver: zodResolver(lookupFormSchema),
-    defaultValues: { code: '', name: initialName },
+    defaultValues: { name: initialName },
   });
 
   const onSubmit = async (values: LookupFormValues) => {
@@ -61,13 +61,6 @@ export function CreateLookupDialog({
           className="mt-3 flex flex-col gap-3"
           noValidate
         >
-          <TextField
-            label="Código"
-            placeholder="Ej: ABC-123"
-            className="font-mono"
-            error={errors.code?.message}
-            {...register('code')}
-          />
           <TextField
             label="Nombre"
             placeholder="Nombre"

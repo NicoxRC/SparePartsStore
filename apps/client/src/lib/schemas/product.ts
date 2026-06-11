@@ -5,7 +5,8 @@ export const productFormSchema = z.object({
     .string()
     .trim()
     .min(1, 'La referencia es obligatoria.')
-    .max(100, 'Máximo 100 caracteres.'),
+    .max(100, 'Máximo 100 caracteres.')
+    .toUpperCase(),
   description: z
     .string()
     .trim()

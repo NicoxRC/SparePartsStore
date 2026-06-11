@@ -1,4 +1,4 @@
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
   IsNotEmpty,
@@ -12,6 +12,7 @@ import {
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
+  @Transform(({ value }: { value: string }) => value?.toUpperCase())
   reference: string;
 
   @IsString()

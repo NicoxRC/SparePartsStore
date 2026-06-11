@@ -1,11 +1,6 @@
 import { z } from 'zod';
 
 export const lookupFormSchema = z.object({
-  code: z
-    .string()
-    .trim()
-    .min(1, 'El código es obligatorio.')
-    .max(50, 'Máximo 50 caracteres.'),
   name: z
     .string()
     .trim()

@@ -2,7 +2,6 @@ import { api } from '../lib/api';
 
 export interface ProductLookupRef {
   id: string;
-  code: string;
   name: string;
 }
 

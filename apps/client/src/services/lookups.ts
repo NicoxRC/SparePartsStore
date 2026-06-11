@@ -5,7 +5,6 @@ export type LookupResource = 'departments' | 'groups' | 'brands';
 
 export interface LookupResponse {
   id: string;
-  code: string;
   name: string;
   createdAt: string;
   updatedAt: string;
@@ -18,7 +17,6 @@ export interface LookupQuery {
 }
 
 export interface LookupInput {
-  code: string;
   name: string;
 }
 
