@@ -3,6 +3,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { AuthModule } from './auth/auth.module';
+import { BrandsModule } from './brands/brands.module';
+import { DepartmentsModule } from './departments/departments.module';
+import { GroupsModule } from './groups/groups.module';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 
@@ -28,6 +31,9 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     ProductsModule,
+    DepartmentsModule,
+    GroupsModule,
+    BrandsModule,
   ],
 })
 export class AppModule {}

@@ -1,14 +1,21 @@
 import { api } from '../lib/api';
 
+export interface ProductLookupRef {
+  id: string;
+  code: string;
+  name: string;
+}
+
 export interface ProductResponse {
   id: string;
   reference: string;
   description: string;
   cost: number;
   salePrice: number;
-  department: string;
-  group: string;
-  line: string;
+  stock: number;
+  department: ProductLookupRef;
+  group: ProductLookupRef;
+  brand: ProductLookupRef;
   createdAt: string;
   updatedAt: string;
 }
@@ -29,18 +36,19 @@ export interface ProductsQuery {
   page?: number;
   limit?: number;
   search?: string;
-  department?: string;
-  group?: string;
-  line?: string;
+  departmentId?: string;
+  groupId?: string;
+  brandId?: string;
 }
 
 export interface ProductInput {
   reference: string;
   description: string;
   salePrice: number;
-  department: string;
-  group: string;
-  line: string;
+  stock: number;
+  departmentId: string;
+  groupId: string;
+  brandId: string;
 }
 
 export async function getProducts(

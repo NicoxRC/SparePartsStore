@@ -1,10 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CurrencyField } from '../components/CurrencyField';
+import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { useBrands, useDepartments, useGroups } from '../hooks/useLookups';
 import { useCreateProduct, useProduct, useUpdateProduct } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import {
@@ -13,10 +17,10 @@ import {
   type ProductFormValues,
 } from '../lib/schemas/product';
 
-const currencyFormatter = new Intl.NumberFormat('es-CR', {
+const currencyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',
-  currency: 'CRC',
-  maximumFractionDigits: 2,
+  currency: 'COP',
+  maximumFractionDigits: 0,
 });
 
 export function ProductFormPage() {
@@ -28,10 +32,15 @@ export function ProductFormPage() {
   const createMutation = useCreateProduct();
   const updateMutation = useUpdateProduct(id ?? '');
 
+  const departmentsQuery = useDepartments();
+  const groupsQuery = useGroups();
+  const brandsQuery = useBrands();
+
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<ProductFormInput, unknown, ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -39,32 +48,44 @@ export function ProductFormPage() {
       reference: '',
       description: '',
       salePrice: 0,
-      department: '',
-      group: '',
-      line: '',
+      stock: 0,
+      departmentId: '',
+      groupId: '',
+      brandId: '',
     },
     values: productQuery.data
       ? {
           reference: productQuery.data.reference,
           description: productQuery.data.description,
           salePrice: productQuery.data.salePrice,
-          department: productQuery.data.department,
-          group: productQuery.data.group,
-          line: productQuery.data.line,
+          stock: productQuery.data.stock,
+          departmentId: productQuery.data.department.id,
+          groupId: productQuery.data.group.id,
+          brandId: productQuery.data.brand.id,
         }
       : undefined,
   });
 
   const mutation = isEditMode ? updateMutation : createMutation;
 
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
+
   const onSubmit = async (values: ProductFormValues) => {
-    if (isEditMode) {
-      await updateMutation.mutateAsync(values);
-    } else {
-      await createMutation.mutateAsync(values);
-      reset();
+    try {
+      if (isEditMode) {
+        await updateMutation.mutateAsync(values);
+        navigate('/products');
+      } else {
+        await createMutation.mutateAsync(values);
+        reset();
+        setFeedback({ type: 'success', message: 'Producto creado correctamente.' });
+      }
+    } catch (error) {
+      setFeedback({ type: 'error', message: getApiErrorMessage(error) });
     }
-    navigate('/products');
   };
 
   if (isEditMode && productQuery.isPending) {
@@ -75,15 +96,25 @@ export function ProductFormPage() {
     return <Alert variant="error">{getApiErrorMessage(productQuery.error)}</Alert>;
   }
 
+  if (departmentsQuery.isPending || groupsQuery.isPending || brandsQuery.isPending) {
+    return <Spinner label="Cargando catálogos…" />;
+  }
+
+  if (departmentsQuery.isError || groupsQuery.isError || brandsQuery.isError) {
+    return (
+      <Alert variant="error">
+        {getApiErrorMessage(
+          departmentsQuery.error ?? groupsQuery.error ?? brandsQuery.error,
+        )}
+      </Alert>
+    );
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
         {isEditMode ? 'Editar producto' : 'Nuevo producto'}
       </h1>
-
-      {mutation.isError && (
-        <Alert variant="error">{getApiErrorMessage(mutation.error)}</Alert>
-      )}
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
@@ -98,15 +129,20 @@ export function ProductFormPage() {
             error={errors.reference?.message}
             {...register('reference')}
           />
-          <TextField
-            label="Precio de venta"
-            type="number"
-            inputMode="decimal"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-            error={errors.salePrice?.message}
-            {...register('salePrice')}
+          <Controller
+            name="salePrice"
+            control={control}
+            render={({ field }) => (
+              <CurrencyField
+                label="Precio de venta"
+                placeholder="0"
+                error={errors.salePrice?.message}
+                name={field.name}
+                value={Number(field.value) || 0}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
           />
         </div>
 
@@ -115,6 +151,17 @@ export function ProductFormPage() {
           placeholder="Descripción del producto"
           error={errors.description?.message}
           {...register('description')}
+        />
+
+        <TextField
+          label="Stock"
+          type="number"
+          inputMode="numeric"
+          step="1"
+          min="0"
+          placeholder="0"
+          error={errors.stock?.message}
+          {...register('stock')}
         />
 
         {isEditMode && productQuery.data && (
@@ -127,24 +174,42 @@ export function ProductFormPage() {
         )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-          <TextField
+          <SelectField
             label="Departamento"
-            placeholder="Ej: Frenos"
-            error={errors.department?.message}
-            {...register('department')}
-          />
-          <TextField
+            error={errors.departmentId?.message}
+            {...register('departmentId')}
+          >
+            <option value="">Selecciona...</option>
+            {departmentsQuery.data?.data.map((department) => (
+              <option key={department.id} value={department.id}>
+                {department.name}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
             label="Grupo"
-            placeholder="Ej: Pastillas"
-            error={errors.group?.message}
-            {...register('group')}
-          />
-          <TextField
-            label="Línea"
-            placeholder="Ej: Toyota"
-            error={errors.line?.message}
-            {...register('line')}
-          />
+            error={errors.groupId?.message}
+            {...register('groupId')}
+          >
+            <option value="">Selecciona...</option>
+            {groupsQuery.data?.data.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="Marca"
+            error={errors.brandId?.message}
+            {...register('brandId')}
+          >
+            <option value="">Selecciona...</option>
+            {brandsQuery.data?.data.map((brand) => (
+              <option key={brand.id} value={brand.id}>
+                {brand.name}
+              </option>
+            ))}
+          </SelectField>
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -161,6 +226,30 @@ export function ProductFormPage() {
           </Button>
         </div>
       </form>
+
+      {feedback && (
+        <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
+          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
+            <div
+              className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl ${
+                feedback.type === 'success'
+                  ? 'bg-[#E9F3EC] text-[#2F6B45]'
+                  : 'bg-[#FBEAE7] text-[#A93C30]'
+              }`}
+              aria-hidden="true"
+            >
+              {feedback.type === 'success' ? '✓' : '!'}
+            </div>
+            <h2 className="mt-3 text-lg font-semibold text-[#1E2A4A]">
+              {feedback.type === 'success' ? 'Producto creado' : 'Ocurrió un error'}
+            </h2>
+            <p className="mt-2 text-sm text-[#3F4654]">{feedback.message}</p>
+            <Button type="button" className="mt-5 w-full" onClick={() => setFeedback(null)}>
+              Aceptar
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

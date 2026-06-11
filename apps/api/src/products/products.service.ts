@@ -8,19 +8,28 @@ import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
+import { Department } from '../departments/entities/department.entity';
+import { Group } from '../groups/entities/group.entity';
+import { Brand } from '../brands/entities/brand.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
 
-const COST_FACTOR = 1.5;
+const COST_FACTOR = 1.65;
 
 @Injectable()
 export class ProductsService {
   constructor(
     @InjectRepository(Product)
     private readonly productsRepository: Repository<Product>,
+    @InjectRepository(Department)
+    private readonly departmentsRepository: Repository<Department>,
+    @InjectRepository(Group)
+    private readonly groupsRepository: Repository<Group>,
+    @InjectRepository(Brand)
+    private readonly brandsRepository: Repository<Brand>,
   ) {}
 
   async create(
@@ -32,14 +41,36 @@ export class ProductsService {
       throw new ConflictException('Reference already in use');
     }
 
+    const department = await this.departmentsRepository.findOne({
+      where: { id: dto.departmentId },
+    });
+    if (!department) {
+      throw new NotFoundException('Invalid departmentId: department not found');
+    }
+
+    const group = await this.groupsRepository.findOne({
+      where: { id: dto.groupId },
+    });
+    if (!group) {
+      throw new NotFoundException('Invalid groupId: group not found');
+    }
+
+    const brand = await this.brandsRepository.findOne({
+      where: { id: dto.brandId },
+    });
+    if (!brand) {
+      throw new NotFoundException('Invalid brandId: brand not found');
+    }
+
     const product = this.productsRepository.create({
       reference: dto.reference,
       description: dto.description,
       salePrice: dto.salePrice,
       cost: this.calculateCost(dto.salePrice),
-      department: dto.department,
-      group: dto.group,
-      line: dto.line,
+      stock: dto.stock,
+      department,
+      group,
+      brand,
       createdBy: { id: createdById } as Product['createdBy'],
       updatedBy: { id: createdById } as Product['updatedBy'],
     });
@@ -58,8 +89,19 @@ export class ProductsService {
   async findAll(
     query: QueryProductsDto,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
-    const { page, limit, search, department, group, line } = query;
-    const qb = this.productsRepository.createQueryBuilder('product');
+    const { page, limit, search, departmentId, groupId, brandId } = query;
+    const qb = this.productsRepository
+      .createQueryBuilder('product')
+      // .withDeleted() disables TypeORM's automatic "deleted_at IS NULL" filter
+      // for both the product and its joined lookups, so a product whose
+      // department/group/brand was later soft-deleted still resolves (see
+      // docs/ApiContract.md §6.6: lookups can be deactivated while still
+      // referenced). The product's own soft-delete filter is re-added below.
+      .withDeleted()
+      .leftJoinAndSelect('product.department', 'department')
+      .leftJoinAndSelect('product.group', 'group')
+      .leftJoinAndSelect('product.brand', 'brand')
+      .where('product.deletedAt IS NULL');
 
     if (search) {
       qb.andWhere(
@@ -68,16 +110,16 @@ export class ProductsService {
       );
     }
 
-    if (department) {
-      qb.andWhere('product.department = :department', { department });
+    if (departmentId) {
+      qb.andWhere('product.department_id = :departmentId', { departmentId });
     }
 
-    if (group) {
-      qb.andWhere('product.group = :group', { group });
+    if (groupId) {
+      qb.andWhere('product.group_id = :groupId', { groupId });
     }
 
-    if (line) {
-      qb.andWhere('product.line = :line', { line });
+    if (brandId) {
+      qb.andWhere('product.brand_id = :brandId', { brandId });
     }
 
     qb.orderBy('product.createdAt', 'DESC')
@@ -98,7 +140,19 @@ export class ProductsService {
   }
 
   async findOne(id: string): Promise<Product> {
-    const product = await this.productsRepository.findOne({ where: { id } });
+    // See findAll() for why .withDeleted() + an explicit product.deletedAt
+    // filter are needed: a product's department/group/brand may have been
+    // soft-deleted after the product was created, but the product should
+    // still resolve and display that lookup's data.
+    const product = await this.productsRepository
+      .createQueryBuilder('product')
+      .withDeleted()
+      .leftJoinAndSelect('product.department', 'department')
+      .leftJoinAndSelect('product.group', 'group')
+      .leftJoinAndSelect('product.brand', 'brand')
+      .where('product.id = :id', { id })
+      .andWhere('product.deletedAt IS NULL')
+      .getOne();
     if (!product) {
       throw new NotFoundException('Product not found');
     }
@@ -125,14 +179,45 @@ export class ProductsService {
     }
 
     if (dto.description !== undefined) product.description = dto.description;
-    if (dto.department !== undefined) product.department = dto.department;
-    if (dto.group !== undefined) product.group = dto.group;
-    if (dto.line !== undefined) product.line = dto.line;
+
+    if (dto.departmentId !== undefined) {
+      const department = await this.departmentsRepository.findOne({
+        where: { id: dto.departmentId },
+      });
+      if (!department) {
+        throw new NotFoundException(
+          'Invalid departmentId: department not found',
+        );
+      }
+      product.department = department;
+    }
+
+    if (dto.groupId !== undefined) {
+      const group = await this.groupsRepository.findOne({
+        where: { id: dto.groupId },
+      });
+      if (!group) {
+        throw new NotFoundException('Invalid groupId: group not found');
+      }
+      product.group = group;
+    }
+
+    if (dto.brandId !== undefined) {
+      const brand = await this.brandsRepository.findOne({
+        where: { id: dto.brandId },
+      });
+      if (!brand) {
+        throw new NotFoundException('Invalid brandId: brand not found');
+      }
+      product.brand = brand;
+    }
 
     if (dto.salePrice !== undefined) {
       product.salePrice = dto.salePrice;
       product.cost = this.calculateCost(dto.salePrice);
     }
+
+    if (dto.stock !== undefined) product.stock = dto.stock;
 
     product.updatedBy = { id: updatedById } as Product['updatedBy'];
 
@@ -153,6 +238,6 @@ export class ProductsService {
   }
 
   private calculateCost(salePrice: number): number {
-    return Math.round((salePrice / COST_FACTOR) * 100) / 100;
+    return Math.round(salePrice / COST_FACTOR);
   }
 }

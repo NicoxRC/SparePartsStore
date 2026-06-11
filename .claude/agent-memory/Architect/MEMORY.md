@@ -2,3 +2,4 @@
 - [folder names](project_folder_names.md) — actual folders are api/ and client/, not backend/ and frontend/ as the Requirements doc says
 - [infra decisions](project_infra.md) — docker-compose runs DB only, env var layout, local dev credentials
 - [auth/users design](project_auth_design.md) — entity conventions (audit/soft-delete/pagination), JWT strategy, RBAC pattern reused by future modules
+- [product classification model](project_product_classification.md) — Department/Group(product_groups)/Brand replace Category/Brand+línea; table/route names, migration plan

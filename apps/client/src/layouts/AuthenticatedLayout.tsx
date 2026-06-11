@@ -1,4 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
+import logo from '../assets/logo.png';
 import { useAuth } from '../hooks/useAuth';
 
 export function AuthenticatedLayout() {
@@ -7,7 +8,10 @@ export function AuthenticatedLayout() {
   const navItems = [
     { to: '/products', label: 'Productos', icon: '📦' },
     ...(user?.role === 'admin'
-      ? [{ to: '/users', label: 'Usuarios', icon: '👥' }]
+      ? [
+          { to: '/users', label: 'Usuarios', icon: '👥' },
+          { to: '/catalogs', label: 'Catálogos', icon: '🏷️' },
+        ]
       : []),
   ];
 
@@ -16,11 +20,8 @@ export function AuthenticatedLayout() {
       {/* Desktop sidebar */}
       <aside className="hidden w-60 shrink-0 flex-col border-r border-[#E4E8EF] bg-white lg:flex">
         <div className="flex h-16 items-center border-b border-[#E4E8EF] px-6">
-          <div>
-            <p className="text-sm font-bold tracking-tight text-[#1E2A4A]">CasaRespuestos</p>
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#8B92A3]">
-              Inventario
-            </p>
+          <div className="overflow-hidden rounded-xl bg-black px-3 py-2">
+            <img src={logo} alt="La Casa de los Repuestos" className="h-8 w-auto" />
           </div>
         </div>
 
@@ -68,8 +69,10 @@ export function AuthenticatedLayout() {
       <div className="flex min-h-screen flex-1 flex-col">
         {/* Mobile / tablet top bar */}
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-[#E4E8EF] bg-white px-4 lg:hidden">
-          <div>
-            <p className="text-sm font-bold tracking-tight text-[#1E2A4A]">CasaRespuestos</p>
+          <div className="flex items-center gap-3">
+            <div className="overflow-hidden rounded-lg bg-black px-2 py-1.5">
+              <img src={logo} alt="La Casa de los Repuestos" className="h-6 w-auto" />
+            </div>
             {user && (
               <p className="text-xs text-[#8B92A3]">
                 {user.firstName} {user.lastName} · {user.role === 'admin' ? 'Admin' : 'Empleado'}

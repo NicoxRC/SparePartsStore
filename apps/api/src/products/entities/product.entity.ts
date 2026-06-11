@@ -1,6 +1,9 @@
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { User } from '../../users/entities/user.entity';
+import { Department } from '../../departments/entities/department.entity';
+import { Group } from '../../groups/entities/group.entity';
+import { Brand } from '../../brands/entities/brand.entity';
 
 const decimalTransformer = {
   to: (value?: number | null): number | null | undefined => value,
@@ -33,14 +36,20 @@ export class Product extends BaseEntity {
   })
   salePrice: number;
 
-  @Column({ type: 'varchar', length: 100 })
-  department: string;
+  @Column({ type: 'int', default: 0 })
+  stock: number;
 
-  @Column({ type: 'varchar', length: 100 })
-  group: string;
+  @ManyToOne(() => Department, { nullable: false })
+  @JoinColumn({ name: 'department_id' })
+  department: Department;
 
-  @Column({ type: 'varchar', length: 100 })
-  line: string;
+  @ManyToOne(() => Group, { nullable: false })
+  @JoinColumn({ name: 'group_id' })
+  group: Group;
+
+  @ManyToOne(() => Brand, { nullable: false })
+  @JoinColumn({ name: 'brand_id' })
+  brand: Brand;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'created_by_id' })

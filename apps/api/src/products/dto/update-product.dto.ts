@@ -1,10 +1,13 @@
 import { Type } from 'class-transformer';
 import {
+  IsInt,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
+  IsUUID,
+  Min,
 } from 'class-validator';
 
 export class UpdateProductDto {
@@ -25,17 +28,20 @@ export class UpdateProductDto {
   salePrice?: number;
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  department?: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  stock?: number;
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  group?: string;
+  @IsUUID()
+  departmentId?: string;
 
   @IsOptional()
-  @IsString()
-  @IsNotEmpty()
-  line?: string;
+  @IsUUID()
+  groupId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  brandId?: string;
 }

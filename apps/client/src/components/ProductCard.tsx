@@ -9,10 +9,10 @@ interface ProductCardProps {
   isDeleting: boolean;
 }
 
-const currencyFormatter = new Intl.NumberFormat('es-CR', {
+const currencyFormatter = new Intl.NumberFormat('es-CO', {
   style: 'currency',
-  currency: 'CRC',
-  maximumFractionDigits: 2,
+  currency: 'COP',
+  maximumFractionDigits: 0,
 });
 
 export function ProductCard({
@@ -43,16 +43,20 @@ export function ProductCard({
           <dd>{currencyFormatter.format(product.cost)}</dd>
         </div>
         <div>
+          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Stock</dt>
+          <dd>{product.stock}</dd>
+        </div>
+        <div>
           <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Departamento</dt>
-          <dd className="truncate">{product.department}</dd>
+          <dd className="truncate">{product.department.name}</dd>
         </div>
         <div>
           <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Grupo</dt>
-          <dd className="truncate">{product.group}</dd>
+          <dd className="truncate">{product.group.name}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Línea</dt>
-          <dd className="truncate">{product.line}</dd>
+          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Marca</dt>
+          <dd className="truncate">{product.brand.name}</dd>
         </div>
       </dl>
 

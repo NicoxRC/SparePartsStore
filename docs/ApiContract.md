@@ -1,11 +1,18 @@
 # CasaRespuestos — API Contract
 
-This document defines the API contract and module structure needed to start
-the **`auth`** module (and the minimal **`users`** module it depends on). It
-follows the conventions and `User` entity defined in `docs/Schema.md`.
-Other modules (`products`, `categories`, `brands`, `inventory`, `export`)
-will get their own contract sections in follow-up revisions — this doc is
-meant to be appended to, not replaced.
+This document defines the API contract and module structure for
+CasaRespuestos. It started with the **`auth`** module (and the minimal
+**`users`** module it depends on) and now also covers the **`products`**
+module and its three required classification lookups —
+**`departments`**, **`groups`** (table `product_groups`), and **`brands`**
+— per `docs/Schema.md` §3-§7. `inventory` and `export` will get their own
+contract sections in follow-up revisions — this doc is meant to be appended
+to, not replaced.
+
+> **Note**: the original `categories`/`brands` lookup-table plan from
+> `docs/Requirements.md` §5.4-§5.5 is superseded. There is no `/categories`
+> endpoint. Product classification uses three lookups —
+> `/departments`, `/groups`, `/brands` — all required on every product.
 
 All endpoints are prefixed with `/api` (set via `app.setGlobalPrefix('api')`
 in `main.ts`) and versioned implicitly as v1 for now (no `/v1` prefix unless
@@ -43,6 +50,50 @@ apps/api/src/
 │       ├── create-user.dto.ts
 │       ├── update-user.dto.ts
 │       └── user-response.dto.ts
+├── departments/
+│   ├── departments.module.ts
+│   ├── departments.controller.ts
+│   ├── departments.service.ts
+│   ├── entities/
+│   │   └── department.entity.ts
+│   └── dto/
+│       ├── create-department.dto.ts
+│       ├── update-department.dto.ts
+│       ├── query-departments.dto.ts
+│       └── department-response.dto.ts
+├── groups/                                # table: product_groups, entity class: Group
+│   ├── groups.module.ts
+│   ├── groups.controller.ts
+│   ├── groups.service.ts
+│   ├── entities/
+│   │   └── group.entity.ts                # @Entity('product_groups')
+│   └── dto/
+│       ├── create-group.dto.ts
+│       ├── update-group.dto.ts
+│       ├── query-groups.dto.ts
+│       └── group-response.dto.ts
+├── brands/
+│   ├── brands.module.ts
+│   ├── brands.controller.ts
+│   ├── brands.service.ts
+│   ├── entities/
+│   │   └── brand.entity.ts
+│   └── dto/
+│       ├── create-brand.dto.ts
+│       ├── update-brand.dto.ts
+│       ├── query-brands.dto.ts
+│       └── brand-response.dto.ts
+├── products/
+│   ├── products.module.ts
+│   ├── products.controller.ts
+│   ├── products.service.ts
+│   ├── entities/
+│   │   └── product.entity.ts
+│   └── dto/
+│       ├── create-product.dto.ts
+│       ├── update-product.dto.ts
+│       ├── query-products.dto.ts
+│       └── product-response.dto.ts
 └── common/
     ├── decorators/
     │   ├── current-user.decorator.ts   # @CurrentUser() param decorator
@@ -434,7 +485,325 @@ Errors:
 
 ---
 
-## 6. Known limitations / open items for follow-up
+## 6. Product-classification lookup modules — shared CRUD contract
+
+`departments`, `groups` (table `product_groups`, entity class `Group`), and
+`brands` are three structurally identical lookup modules. Each follows the
+shape below; route prefixes are `/api/departments`, `/api/groups`, and
+`/api/brands` respectively. **All mutation endpoints
+(`POST`/`PATCH`/`DELETE`) require `@Roles(UserRole.ADMIN)`**, mirroring the
+`users` module RBAC pattern (§2.7). `GET` endpoints are available to any
+authenticated user (admin or employee) since employees need these lists to
+populate product create/edit forms.
+
+### 6.1 Shared response shape — `<X>ResponseDto`
+
+```typescript
+{
+  id: string;
+  code: string;
+  name: string;
+  createdAt: string;  // ISO 8601
+  updatedAt: string;  // ISO 8601
+}
+```
+
+### 6.2 `POST /api/departments` | `/api/groups` | `/api/brands`
+
+**Admin only.**
+
+Request body — `Create<X>Dto`:
+
+```typescript
+{
+  code: string;  // @IsString() @IsNotEmpty() @MaxLength(50)
+  name: string;  // @IsString() @IsNotEmpty() @MaxLength(150)
+}
+```
+
+Response `201 Created`: `<X>ResponseDto`.
+
+Errors:
+- `409 Conflict` — `code` already in use by an active row.
+- `400 Bad Request` — validation errors.
+
+`createdBy` set to the requesting admin's id.
+
+---
+
+### 6.3 `GET /api/departments` | `/api/groups` | `/api/brands`
+
+Available to any authenticated user. Query params:
+
+```typescript
+{
+  page?: number;   // default 1
+  limit?: number;  // default 20, max 100
+  search?: string; // matches code or name (ILIKE)
+}
+```
+
+Response `200 OK` — standard paginated envelope (per §5.2):
+
+```typescript
+{
+  data: <X>ResponseDto[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }
+}
+```
+
+> **Frontend note**: for populating select/dropdown inputs on the product
+> form, the frontend should request a high `limit` (e.g. `limit=100`) since
+> these lookup tables are expected to be small (tens of rows, not
+> thousands). No separate "all, unpaginated" endpoint is defined for v1 —
+> revisit if a shop ends up with hundreds of departments/groups/brands.
+
+---
+
+### 6.4 `GET /api/departments/:id` | `/api/groups/:id` | `/api/brands/:id`
+
+Available to any authenticated user.
+
+Response `200 OK`: `<X>ResponseDto`.
+
+Errors: `404 Not Found`.
+
+---
+
+### 6.5 `PATCH /api/departments/:id` | `/api/groups/:id` | `/api/brands/:id`
+
+**Admin only.**
+
+Request body — `Update<X>Dto` (all fields optional):
+
+```typescript
+{
+  code?: string; // @IsOptional() @IsString() @IsNotEmpty() @MaxLength(50)
+  name?: string; // @IsOptional() @IsString() @IsNotEmpty() @MaxLength(150)
+}
+```
+
+Response `200 OK`: `<X>ResponseDto`.
+
+Errors:
+- `404 Not Found`.
+- `409 Conflict` — `code` collision with another active row.
+- `400 Bad Request` — validation errors.
+
+`updatedBy` set to the requesting admin's id.
+
+---
+
+### 6.6 `DELETE /api/departments/:id` | `/api/groups/:id` | `/api/brands/:id`
+
+**Admin only.** Soft-deletes (deactivates) the row — `softDelete()`, sets
+`deleted_at`. This is the **only** deactivate mechanism for these lookups
+(unlike `users`, there is no separate `isActive` boolean toggle — see
+`docs/Schema.md` §3).
+
+Response `204 No Content`.
+
+Errors:
+- `404 Not Found`.
+
+> **Open issue carried from `docs/Schema.md` §8**: v1 does **not** block
+> deactivation of a lookup row that's still referenced by active products
+> (no `409 Conflict` check). Existing products keep their FK; the
+> deactivated value simply disappears from `GET` lists used to populate
+> product form dropdowns. Flagged for product-owner decision — see Schema.md
+> §8 for the two proposed options.
+
+---
+
+## 7. Products Module
+
+Route prefix: `/api/products`. Table: `products` (`docs/Schema.md` §4).
+Every product has required `departmentId`, `groupId`, and `brandId`
+(replacing the old freeform `department`/`group`/`line` varchar columns).
+`GET` endpoints are available to any authenticated user; mutations follow
+the role split below.
+
+### 7.1 Shared nested lookup shape
+
+Product responses embed each classification as a nested object (not just the
+raw id), so the frontend can render `code`/`name` without a second request:
+
+```typescript
+// ProductLookupRef — embedded in ProductResponseDto
+{
+  id: string;
+  code: string;
+  name: string;
+}
+```
+
+### 7.2 `POST /api/products`
+
+Any authenticated user (admin or employee) per `docs/Requirements.md` §4
+("Employee: Create and edit products").
+
+Request body — `CreateProductDto`:
+
+```typescript
+{
+  reference: string;     // @IsString() @IsNotEmpty() @MaxLength(100)
+  description: string;   // @IsString() @IsNotEmpty() @MaxLength(255)
+  salePrice: number;     // @Type(() => Number) @IsNumber() @IsPositive()
+  stock: number;         // @Type(() => Number) @IsInt() @Min(0)
+  departmentId: string;  // @IsUUID()
+  groupId: string;       // @IsUUID()
+  brandId: string;       // @IsUUID()
+}
+```
+
+> **Note**: `cost` is intentionally **not** part of `CreateProductDto`/
+> `UpdateProductDto`. It is a derived value, computed server-side as
+> `round(salePrice / COST_FACTOR)` (see `apps/api/src/products/products.service.ts`)
+> and persisted to the NOT NULL `cost` column on `products`. This is a
+> deliberate product decision, not a gap.
+
+Response `201 Created`: `ProductResponseDto` (§7.4).
+
+Errors:
+- `400 Bad Request` — validation errors, including `departmentId`/`groupId`/
+  `brandId` not being valid UUIDs.
+- `404 Not Found` — `departmentId`, `groupId`, or `brandId` does not
+  reference an existing (non-deleted) row. Response body should indicate
+  which field(s) failed, e.g.
+  `{ "message": "Invalid brandId: brand not found", "field": "brandId" }`.
+- `409 Conflict` — `reference` already in use by an active product.
+
+`createdBy` set to the requesting user's id.
+
+---
+
+### 7.3 `GET /api/products`
+
+Available to any authenticated user. Query params — `QueryProductsDto`:
+
+```typescript
+{
+  page?: number;        // default 1
+  limit?: number;       // default 20, max 100
+  search?: string;      // matches reference or description (ILIKE)
+  departmentId?: string; // @IsOptional() @IsUUID() — filter by department
+  groupId?: string;      // @IsOptional() @IsUUID() — filter by group
+  brandId?: string;      // @IsOptional() @IsUUID() — filter by brand
+}
+```
+
+> **Replaces** the previous `department`/`group`/`line` string filters
+> (`apps/api/src/products/dto/query-products.dto.ts`) with `*Id` UUID
+> filters against the new FK columns. `line` filtering is removed entirely
+> (no replacement — brand/`brandId` filtering covers the equivalent need).
+
+Response `200 OK` — standard paginated envelope:
+
+```typescript
+{
+  data: ProductResponseDto[];
+  meta: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  }
+}
+```
+
+---
+
+### 7.4 `GET /api/products/:id`
+
+Available to any authenticated user.
+
+Response `200 OK` — `ProductResponseDto`:
+
+```typescript
+{
+  id: string;
+  reference: string;
+  description: string;
+  cost: number;
+  salePrice: number;
+  stock: number;
+  department: ProductLookupRef;  // { id, code, name }
+  group: ProductLookupRef;       // { id, code, name }
+  brand: ProductLookupRef;       // { id, code, name }
+  createdAt: string; // ISO 8601
+  updatedAt: string; // ISO 8601
+}
+```
+
+> **Replaces** the previous flat `department: string`, `group: string`,
+> `line: string` fields
+> (`apps/api/src/products/dto/product-response.dto.ts`) with nested
+> `department`/`group`/`brand` objects. There is no `line` field — Marca
+> (`brand`) takes its place. The flat `*Id` values are intentionally **not**
+> duplicated at the top level of the response (the nested object's `id` is
+> sufficient); if the frontend needs the raw id for a form's initial value,
+> it reads `product.department.id`, etc.
+
+Errors: `404 Not Found`.
+
+---
+
+### 7.5 `PATCH /api/products/:id`
+
+Any authenticated user (admin or employee).
+
+Request body — `UpdateProductDto` (all fields optional):
+
+```typescript
+{
+  reference?: string;
+  description?: string;
+  salePrice?: number;
+  stock?: number;        // @IsOptional() @Type(() => Number) @IsInt() @Min(0)
+  departmentId?: string; // @IsOptional() @IsUUID()
+  groupId?: string;      // @IsOptional() @IsUUID()
+  brandId?: string;      // @IsOptional() @IsUUID()
+}
+```
+
+Response `200 OK`: `ProductResponseDto`.
+
+Errors:
+- `404 Not Found` — product, or referenced `departmentId`/`groupId`/
+  `brandId` not found.
+- `409 Conflict` — `reference` collision with another active product.
+- `400 Bad Request` — validation errors.
+
+`updatedBy` set to the requesting user's id.
+
+---
+
+### 7.6 `DELETE /api/products/:id`
+
+**Admin only** (deactivating a product is an admin action; employees can
+create/edit per Requirements §4 but not deactivate — consistent with the
+asymmetry already established for `users` where only admins manage
+lifecycle state). Soft-deletes the product.
+
+Response `204 No Content`.
+
+Errors: `404 Not Found`.
+
+> Flag for product-owner confirmation: `docs/Requirements.md` §5.3 says
+> "Soft delete products (deactivate, not hard delete)" without specifying
+> role. This contract assumes admin-only for the deactivate action,
+> consistent with §4's role table ("Admin: Full access ... Employee: Create
+> and edit products, view inventory" — deactivation isn't listed under
+> Employee). Easy to relax to any authenticated user if incorrect.
+
+---
+
+## 8. Known limitations / open items for follow-up
 
 1. **Stateless refresh tokens** — no server-side revocation. If "logout
    everywhere" or immediate access revocation becomes a hard requirement,
@@ -463,3 +832,22 @@ Errors:
    or a data migration) is not yet designed — needed before `/api/auth/login`
    can be tested end-to-end. Recommend a small `apps/api/src/database/seeds/`
    script as part of the `users` module implementation.
+7. **Existing product data migration** — the `products` table already has
+   live `department`/`group`/`line` varchar data (per the migration plan in
+   `docs/Schema.md` §8 / the dedicated migration-plan doc). Before the
+   `NOT NULL` FK columns can be added, every distinct existing
+   department/group/line value must be backfilled into `departments`,
+   `product_groups`, and `brands` respectively, and each product row updated
+   to point at the corresponding new id. This is a data migration, not just
+   a schema migration — see the migration plan for the proposed approach.
+8. **Lookup deactivation referential-integrity check** — not implemented in
+   v1 (see §6.6 callout and `docs/Schema.md` §8). `DELETE
+   /api/departments|groups|brands/:id` does not check whether active products
+   still reference the row.
+9. **No "list all, unpaginated" endpoint for lookups** — `GET
+   /api/departments|groups|brands` is paginated like every other list
+   endpoint (§6.3). Frontend dropdowns should request a high `limit`. Revisit
+   if any shop's lookup tables grow beyond ~100 rows.
+10. **`cost` field gap in current `CreateProductDto`** — see §7.2 callout;
+    pre-existing gap (not introduced by this change) that the Backend agent
+    should fix while touching `products` DTOs.

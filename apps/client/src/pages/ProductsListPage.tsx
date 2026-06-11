@@ -4,9 +4,11 @@ import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
 import { ProductCard } from '../components/ProductCard';
+import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
+import { useBrands, useDepartments, useGroups } from '../hooks/useLookups';
 import { useDeleteProduct, useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import type { ProductResponse, ProductsQuery } from '../services/products';
@@ -21,9 +23,9 @@ export function ProductsListPage() {
     page: 1,
     limit: PAGE_SIZE,
     search: '',
-    department: '',
-    group: '',
-    line: '',
+    departmentId: '',
+    groupId: '',
+    brandId: '',
   });
   const [showFilters, setShowFilters] = useState(false);
   const [productPendingDelete, setProductPendingDelete] =
@@ -33,13 +35,16 @@ export function ProductsListPage() {
     page: filters.page,
     limit: filters.limit,
     ...(filters.search ? { search: filters.search } : {}),
-    ...(filters.department ? { department: filters.department } : {}),
-    ...(filters.group ? { group: filters.group } : {}),
-    ...(filters.line ? { line: filters.line } : {}),
+    ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
+    ...(filters.groupId ? { groupId: filters.groupId } : {}),
+    ...(filters.brandId ? { brandId: filters.brandId } : {}),
   };
 
   const productsQuery = useProducts(query);
   const deleteMutation = useDeleteProduct();
+  const departmentsQuery = useDepartments();
+  const groupsQuery = useGroups();
+  const brandsQuery = useBrands();
 
   const updateFilter = (patch: Partial<ProductsQuery>) => {
     setFilters((prev) => ({ ...prev, ...patch, page: 1 }));
@@ -88,24 +93,42 @@ export function ProductsListPage() {
 
         {showFilters && (
           <div className="grid grid-cols-1 gap-2 rounded-lg border border-[#E4E8EF] bg-white p-3 sm:grid-cols-3 sm:gap-3 sm:p-4">
-            <TextField
+            <SelectField
               label="Departamento"
-              placeholder="Todos"
-              value={filters.department ?? ''}
-              onChange={(e) => updateFilter({ department: e.target.value })}
-            />
-            <TextField
+              value={filters.departmentId ?? ''}
+              onChange={(e) => updateFilter({ departmentId: e.target.value })}
+            >
+              <option value="">Todos</option>
+              {departmentsQuery.data?.data.map((department) => (
+                <option key={department.id} value={department.id}>
+                  {department.name}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField
               label="Grupo"
-              placeholder="Todos"
-              value={filters.group ?? ''}
-              onChange={(e) => updateFilter({ group: e.target.value })}
-            />
-            <TextField
-              label="Línea"
-              placeholder="Todas"
-              value={filters.line ?? ''}
-              onChange={(e) => updateFilter({ line: e.target.value })}
-            />
+              value={filters.groupId ?? ''}
+              onChange={(e) => updateFilter({ groupId: e.target.value })}
+            >
+              <option value="">Todos</option>
+              {groupsQuery.data?.data.map((group) => (
+                <option key={group.id} value={group.id}>
+                  {group.name}
+                </option>
+              ))}
+            </SelectField>
+            <SelectField
+              label="Marca"
+              value={filters.brandId ?? ''}
+              onChange={(e) => updateFilter({ brandId: e.target.value })}
+            >
+              <option value="">Todas</option>
+              {brandsQuery.data?.data.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </SelectField>
           </div>
         )}
       </div>

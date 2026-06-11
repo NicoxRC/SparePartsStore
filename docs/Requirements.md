@@ -33,7 +33,7 @@ CasaRespuestos is a spare parts inventory management system for a physical store
 
 |Role|Permissions|
 |---|---|
-|Admin|Full access: users, products, categories, brands, export, config|
+|Admin|Full access: users, products, departments/groups/brands, export, config|
 |Employee|Create and edit products, view inventory|
 
 ---
@@ -55,22 +55,45 @@ CasaRespuestos is a spare parts inventory management system for a physical store
 
 ### 5.3 Product Management
 
-- [ ] Create product with: name, SKU/code, description, category, brand, unit of measure, purchase price, sale price, stock quantity, minimum stock alert
+- [ ] Create product with: reference/SKU, description, cost, sale price,
+      department (Departamento), group (Grupo), brand (Marca)
 - [ ] Edit existing products
 - [ ] Soft delete products (deactivate, not hard delete)
-- [ ] Search and filter products (by name, SKU, category, brand)
+- [ ] Search and filter products (by reference, description, department,
+      group, brand)
 - [ ] View product detail
 - [ ] Audit fields on all records: `createdAt`, `updatedAt`, `createdBy`
 
-### 5.4 Categories
+> **Superseded**: earlier drafts of this section referenced `name`, `unit of
+> measure`, `stock quantity`, and `minimum stock alert` as product fields,
+> and `category`/`brand` as classification. `unit of measure`, `stock
+> quantity`, and `minimum stock alert` belong to the `inventory` module
+> (§5.6) and are tracked separately, not as `Product` columns. See §5.4 for
+> the current classification model.
 
-- [ ] Create, edit, deactivate categories
-- [ ] A product must belong to a category
+### 5.4 Product Classification — Department / Group / Brand
 
-### 5.5 Brands
+The original "Category" and "Brand" lookup-table concept (previously §5.4
+and §5.5) is **replaced** by three required classification lookups, each
+with its own admin-managed catalog:
 
-- [ ] Create, edit, deactivate brands
-- [ ] A product must belong to a brand
+- **Department** (Departamento)
+- **Group** (Grupo)
+- **Brand** (Marca) — replaces the former "Línea" concept entirely; línea is
+  not modeled separately
+
+Rules (apply identically to all three):
+
+- [ ] Admins can create, edit, and deactivate department/group/brand entries
+- [ ] Every product must reference exactly one department, one group, and
+      one brand (all three required, non-nullable)
+- [ ] All authenticated users (admin and employee) can list
+      departments/groups/brands to populate product forms
+- [ ] Each entry has a short `code` (unique among active entries) and a
+      display `name`
+
+See `docs/Schema.md` §3-§7 and `docs/ApiContract.md` §6-§7 for the schema and
+API contract.
 
 ### 5.6 Inventory
 
@@ -189,3 +212,4 @@ CasaRespuestos/
 |Version|Date|Description|
 |---|---|---|
 |1.0|2026-06-03|Initial requirements doc|
+|1.1|2026-06-10|Replaced category/brand lookup model (§5.4-5.5) with required Department/Group/Brand classification (§5.4); brand (Marca) replaces línea|

@@ -1,5 +1,13 @@
 import { Type } from 'class-transformer';
-import { IsNotEmpty, IsNumber, IsPositive, IsString } from 'class-validator';
+import {
+  IsInt,
+  IsNotEmpty,
+  IsNumber,
+  IsPositive,
+  IsString,
+  IsUUID,
+  Min,
+} from 'class-validator';
 
 export class CreateProductDto {
   @IsString()
@@ -15,15 +23,17 @@ export class CreateProductDto {
   @IsPositive()
   salePrice: number;
 
-  @IsString()
-  @IsNotEmpty()
-  department: string;
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  stock: number;
 
-  @IsString()
-  @IsNotEmpty()
-  group: string;
+  @IsUUID()
+  departmentId: string;
 
-  @IsString()
-  @IsNotEmpty()
-  line: string;
+  @IsUUID()
+  groupId: string;
+
+  @IsUUID()
+  brandId: string;
 }

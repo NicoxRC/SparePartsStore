@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
 
 export class QueryProductsDto {
   @IsOptional()
@@ -20,14 +20,14 @@ export class QueryProductsDto {
   search?: string;
 
   @IsOptional()
-  @IsString()
-  department?: string;
+  @IsUUID()
+  departmentId?: string;
 
   @IsOptional()
-  @IsString()
-  group?: string;
+  @IsUUID()
+  groupId?: string;
 
   @IsOptional()
-  @IsString()
-  line?: string;
+  @IsUUID()
+  brandId?: string;
 }

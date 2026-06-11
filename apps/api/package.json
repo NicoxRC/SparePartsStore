@@ -23,7 +23,8 @@
     "migration:create": "typeorm-ts-node-commonjs migration:create",
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
-    "seed:admin": "ts-node -r tsconfig-paths/register src/database/seeds/seed-admin.ts"
+    "seed:admin": "ts-node -r tsconfig-paths/register src/database/seeds/seed-admin.ts",
+    "seed:product-lookups": "ts-node -r tsconfig-paths/register src/database/seeds/seed-product-lookups.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
