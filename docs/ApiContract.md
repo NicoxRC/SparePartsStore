@@ -654,6 +654,7 @@ Request body — `CreateProductDto`:
   reference: string;     // @IsString() @IsNotEmpty() @MaxLength(100)
   description: string;   // @IsString() @IsNotEmpty() @MaxLength(255)
   salePrice: number;     // @Type(() => Number) @IsNumber() @IsPositive()
+  saleType: 'normal' | 'neto'; // @IsEnum(SaleType)
   stock: number;         // @Type(() => Number) @IsInt() @Min(0)
   departmentId: string;  // @IsUUID()
   groupId: string;       // @IsUUID()
@@ -662,10 +663,15 @@ Request body — `CreateProductDto`:
 ```
 
 > **Note**: `cost` is intentionally **not** part of `CreateProductDto`/
-> `UpdateProductDto`. It is a derived value, computed server-side as
-> `round(salePrice / COST_FACTOR)` (see `apps/api/src/products/products.service.ts`)
+> `UpdateProductDto`. It is a derived value, computed server-side from
+> `salePrice` and `saleType` (see `apps/api/src/products/products.service.ts`)
 > and persisted to the NOT NULL `cost` column on `products`. This is a
 > deliberate product decision, not a gap.
+>
+> `saleType` selects the cost factor: `normal` divides `salePrice` by `1.65`,
+> `neto` divides by `1.3`. `cost = round(salePrice / factor)`. Changing
+> `saleType` or `salePrice` on `PATCH` recomputes `cost` using the resulting
+> values.
 
 Response `201 Created`: `ProductResponseDto` (§7.4).
 
@@ -731,6 +737,7 @@ Response `200 OK` — `ProductResponseDto`:
   description: string;
   cost: number;
   salePrice: number;
+  saleType: 'normal' | 'neto';
   stock: number;
   department: ProductLookupRef;  // { id, code, name }
   group: ProductLookupRef;       // { id, code, name }
@@ -764,6 +771,7 @@ Request body — `UpdateProductDto` (all fields optional):
   reference?: string;
   description?: string;
   salePrice?: number;
+  saleType?: 'normal' | 'neto'; // @IsOptional() @IsEnum(SaleType)
   stock?: number;        // @IsOptional() @Type(() => Number) @IsInt() @Min(0)
   departmentId?: string; // @IsOptional() @IsUUID()
   groupId?: string;      // @IsOptional() @IsUUID()

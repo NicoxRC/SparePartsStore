@@ -6,6 +6,7 @@ import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { CurrencyField } from '../components/CurrencyField';
 import { SearchableSelect } from '../components/SearchableSelect';
+import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useCreateProduct, useProduct, useUpdateProduct } from '../hooks/useProducts';
@@ -43,6 +44,7 @@ export function ProductFormPage() {
       reference: '',
       description: '',
       salePrice: 0,
+      saleType: 'normal',
       stock: 0,
       departmentId: '',
       groupId: '',
@@ -53,6 +55,7 @@ export function ProductFormPage() {
           reference: productQuery.data.reference,
           description: productQuery.data.description,
           salePrice: productQuery.data.salePrice,
+          saleType: productQuery.data.saleType,
           stock: productQuery.data.stock,
           departmentId: productQuery.data.department.id,
           groupId: productQuery.data.group.id,
@@ -126,6 +129,15 @@ export function ProductFormPage() {
             )}
           />
         </div>
+
+        <SelectField
+          label="Tipo de venta"
+          error={errors.saleType?.message}
+          {...register('saleType')}
+        >
+          <option value="normal">Normal</option>
+          <option value="neto">Neto</option>
+        </SelectField>
 
         <TextField
           label="Descripción"

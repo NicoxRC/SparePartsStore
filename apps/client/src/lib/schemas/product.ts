@@ -17,6 +17,9 @@ export const productFormSchema = z.object({
     .number({ message: 'El precio debe ser un número.' })
     .int('El precio debe ser un número entero.')
     .min(500, 'El precio mínimo es $500.'),
+  saleType: z.enum(['normal', 'neto'], {
+    message: 'El tipo de venta es obligatorio.',
+  }),
   stock: z.coerce
     .number({ message: 'El stock debe ser un número.' })
     .int('El stock debe ser un número entero.')

@@ -1,3 +1,4 @@
+import { SaleType } from '../../common/enums/sale-type.enum';
 import { Product } from '../entities/product.entity';
 
 export interface ProductLookupRef {
@@ -11,6 +12,7 @@ export class ProductResponseDto {
   description: string;
   cost: number;
   salePrice: number;
+  saleType: SaleType;
   stock: number;
   department: ProductLookupRef;
   group: ProductLookupRef;
@@ -25,6 +27,7 @@ export class ProductResponseDto {
     dto.description = product.description;
     dto.cost = product.cost;
     dto.salePrice = product.salePrice;
+    dto.saleType = product.saleType;
     dto.stock = product.stock;
     dto.department = {
       id: product.department.id,

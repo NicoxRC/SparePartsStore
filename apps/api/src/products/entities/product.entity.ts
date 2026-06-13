@@ -1,5 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from '../../common/entities/base.entity';
+import { SaleType } from '../../common/enums/sale-type.enum';
 import { User } from '../../users/entities/user.entity';
 import { Department } from '../../departments/entities/department.entity';
 import { Group } from '../../groups/entities/group.entity';
@@ -35,6 +36,15 @@ export class Product extends BaseEntity {
     transformer: decimalTransformer,
   })
   salePrice: number;
+
+  @Column({
+    name: 'sale_type',
+    type: 'enum',
+    enum: SaleType,
+    enumName: 'sale_type',
+    default: SaleType.NORMAL,
+  })
+  saleType: SaleType;
 
   @Column({ type: 'int', default: 0 })
   stock: number;
