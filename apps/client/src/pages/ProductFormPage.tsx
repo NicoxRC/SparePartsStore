@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { Button } from '../components/Button';
 import { CurrencyField } from '../components/CurrencyField';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -37,6 +38,7 @@ export function ProductFormPage() {
     handleSubmit,
     reset,
     control,
+    setValue,
     formState: { errors },
   } = useForm<ProductFormInput, unknown, ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -70,6 +72,7 @@ export function ProductFormPage() {
     type: 'success' | 'error';
     message: string;
   } | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
 
   const onSubmit = async (values: ProductFormValues) => {
     try {
@@ -106,13 +109,37 @@ export function ProductFormPage() {
         noValidate
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <TextField
-            label="Referencia"
-            placeholder="Ej: ABC-123"
-            className="font-mono uppercase"
-            error={errors.reference?.message}
-            {...register('reference')}
-          />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="reference" className="text-sm font-medium text-[#3F4654]">
+              Referencia
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="reference"
+                type="text"
+                placeholder="Ej: ABC-123"
+                className={`min-h-12 w-full rounded-lg border px-4 py-3 font-mono uppercase text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2A4A]/30 focus:border-[#1E2A4A] sm:min-h-11 sm:py-2.5 sm:text-sm ${
+                  errors.reference ? 'border-[#C2483A]' : 'border-[#D8DCE6]'
+                }`}
+                aria-invalid={Boolean(errors.reference)}
+                aria-describedby={errors.reference ? 'reference-error' : undefined}
+                {...register('reference')}
+              />
+              <button
+                type="button"
+                onClick={() => setScannerOpen(true)}
+                className="flex min-h-12 min-w-12 items-center justify-center rounded-lg border border-[#D8DCE6] bg-white text-xl text-[#3F4654] hover:bg-[#F7F6F4] sm:min-h-11 sm:min-w-11"
+                aria-label="Escanear código de barras"
+              >
+                📷
+              </button>
+            </div>
+            {errors.reference && (
+              <p id="reference-error" className="text-sm text-[#C2483A]">
+                {errors.reference.message}
+              </p>
+            )}
+          </div>
           <Controller
             name="salePrice"
             control={control}
@@ -229,6 +256,13 @@ export function ProductFormPage() {
           </Button>
         </div>
       </form>
+
+      {scannerOpen && (
+        <BarcodeScannerModal
+          onScanned={(value) => setValue('reference', value, { shouldValidate: true })}
+          onClose={() => setScannerOpen(false)}
+        />
+      )}
 
       {feedback && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
