@@ -69,7 +69,7 @@ export class InventoryService {
       .createQueryBuilder('movement')
       .leftJoinAndSelect('movement.product', 'product')
       .leftJoinAndSelect('movement.createdBy', 'createdBy')
-      .orderBy('movement.created_at', 'DESC')
+      .orderBy('movement.createdAt', 'DESC')
       .skip((page - 1) * limit)
       .take(limit);
 
