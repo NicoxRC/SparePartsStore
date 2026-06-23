@@ -7,6 +7,7 @@ export function AuthenticatedLayout() {
 
   const navItems = [
     { to: '/products', label: 'Productos', icon: '📦' },
+    { to: '/inventory', label: 'Inventario', icon: '🏭' },
     ...(user?.role === 'admin'
       ? [
           { to: '/users', label: 'Usuarios', icon: '👥' },
@@ -52,7 +53,11 @@ export function AuthenticatedLayout() {
               <span className="font-medium">{user.firstName} {user.lastName}</span>
               <br />
               <span className="text-xs text-[#8B92A3]">
-                {user.role === 'admin' ? 'Administrador' : 'Empleado'}
+                {user.role === 'admin'
+                  ? 'Administrador'
+                  : user.role === 'auditor'
+                    ? 'Auditor'
+                    : 'Empleado'}
               </span>
             </p>
           )}
@@ -75,7 +80,12 @@ export function AuthenticatedLayout() {
             </div>
             {user && (
               <p className="text-xs text-[#8B92A3]">
-                {user.firstName} {user.lastName} · {user.role === 'admin' ? 'Admin' : 'Empleado'}
+                {user.firstName} {user.lastName} ·{' '}
+                {user.role === 'admin'
+                  ? 'Admin'
+                  : user.role === 'auditor'
+                    ? 'Auditor'
+                    : 'Empleado'}
               </p>
             )}
           </div>

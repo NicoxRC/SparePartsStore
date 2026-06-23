@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
-import { Controller, useForm } from 'react-hook-form';
+import { useEffect, useState } from 'react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
@@ -10,7 +10,7 @@ import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
-import { useCreateProduct, useProduct, useUpdateProduct } from '../hooks/useProducts';
+import { useCheckReference, useCreateProduct, useProduct, useUpdateProduct } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import {
   productFormSchema,
@@ -74,7 +74,28 @@ export function ProductFormPage() {
   } | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
 
+  // Reference existence check
+  const rawReference = useWatch({ control, name: 'reference' });
+  const [debouncedRef, setDebouncedRef] = useState('');
+
+  useEffect(() => {
+    const id = setTimeout(
+      () => setDebouncedRef((rawReference ?? '').toUpperCase()),
+      500,
+    );
+    return () => clearTimeout(id);
+  }, [rawReference]);
+
+  const originalRef = isEditMode ? productQuery.data?.reference : undefined;
+  const shouldCheckRef =
+    debouncedRef.length > 0 &&
+    (!isEditMode || debouncedRef !== originalRef);
+
+  const refCheckQuery = useCheckReference(debouncedRef, shouldCheckRef);
+  const referenceExists = refCheckQuery.data?.exists === true;
+
   const onSubmit = async (values: ProductFormValues) => {
+    if (referenceExists) return;
     try {
       if (isEditMode) {
         await updateMutation.mutateAsync(values);
@@ -82,6 +103,7 @@ export function ProductFormPage() {
       } else {
         await createMutation.mutateAsync(values);
         reset();
+        setDebouncedRef('');
         setFeedback({ type: 'success', message: 'Producto creado correctamente.' });
       }
     } catch (error) {
@@ -96,6 +118,9 @@ export function ProductFormPage() {
   if (isEditMode && productQuery.isError) {
     return <Alert variant="error">{getApiErrorMessage(productQuery.error)}</Alert>;
   }
+
+  const referenceInputError = errors.reference?.message ?? (referenceExists ? 'Esta referencia ya existe' : undefined);
+  const referenceInputInvalid = Boolean(errors.reference) || referenceExists;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
@@ -119,10 +144,10 @@ export function ProductFormPage() {
                 type="text"
                 placeholder="Ej: ABC-123"
                 className={`min-h-12 w-full rounded-lg border px-4 py-3 font-mono uppercase text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2A4A]/30 focus:border-[#1E2A4A] sm:min-h-11 sm:py-2.5 sm:text-sm ${
-                  errors.reference ? 'border-[#C2483A]' : 'border-[#D8DCE6]'
+                  referenceInputInvalid ? 'border-[#C2483A]' : 'border-[#D8DCE6]'
                 }`}
-                aria-invalid={Boolean(errors.reference)}
-                aria-describedby={errors.reference ? 'reference-error' : undefined}
+                aria-invalid={referenceInputInvalid}
+                aria-describedby={referenceInputInvalid ? 'reference-error' : undefined}
                 {...register('reference')}
               />
               <button
@@ -134,9 +159,12 @@ export function ProductFormPage() {
                 📷
               </button>
             </div>
-            {errors.reference && (
+            {refCheckQuery.isFetching && (
+              <p className="text-xs text-[#8B92A3]">Verificando referencia…</p>
+            )}
+            {referenceInputError && !refCheckQuery.isFetching && (
               <p id="reference-error" className="text-sm text-[#C2483A]">
-                {errors.reference.message}
+                {referenceInputError}
               </p>
             )}
           </div>
@@ -174,7 +202,7 @@ export function ProductFormPage() {
         />
 
         <TextField
-          label="Stock"
+          label="Stock inicial"
           type="number"
           inputMode="numeric"
           step="1"
@@ -251,7 +279,12 @@ export function ProductFormPage() {
           >
             Cancelar
           </Button>
-          <Button type="submit" className="sm:w-auto sm:px-6" isLoading={mutation.isPending}>
+          <Button
+            type="submit"
+            className="sm:w-auto sm:px-6"
+            isLoading={mutation.isPending}
+            disabled={referenceExists}
+          >
             {isEditMode ? 'Guardar cambios' : 'Crear producto'}
           </Button>
         </div>

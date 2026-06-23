@@ -1,7 +1,7 @@
 import { api } from '../lib/api';
 import type { PaginatedResponse } from './products';
 
-export type UserRole = 'admin' | 'employee';
+export type UserRole = 'admin' | 'employee' | 'auditor';
 
 export interface UserResponse {
   id: string;

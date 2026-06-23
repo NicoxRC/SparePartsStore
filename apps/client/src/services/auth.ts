@@ -1,6 +1,6 @@
 import { api } from '../lib/api';
 
-export type UserRole = 'admin' | 'employee';
+export type UserRole = 'admin' | 'employee' | 'auditor';
 
 export interface AuthUser {
   id: string;

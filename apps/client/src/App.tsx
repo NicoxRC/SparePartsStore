@@ -1,12 +1,14 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { AdminRoute } from './components/AdminRoute';
+import { EmployeeRoute } from './components/EmployeeRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { AuthLayout } from './layouts/AuthLayout';
 import { AuthenticatedLayout } from './layouts/AuthenticatedLayout';
 import { CatalogsPage } from './pages/CatalogsPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { InventoryPage } from './pages/InventoryPage';
 import { LoginPage } from './pages/LoginPage';
 import { LookupFormPage } from './pages/LookupFormPage';
 import { LookupListPage } from './pages/LookupListPage';
@@ -39,8 +41,12 @@ function App() {
 
               <Route element={<AuthenticatedLayout />}>
                 <Route path="/products" element={<ProductsListPage />} />
-                <Route path="/products/new" element={<ProductFormPage />} />
-                <Route path="/products/:id/edit" element={<ProductFormPage />} />
+                <Route path="/inventory" element={<InventoryPage />} />
+
+                <Route element={<EmployeeRoute />}>
+                  <Route path="/products/new" element={<ProductFormPage />} />
+                  <Route path="/products/:id/edit" element={<ProductFormPage />} />
+                </Route>
 
                 <Route element={<AdminRoute />}>
                   <Route path="/users" element={<UsersListPage />} />

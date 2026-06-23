@@ -18,7 +18,7 @@ const lastName = z
   .min(1, 'El apellido es obligatorio.')
   .max(100, 'Máximo 100 caracteres.');
 
-const role = z.enum(['admin', 'employee'], {
+const role = z.enum(['admin', 'employee', 'auditor'], {
   message: 'Selecciona un rol.',
 });
 

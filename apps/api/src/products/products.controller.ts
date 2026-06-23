@@ -11,6 +11,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import {
   AuthenticatedUser,
@@ -23,6 +24,12 @@ import { ProductResponseDto } from './dto/product-response.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductsService } from './products.service';
+
+class CheckReferenceQuery {
+  @IsString()
+  @IsNotEmpty()
+  reference: string;
+}
 
 @Controller('products')
 export class ProductsController {
@@ -42,6 +49,13 @@ export class ProductsController {
     @Query() query: QueryProductsDto,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
     return this.productsService.findAll(query);
+  }
+
+  @Get('check-reference')
+  checkReference(
+    @Query() query: CheckReferenceQuery,
+  ): Promise<{ exists: boolean }> {
+    return this.productsService.checkReference(query.reference);
   }
 
   @Get(':id')

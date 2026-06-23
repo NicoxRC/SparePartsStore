@@ -87,3 +87,13 @@ export async function updateProduct(
 export async function deleteProduct(id: string): Promise<void> {
   await api.delete(`/products/${id}`);
 }
+
+export async function checkReference(
+  reference: string,
+): Promise<{ exists: boolean }> {
+  const { data } = await api.get<{ exists: boolean }>(
+    '/products/check-reference',
+    { params: { reference } },
+  );
+  return data;
+}

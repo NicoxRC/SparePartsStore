@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import {
+  checkReference,
   createProduct,
   deleteProduct,
   getProduct,
@@ -59,5 +60,14 @@ export function useDeleteProduct() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
     },
+  });
+}
+
+export function useCheckReference(reference: string, enabled: boolean) {
+  return useQuery({
+    queryKey: [PRODUCTS_KEY, 'check-reference', reference],
+    queryFn: () => checkReference(reference),
+    enabled: enabled && reference.length > 0,
+    staleTime: 30_000,
   });
 }

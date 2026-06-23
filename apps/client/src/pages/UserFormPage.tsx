@@ -116,6 +116,7 @@ export function UserFormPage() {
           <SelectField label="Rol" error={errors.role?.message} {...register('role')}>
             <option value="employee">Empleado</option>
             <option value="admin">Administrador</option>
+            <option value="auditor">Auditor</option>
           </SelectField>
 
           <TextField

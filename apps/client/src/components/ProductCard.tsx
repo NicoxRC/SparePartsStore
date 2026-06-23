@@ -4,6 +4,7 @@ import { Button } from './Button';
 
 interface ProductCardProps {
   product: ProductResponse;
+  canEdit: boolean;
   canDelete: boolean;
   onDelete: (product: ProductResponse) => void;
   isDeleting: boolean;
@@ -17,6 +18,7 @@ const currencyFormatter = new Intl.NumberFormat('es-CO', {
 
 export function ProductCard({
   product,
+  canEdit,
   canDelete,
   onDelete,
   isDeleting,
@@ -61,11 +63,13 @@ export function ProductCard({
       </dl>
 
       <div className="mt-4 flex gap-2 sm:mt-auto sm:pt-4">
-        <Link to={`/products/${product.id}/edit`} className="flex-1">
-          <Button variant="secondary" type="button" className="w-full">
-            Editar
-          </Button>
-        </Link>
+        {canEdit && (
+          <Link to={`/products/${product.id}/edit`} className="flex-1">
+            <Button variant="secondary" type="button" className="w-full">
+              Editar
+            </Button>
+          </Link>
+        )}
         {canDelete && (
           <Button
             variant="danger"

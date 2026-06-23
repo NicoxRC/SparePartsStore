@@ -18,6 +18,7 @@ const PAGE_SIZE = 20;
 export function ProductsListPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const canMutate = user?.role === 'admin' || user?.role === 'employee';
 
   const [filters, setFilters] = useState<ProductsQuery>({
     page: 1,
@@ -75,9 +76,11 @@ export function ProductsListPage() {
               Exportar
             </Button>
           )}
-          <Link to="/products/new" className="shrink-0">
-            <Button type="button">+ Nuevo</Button>
-          </Link>
+          {canMutate && (
+            <Link to="/products/new" className="shrink-0">
+              <Button type="button">+ Nuevo</Button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -155,6 +158,7 @@ export function ProductsListPage() {
                 <ProductCard
                   key={product.id}
                   product={product}
+                  canEdit={canMutate}
                   canDelete={isAdmin}
                   onDelete={handleDeleteRequest}
                   isDeleting={

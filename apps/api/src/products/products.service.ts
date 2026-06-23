@@ -168,6 +168,11 @@ export class ProductsService {
     return this.productsRepository.findOne({ where: { reference } });
   }
 
+  async checkReference(reference: string): Promise<{ exists: boolean }> {
+    const product = await this.findByReference(reference.toUpperCase());
+    return { exists: product !== null };
+  }
+
   async update(
     id: string,
     dto: UpdateProductDto,
