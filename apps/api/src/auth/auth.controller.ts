@@ -8,6 +8,12 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
+import {
   AuthenticatedUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
@@ -24,6 +30,7 @@ import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 
+@ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -31,6 +38,9 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
+  @ApiOperation({ summary: 'Log in with email and password' })
+  @ApiResponse({ status: 200, type: AuthResponseDto })
+  @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @Public()
   @UseGuards(LocalAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -42,6 +52,9 @@ export class AuthController {
     return this.authService.login(user);
   }
 
+  @ApiOperation({ summary: 'Exchange a refresh token for a new token pair' })
+  @ApiResponse({ status: 200, type: TokenPairDto })
+  @ApiResponse({ status: 401, description: 'Invalid or expired refresh token' })
   @Public()
   @UseGuards(JwtRefreshAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -53,11 +66,17 @@ export class AuthController {
     return this.authService.refresh(user);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Log out (client-side token clear only)' })
+  @ApiResponse({ status: 204 })
   @SkipPasswordCheck()
   @HttpCode(HttpStatus.NO_CONTENT)
   @Post('logout')
   logout(): void {}
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the current authenticated user' })
+  @ApiResponse({ status: 200, type: UserResponseDto })
   @SkipPasswordCheck()
   @Get('me')
   async me(@CurrentUser() user: AuthenticatedUser): Promise<UserResponseDto> {
@@ -65,6 +84,10 @@ export class AuthController {
     return UserResponseDto.fromEntity(entity);
   }
 
+  @ApiBearerAuth()
+  @ApiOperation({ summary: "Change the current user's password" })
+  @ApiResponse({ status: 200, type: TokenPairDto })
+  @ApiResponse({ status: 400, description: 'Current password is incorrect' })
   @SkipPasswordCheck()
   @HttpCode(HttpStatus.OK)
   @Post('change-password')

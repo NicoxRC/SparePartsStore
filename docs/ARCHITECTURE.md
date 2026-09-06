@@ -108,14 +108,14 @@ No `@Roles(...)` on a controller/handler means any authenticated user of any rol
 
 All routes are prefixed with `/api` (`app.setGlobalPrefix('api')` in `main.ts`). **There is no `/v1` segment** — this was never introduced, unlike what an earlier draft of the Requirements doc assumed. If a breaking API change is ever needed, introduce versioning at that point rather than pre-emptively.
 
-### Response format — no global envelope (current reality)
+### Response format
 
-Unlike some NestJS starters, this API has **no global response interceptor or exception filter**. A controller returns its DTO/entity/array directly, and a successful response is exactly that JSON, with no `{ success, data }` wrapper.
+There is **no global response interceptor for success responses** — a controller returns its DTO/entity/array directly, with no `{ success, data }` wrapper.
 
-- **List endpoints** are the one place with a consistent shape, but it's explicit, not interceptor-driven: they return `PaginatedResponseDto<T>` (`common/dto/`) — `{ data: T[], meta: { total, page, limit, totalPages } }` — built by the service itself.
-- **Errors** use Nest's default `HttpException` JSON shape (`{ statusCode, message, error }`), thrown from services (`NotFoundException`, `ConflictException`, `BadRequestException`, etc.). Controllers don't catch or reformat them.
+- **List endpoints** are the one place with a consistent success shape, but it's explicit, not interceptor-driven: they return `PaginatedResponseDto<T>` (`common/dto/`) — `{ data: T[], meta: { total, page, limit, totalPages } }` — built by the service itself.
+- **Errors** go through a global exception filter (`common/filters/http-exception.filter.ts`, added in Phase 7) which normalizes every thrown exception into `{ statusCode, message, error?, timestamp, path }`. It never renames or drops a field an existing exception already sets — e.g. `JwtAuthGuard`'s `{ statusCode: 403, error: 'PasswordChangeRequired', message: '...' }` (matched by field name in `apps/client/src/lib/api.ts`) passes through unchanged, just with `timestamp`/`path` appended. An unrecognized (non-`HttpException`) error is logged server-side and mapped to a generic `500`.
 
-This is a known gap relative to a more mature setup (see `docs/phases/PHASE_7_DATAICO_FOUNDATION.md`): a global exception filter and **Swagger** (`@nestjs/swagger`) are being added as part of the invoicing foundation work, since the invoicing phases add many new endpoints that are worth documenting from day one. `DEFINITION_OF_DONE.md` requires Swagger decorators on every **new** endpoint going forward — existing pre-invoicing endpoints are not required to be retrofitted as part of an unrelated change.
+**Swagger** (`@nestjs/swagger`) is wired up in `main.ts`, served at `/api/docs`. Per `DEFINITION_OF_DONE.md`, every **new** endpoint added from Phase 7 onward must be documented with `@ApiTags`/`@ApiOperation`/`@ApiResponse`/`@ApiProperty` — existing pre-invoicing endpoints are documented incrementally as they're touched, not retrofitted all at once.
 
 ### Invoicing module (new)
 
