@@ -1,10 +1,4 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import {
   AuthenticatedUser,
