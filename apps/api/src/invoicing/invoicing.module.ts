@@ -1,19 +1,19 @@
 import { Module } from '@nestjs/common';
-import { DataicoClientService } from './dataico/dataico-client.service';
-import { DataicoConfig } from './dataico/dataico.config';
+import { DataicoModule } from './dataico/dataico.module';
+import { ResolutionsModule } from './resolutions/resolutions.module';
 
 /**
- * Parent module for all Dataico electronic-invoicing sub-domains — see
+ * Aggregates every Dataico electronic-invoicing sub-domain — see
  * docs/ARCHITECTURE.md's "Invoicing module" section for the target folder
- * structure. Only the shared Dataico client/config live here so far;
- * sub-domain modules (resolutions/, third-parties/, invoices/,
+ * structure. Sub-domain modules (third-parties/, invoices/,
  * reception-events/, ...) are added one at a time, each once its own
  * Dataico API reference has been shared and confirmed — see
  * docs/phases/PHASE_7_DATAICO_FOUNDATION.md and CLAUDE.md (never guess
- * Dataico endpoint paths or payload shapes).
+ * Dataico endpoint paths or payload shapes). This module only aggregates;
+ * it holds no providers of its own so sub-domain modules can import
+ * DataicoModule directly without a circular dependency.
  */
 @Module({
-  providers: [DataicoConfig, DataicoClientService],
-  exports: [DataicoClientService],
+  imports: [DataicoModule, ResolutionsModule],
 })
 export class InvoicingModule {}

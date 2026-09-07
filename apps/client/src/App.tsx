@@ -14,6 +14,8 @@ import { LookupFormPage } from './pages/LookupFormPage';
 import { LookupListPage } from './pages/LookupListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsListPage } from './pages/ProductsListPage';
+import { ResolutionFormPage } from './pages/ResolutionFormPage';
+import { ResolutionsListPage } from './pages/ResolutionsListPage';
 import { UserFormPage } from './pages/UserFormPage';
 import { UsersListPage } from './pages/UsersListPage';
 
@@ -54,6 +56,15 @@ function App() {
                   <Route path="/users/:id/edit" element={<UserFormPage />} />
 
                   <Route path="/catalogs" element={<CatalogsPage />} />
+
+                  <Route
+                    path="/invoicing/resolutions"
+                    element={<ResolutionsListPage />}
+                  />
+                  <Route
+                    path="/invoicing/resolutions/new"
+                    element={<ResolutionFormPage />}
+                  />
 
                   <Route
                     path="/departments"

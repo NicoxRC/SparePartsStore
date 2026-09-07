@@ -183,6 +183,25 @@ Table names: `departments`, `product_groups` (entity class `Group`), `brands`.
 
 **Read behavior worth knowing:** `MovementResponseDto`'s `newStock` field is actually **the product's current stock at read time**, not a point-in-time snapshot of what stock became right after that specific movement. Every row for the same product shows the same (current) `newStock` when listed together. This is a known simplification, not a bug to silently "fix" without checking whether the UI relies on the current behavior — flag it if a future phase needs a true historical snapshot.
 
+### `dian_resolutions`
+
+Added Phase 8 — a DIAN numbering resolution successfully synced to Dataico. See `docs/GLOSSARY.md` ("Resolución DIAN") and `docs/phases/PHASE_8_RESOLUTIONS.md`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `document_type` | ENUM `dian_resolution_document_type` (`invoice`, `support_docs`) | Which Dataico numbering-sync endpoint this resolution was sent to. |
+| `prefix` | VARCHAR(20) | |
+| `subtype` | VARCHAR(50) | Free validated string, not a TypeScript enum — only `ELECTRONICO`/`POS` are confirmed so far, and locking in a full enum would mean guessing the rest. |
+| `resolution_code`, `resolution_code_message` (nullable), `resolution_number` | VARCHAR | Mirror Dataico's own `code`/`code-msg`(or `code_msg`)/`number` fields — see the phase doc for the exact per-document-type wire format. |
+| `range_start`, `range_end` | INT | The resolution's authorized numbering range. |
+| `technical_key` | VARCHAR(255), nullable | Only ever set for `document_type = 'invoice'`, per the confirmed reference. |
+| `start_date`, `end_date` | DATE | The resolution's validity window. |
+| `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at` | TIMESTAMPTZ | **No `updated_at`, no `deleted_at` — append-only**, same convention as `inventory_movements`. A resolution is never edited; it's superseded by syncing a new one. The most recently created row for a given `(document_type, prefix)` is the active one — there is no separate "is active" flag. |
+
+**Business logic (`ResolutionsService.create`):** builds Dataico's request body (field names differ by `document_type` — see the phase doc), calls Dataico, and **only inserts the local row if Dataico accepts it** — a rejected sync is never recorded as "on file."
+
 ## Migrations (chronological)
 
 | # | Migration | What it did |
@@ -196,14 +215,15 @@ Table names: `departments`, `product_groups` (entity class `Group`), `brands`.
 | 7 | `AddSaleTypeToProducts` | `sale_type` enum, adds `products.sale_type` default `normal`. |
 | 8 | `AddAuditorRole` | `ALTER TYPE user_role ADD VALUE 'auditor'` — irreversible `down()` (Postgres can't drop enum values). |
 | 9 | `CreateInventoryMovements` | `movement_type` enum, `inventory_movements` table (FKs, indexes on `product_id` and `created_at DESC`), backfills one `initial` movement per pre-existing product with stock > 0. |
+| 10 | `CreateDianResolutions` | Phase 8. `dian_resolution_document_type` enum (`invoice`, `support_docs`), `dian_resolutions` table (FK to `users`, indexes on `(document_type, prefix)` and `created_at DESC`). |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 
 **Migration workflow:** `npm run migration:generate -- src/database/migrations/<Name>` after changing an entity, review the generated SQL before committing it, `npm run migration:run` locally to apply, `npm run migration:revert` to undo the last one. `synchronize: false` always — schema changes only ever happen through a migration, never TypeORM auto-sync.
 
-## Invoicing tables (Dataico) — not implemented yet
+## Remaining invoicing tables (Dataico) — not implemented yet
 
-No invoicing-related tables exist today. Each Dataico module (see `PROJECT_ROADMAP.md`) needs its own schema — at minimum something to persist DIAN resolutions/numbering ranges (Phase 8), and a local record of every invoice/credit note/debit note sent (Phase 10: status, Dataico's own document ID, the DIAN CUFE/response, timestamps) so the app has its own source of truth independent of querying Dataico live every time.
+`dian_resolutions` (Phase 8, above) is done. Still missing: a local record of every invoice/credit note/debit note sent (Phase 10: status, Dataico's own document ID, the DIAN CUFE/response, timestamps) so the app has its own source of truth independent of querying Dataico live every time.
 
 **Do not design this schema from guesswork.** The exact fields depend on what each Dataico endpoint actually requires/returns, confirmed per-module as its reference is shared (see `CLAUDE.md`). Run the Architect agent for each invoicing phase once that reference is available.
 

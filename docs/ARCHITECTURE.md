@@ -125,10 +125,11 @@ Dataico's API surface is split into 8 Postman collections; each becomes its own 
 apps/api/src/invoicing/
 ├── invoicing.module.ts
 ├── dataico/                             # built in Phase 7 — see docs/phases/PHASE_7_DATAICO_FOUNDATION.md
+│   ├── dataico.module.ts               # exports DataicoClientService — sub-domain modules import THIS, not InvoicingModule (avoids a circular dependency)
 │   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this. Auth is a custom `Auth-token` header, not Bearer/OAuth.
 │   ├── dataico.config.ts               # typed config (DATAICO_BASE_URL, DATAICO_AUTH_TOKEN) via ConfigService
 │   └── dataico-api.exception.ts        # maps a non-2xx Dataico response to a clear NestJS exception
-├── resolutions/                        # "8. Actualizar o vincular resoluciones"
+├── resolutions/                        # built in Phase 8 — "8. Actualizar o vincular resoluciones"
 ├── third-parties/                      # "7. Consulta DIAN Terceros"
 ├── invoices/                           # "1. Factura electrónica estándar" (facturas + notas crédito/débito)
 ├── reception-events/                   # "6. Eventos de recepción" — DIAN status/acceptance callbacks
@@ -139,6 +140,8 @@ apps/api/src/invoicing/
 ```
 
 Only build the sub-folders for the phase actually in progress — this tree is the target shape, not something to scaffold all at once. **Never guess a sub-domain's endpoint paths or payload shape before its Dataico reference has been shared** — see `CLAUDE.md`.
+
+`invoicing.module.ts` itself only aggregates sub-domain modules (`imports: [DataicoModule, ResolutionsModule, ...]`) — it holds no providers of its own, so a sub-domain module can import `DataicoModule` directly instead of importing `InvoicingModule` (which would create a circular dependency, since `InvoicingModule` imports the sub-domain modules).
 
 ---
 
