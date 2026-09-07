@@ -53,6 +53,21 @@ export class ResolutionsService {
     return ResolutionResponseDto.fromEntity(saved);
   }
 
+  /**
+   * The most recently synced resolution for a document type is the active
+   * one — there is no separate "is active" flag, see the entity's own
+   * comment. Used by InvoicesService to auto-fill an invoice's numbering
+   * instead of asking the caller to re-type it every time.
+   */
+  async findActiveForDocumentType(
+    documentType: DianResolutionDocumentType,
+  ): Promise<DianResolution | null> {
+    return this.resolutionsRepository.findOne({
+      where: { documentType },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async findAll(
     query: QueryResolutionsDto,
   ): Promise<PaginatedResponseDto<ResolutionResponseDto>> {

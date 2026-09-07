@@ -27,4 +27,20 @@ export class DataicoConfig {
     }
     return token;
   }
+
+  /**
+   * Identifies which Dataico account invoices are issued under — confirmed
+   * as a required field in the invoice payload (see
+   * docs/phases/PHASE_10_INVOICING_STANDARD.md). Stable per deployment, so
+   * it's configured once here rather than re-entered on every invoice.
+   */
+  get accountId(): string {
+    const accountId = this.configService.get<string>('DATAICO_ACCOUNT_ID');
+    if (!accountId) {
+      throw new Error(
+        'DATAICO_ACCOUNT_ID is not configured — set it in .env, see docs/ENVIRONMENT_VARIABLES.md',
+      );
+    }
+    return accountId;
+  }
 }

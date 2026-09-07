@@ -202,6 +202,34 @@ Added Phase 8 — a DIAN numbering resolution successfully synced to Dataico. Se
 
 **Business logic (`ResolutionsService.create`):** builds Dataico's request body (field names differ by `document_type` — see the phase doc), calls Dataico, and **only inserts the local row if Dataico accepts it** — a rejected sync is never recorded as "on file."
 
+### `invoices`
+
+Added Phase 10 — a local record of every invoice sent to Dataico. See `docs/GLOSSARY.md` ("Factura electrónica") and `docs/phases/PHASE_10_INVOICING_STANDARD.md` for the full confirmed request/response.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `number` | INT | What **this app** sent as the invoice number (caller-supplied, not auto-incremented — see the phase doc). |
+| `prefix`, `resolution_number` | VARCHAR | Copied from the active `dian_resolutions` row used at send time. |
+| `dataico_number` | VARCHAR, nullable | Dataico's own echoed number (e.g. `"FVE1225"` — prefix+number concatenated), distinct from `number` above. |
+| `customer_identification_type`, `customer_identification` | VARCHAR | |
+| `customer_company_name`, `customer_first_name`, `customer_family_name` | VARCHAR, nullable | Denormalized onto the invoice rather than a separate customers table — this app doesn't persist third-party lookups (see Phase 9), so there's nothing to join against. |
+| `customer_email` | VARCHAR | |
+| `issue_date`, `payment_date` | DATE | |
+| `dian_status`, `customer_status`, `email_status` | VARCHAR, nullable | Snapshotted from Dataico's response at send time — **not refreshed later**; a status-refresh mechanism is Phase 11's job (Eventos de recepción), not this table's. |
+| `cufe` | VARCHAR, nullable | |
+| `dataico_uuid` | VARCHAR, nullable | Dataico's internal document id — distinct from the CUFE. |
+| `xml_url`, `pdf_url` | VARCHAR, nullable | |
+| `qr_code` | TEXT, nullable | The DIAN QR payload text (not an image) — small enough to store directly. |
+| `dian_messages` | JSONB, nullable | Array of validation notice strings — can be non-empty even on an accepted invoice. |
+| `total_amount` | NUMERIC(12,2) | Computed at send time from the items actually sent (base + tax per item). |
+| `request_payload` | JSONB | The exact body sent to Dataico — the full legal record of what was invoiced (line items, taxes, customer data), since there's no separate `invoice_items` table. |
+| `response_payload` | JSONB, nullable | Dataico's response, **minus the `xml` field** (the full base64 UBL document — redundant with `xml_url`, would bloat every row). |
+| `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at` | TIMESTAMPTZ | **No `updated_at`, no `deleted_at` — append-only**, and no `invoice_items` child table — line items live inside `request_payload` rather than being normalized, since Dataico's item/tax shape is still only partially confirmed (see the phase doc's "Still not confirmed" section) and promoting it to rigid columns now would mean modeling fields that might not generalize once notas crédito/débito are confirmed. |
+
+**Business logic (`InvoicesService.create`):** resolves the active `invoices`-type resolution from `dian_resolutions`, validates stock for every line item up front, sends the request, and — only after Dataico accepts it — decrements stock per item via the existing `InventoryService.createMovement` and persists this row. See the phase doc for the full ordering rationale (a DIAN-accepted invoice can't be un-sent, so failing on insufficient stock has to happen before the Dataico call, not after).
+
 ## Migrations (chronological)
 
 | # | Migration | What it did |
@@ -216,6 +244,7 @@ Added Phase 8 — a DIAN numbering resolution successfully synced to Dataico. Se
 | 8 | `AddAuditorRole` | `ALTER TYPE user_role ADD VALUE 'auditor'` — irreversible `down()` (Postgres can't drop enum values). |
 | 9 | `CreateInventoryMovements` | `movement_type` enum, `inventory_movements` table (FKs, indexes on `product_id` and `created_at DESC`), backfills one `initial` movement per pre-existing product with stock > 0. |
 | 10 | `CreateDianResolutions` | Phase 8. `dian_resolution_document_type` enum (`invoice`, `support_docs`), `dian_resolutions` table (FK to `users`, indexes on `(document_type, prefix)` and `created_at DESC`). |
+| 11 | `CreateInvoices` | Phase 10. `invoices` table (FK to `users`, indexes on `created_at DESC` and `customer_identification`). |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 
@@ -223,7 +252,7 @@ Seed scripts (`database/seeds/`, not migrations — run manually via `npm run se
 
 ## Remaining invoicing tables (Dataico) — not implemented yet
 
-`dian_resolutions` (Phase 8, above) is done. Still missing: a local record of every invoice/credit note/debit note sent (Phase 10: status, Dataico's own document ID, the DIAN CUFE/response, timestamps) so the app has its own source of truth independent of querying Dataico live every time.
+`dian_resolutions` (Phase 8) and `invoices` (Phase 10, send-only) are done. Still missing: credit notes, debit notes, and any status-refresh/reception-event table (Phase 11) — their request/response shapes aren't confirmed yet.
 
 **Do not design this schema from guesswork.** The exact fields depend on what each Dataico endpoint actually requires/returns, confirmed per-module as its reference is shared (see `CLAUDE.md`). Run the Architect agent for each invoicing phase once that reference is available.
 
