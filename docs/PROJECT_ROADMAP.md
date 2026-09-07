@@ -66,11 +66,11 @@ Shared plumbing every invoicing phase depends on, so it's built once instead of 
 
 Corresponds to Dataico's "6. Eventos de recepción" collection. Turned out, once its real request list was seen (Acuse de recibido, Aceptación Tácita/Expresa, Rechazo, Recibido de prestación), to be entirely about acting as the **receiving** party of an invoice — acknowledging/accepting/rejecting a bill a *supplier* sends this store — not a status-callback mechanism for invoices this store issues. Confirmed with the human this isn't a current need (Phase 10's "Consulta Factura" already covers checking this store's own issued-invoice status). See `docs/phases/PHASE_11_RECEPTION_EVENTS.md`.
 
-## Phase 12 — POS Electrónico — **confirmed high priority**
+## Phase 12 — POS Electrónico — **Done** (send + query)
 
-Corresponds to Dataico's "3. POS Electrónico" collection — a lighter document type for counter sales. **Confirmed with the human: most of this store's sales are counter sales**, so this is likely the document type staff use most often day-to-day, not a secondary option to Phase 10's full invoice flow. See `docs/phases/PHASE_12_POS.md` — pending that collection's request/response reference.
+Corresponds to Dataico's "3. POS Electrónico" collection. **Confirmed as this store's primary sale flow** — most sales are counter sales, so this is the document type staff use most, ahead of Phase 10's full invoice form in the nav. See `docs/phases/PHASE_12_POS.md` — reference confirmed only against staging/gamma test environments, no production URL yet; response shape unconfirmed (mapped as a documented assumption).
 
-**Exit criteria:** a counter sale can be issued as a POS Electrónico document, as fast or faster than the current full-invoice flow.
+**Exit criteria:** a counter sale can be issued as a POS Electrónico document, as fast or faster than the full-invoice flow *(met, pending confirmation against a real Dataico response once available)*.
 
 ## Phase 13 — Documento soporte
 

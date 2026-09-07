@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DataicoModule } from './dataico/dataico.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { PosInvoicesModule } from './pos/pos-invoices.module';
 import { ResolutionsModule } from './resolutions/resolutions.module';
 import { ThirdPartiesModule } from './third-parties/third-parties.module';
 
@@ -21,6 +22,7 @@ import { ThirdPartiesModule } from './third-parties/third-parties.module';
     ResolutionsModule,
     ThirdPartiesModule,
     InvoicesModule,
+    PosInvoicesModule,
   ],
 })
 export class InvoicingModule {}

@@ -77,6 +77,25 @@ describe('DataicoClientService', () => {
     expect(result).toEqual({ dian_status: 'DIAN_ACEPTADO' });
   });
 
+  it('uses a per-call baseUrl override instead of the configured one, when given', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({})),
+    });
+
+    await service.post(
+      '/pos-invoices',
+      { number: 1 },
+      'https://staging.dataico.com/direct/dataico_api/v2',
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://staging.dataico.com/direct/dataico_api/v2/pos-invoices',
+      expect.anything(),
+    );
+  });
+
   it('throws DataicoApiException with the upstream status on a 4xx response', async () => {
     fetchMock.mockResolvedValue({
       ok: false,

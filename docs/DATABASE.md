@@ -233,6 +233,26 @@ Added Phase 10 — a local record of every invoice sent to Dataico. See `docs/GL
 
 **Business logic (`InvoicesService.resend` / `.refreshStatus`):** both call Dataico (`PUT /invoices/{dataico_uuid}` for resend, `GET /invoices?number=` for refresh) and update the SAME row's status/CUFE/urls via a shared `mapDataicoResponse()` helper — also used by `create` — rather than inserting a new row. See `docs/phases/PHASE_10_INVOICING_STANDARD.md`.
 
+### `pos_invoices`
+
+Added Phase 12 — a local record of every POS Electrónico document sent to Dataico. Deliberately a **separate table from `invoices`**, not a shared one with a discriminator column — the two document types' confirmed request shapes differ enough (nested item `product` object, array `payment-means`, no `dataico_account_id`/`env`/`operation`, different tax shape) that forcing them into one schema now would mean guessing which parts generalize. See `docs/phases/PHASE_12_POS.md`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `number` | INT | What this app sent. |
+| `prefix`, `resolution_number` | VARCHAR | From the active resolution with `subtype = 'POS'` (see `dian_resolutions` above — same `documentType: invoice`, distinguished by `subtype`). |
+| `customer_type` | VARCHAR | `NATURAL` / `JURIDICA`, confirmed values. |
+| `customer_identification_type`, `customer_identification` | VARCHAR | |
+| `customer_company_name`, `customer_first_name`, `customer_family_name`, `customer_phone` | VARCHAR, nullable | |
+| `customer_email` | VARCHAR | |
+| `issue_date` | DATE | |
+| `dataico_number`, `dian_status`, `cufe`, `dataico_uuid`, `xml_url`, `pdf_url`, `dian_messages` | nullable | **Not confirmed** — no POS response example was ever shared; these mirror the confirmed standard-invoice response's field names as an assumption, see the phase doc. |
+| `total_amount` | NUMERIC(12,2) | Computed client-side from price×quantity plus the same-rate tax this app also sends to Dataico (Dataico is expected to compute its own copy — POS's tax shape only sends the rate, not a base/amount, unlike standard invoicing). |
+| `request_payload`, `response_payload` | JSONB | Same convention as `invoices` — `response_payload` strips `xml` if present. |
+| `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at` | TIMESTAMPTZ | Mutable like `invoices` (a future resend/refresh updates in place), not append-only. |
+
 ## Migrations (chronological)
 
 | # | Migration | What it did |
@@ -249,6 +269,7 @@ Added Phase 10 — a local record of every invoice sent to Dataico. See `docs/GL
 | 10 | `CreateDianResolutions` | Phase 8. `dian_resolution_document_type` enum (`invoice`, `support_docs`), `dian_resolutions` table (FK to `users`, indexes on `(document_type, prefix)` and `created_at DESC`). |
 | 11 | `CreateInvoices` | Phase 10. `invoices` table (FK to `users`, indexes on `created_at DESC` and `customer_identification`). |
 | 12 | `AddUpdatedAtToInvoices` | Phase 10 (resend/query follow-up). Adds `invoices.updated_at` — needed once resend/refresh started updating existing rows instead of only ever inserting. |
+| 13 | `CreatePosInvoices` | Phase 12. `pos_invoices` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 
