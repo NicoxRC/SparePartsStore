@@ -201,11 +201,21 @@ Seed scripts (`database/seeds/`, not migrations — run manually via `npm run se
 
 **Migration workflow:** `npm run migration:generate -- src/database/migrations/<Name>` after changing an entity, review the generated SQL before committing it, `npm run migration:run` locally to apply, `npm run migration:revert` to undo the last one. `synchronize: false` always — schema changes only ever happen through a migration, never TypeORM auto-sync.
 
-## Invoicing tables (Dataico) — not designed yet
+## Invoicing tables (Dataico) — not implemented yet
 
-No invoicing-related tables exist today. Each Dataico module (see `PROJECT_ROADMAP.md`) needs its own schema — at minimum something to persist DIAN resolutions/numbering ranges, and a local record of every invoice/credit note/debit note sent (status, Dataico's own document ID, the DIAN CUFE/response, timestamps) so the app has its own source of truth independent of querying Dataico live every time.
+No invoicing-related tables exist today. Each Dataico module (see `PROJECT_ROADMAP.md`) needs its own schema — at minimum something to persist DIAN resolutions/numbering ranges (Phase 8), and a local record of every invoice/credit note/debit note sent (Phase 10: status, Dataico's own document ID, the DIAN CUFE/response, timestamps) so the app has its own source of truth independent of querying Dataico live every time.
 
-**Do not design this schema from guesswork.** The exact fields depend on what each Dataico endpoint actually requires/returns, which is confirmed per-module as its Postman reference is shared (see `CLAUDE.md`). Run the Architect agent for each invoicing phase once that reference is available, and this section gets filled in and appended to — same incremental-append discipline as the rest of this document.
+**Do not design this schema from guesswork.** The exact fields depend on what each Dataico endpoint actually requires/returns, confirmed per-module as its reference is shared (see `CLAUDE.md`). Run the Architect agent for each invoicing phase once that reference is available.
+
+**Partial exception — Phase 10's "Envío Factura" request is already confirmed** (recorded in full in `docs/phases/PHASE_10_INVOICING_STANDARD.md`), which is enough to sketch — **not implement** — a rough shape for an eventual `invoices` table:
+
+- `id`, `product`/audit columns following this document's usual conventions
+- `dataico_number`, `dataico_account_id`, `resolution_number`, `prefix` — mirroring the confirmed request's `invoice.number`/`dataico_account_id`/`numbering.*`
+- `customer_*` fields mirroring the confirmed `invoice.customer.*` block, or a FK to a `third_parties`/`customers` table once Phase 9 (Consulta DIAN Terceros) confirms whether lookups get persisted locally
+- `status`, `cufe`, `dian_response` — **not yet confirmed**, since only the request side of "Envío Factura" has been shared, not its response shape
+- Line items as a child table (`invoice_items`) mirroring `invoice.items[]` (`sku`, `quantity`, `description`, `price`, `discount_rate`, plus a nested taxes shape) — `sku` likely maps to `products.reference`
+
+This is a sketch to save re-deriving the same information later, not a migration to write now — Phase 10 hasn't started (it comes after Phases 8 and 9, per `PROJECT_ROADMAP.md`), and the response shape, resend/query/credit-note/debit-note requests, and full enum value lists are still unconfirmed (see that phase doc's "Still not confirmed" section).
 
 ## Related documents
 
