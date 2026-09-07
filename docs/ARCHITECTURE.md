@@ -132,12 +132,12 @@ apps/api/src/invoicing/
 ├── resolutions/                        # built in Phase 8 — "8. Actualizar o vincular resoluciones"
 ├── third-parties/                      # built in Phase 9 — "7. Consulta DIAN Terceros"
 ├── invoices/                           # built in Phase 10 (send/resend/query) — "1. Factura electrónica estándar" (notas crédito/débito blocked/deferred, see that phase doc)
-├── pos/                                # "3. POS Electrónico" — added when that phase starts
-└── support-documents/                  # "4. Documento soporte" — added when that phase starts
+├── pos/                                # "3. POS Electrónico" — Phase 12, CONFIRMED high priority (most sales are counter sales), added when its reference lands
+├── support-documents/                  # "4. Documento soporte" — Phase 13, priority still unconfirmed
+└── payroll/                            # "5. Nómina Electrónica" — Phase 15, CONFIRMED needed (legal requirement, this store has formal employees), added when its reference lands
 
 # Not planned — confirmed out of scope, see PROJECT_ROADMAP.md:
 #   "6. Eventos de recepción"        — acknowledging invoices FROM suppliers, not relevant to an issuer
-#   "5. Nómina Electrónica"          — payroll reporting
 #   "2. Factura electrónica sector salud" — not a healthcare business
 ```
 

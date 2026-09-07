@@ -66,13 +66,15 @@ Shared plumbing every invoicing phase depends on, so it's built once instead of 
 
 Corresponds to Dataico's "6. Eventos de recepción" collection. Turned out, once its real request list was seen (Acuse de recibido, Aceptación Tácita/Expresa, Rechazo, Recibido de prestación), to be entirely about acting as the **receiving** party of an invoice — acknowledging/accepting/rejecting a bill a *supplier* sends this store — not a status-callback mechanism for invoices this store issues. Confirmed with the human this isn't a current need (Phase 10's "Consulta Factura" already covers checking this store's own issued-invoice status). See `docs/phases/PHASE_11_RECEPTION_EVENTS.md`.
 
-## Phase 12 — POS Electrónico
+## Phase 12 — POS Electrónico — **confirmed high priority**
 
-Corresponds to Dataico's "3. POS Electrónico" collection — a lighter document type that may fit this store's day-to-day counter sales better than a full invoice. **Priority pending a decision with the human** on whether counter sales should use this instead of (or alongside) Phase 10's full invoice flow. See `docs/phases/PHASE_12_POS.md`.
+Corresponds to Dataico's "3. POS Electrónico" collection — a lighter document type for counter sales. **Confirmed with the human: most of this store's sales are counter sales**, so this is likely the document type staff use most often day-to-day, not a secondary option to Phase 10's full invoice flow. See `docs/phases/PHASE_12_POS.md` — pending that collection's request/response reference.
+
+**Exit criteria:** a counter sale can be issued as a POS Electrónico document, as fast or faster than the current full-invoice flow.
 
 ## Phase 13 — Documento soporte
 
-Corresponds to Dataico's "4. Documento soporte" collection — self-issued document for purchases from suppliers not obligated to invoice electronically. **Priority pending confirmation** of how often this business actually buys from informal suppliers. See `docs/phases/PHASE_13_SUPPORT_DOCUMENTS.md`.
+Corresponds to Dataico's "4. Documento soporte" collection — self-issued document for purchases from suppliers not obligated to invoice electronically. **Still pending confirmation** of how often this business actually buys from informal suppliers — the human wasn't sure when asked. See `docs/phases/PHASE_13_SUPPORT_DOCUMENTS.md`.
 
 ## Phase 14 — Retire Sisco export
 
@@ -80,15 +82,24 @@ Once Phase 10 (or whichever invoicing phase first reaches production use) is liv
 
 **Exit criteria:** `export` module deleted, its route gone, `docs/ARCHITECTURE.md`/`DATABASE.md` updated to drop references to it as current, not just historical.
 
+## Phase 15 — Nómina Electrónica — **confirmed needed, legal requirement**
+
+Corresponds to Dataico's "5. Nómina Electrónica" collection. **Reclassified from "out of scope" after asking the human directly**: this store has formal employees, and DIAN requires electronic payroll reporting for any business with formal employees — this isn't a nice-to-have, it's a compliance obligation independent of the customer-facing invoicing pivot. Needs its own Postman reference before scoping, per `CLAUDE.md`.
+
+**Exit criteria:** this store's payroll can be reported to DIAN electronically through Dataico, meeting the legal requirement.
+
 ---
+
+## Guiding principle for what else might belong here
+
+Per the human directly: **the goal of this pivot isn't "the minimum to invoice," it's every Dataico service this specific business actually needs** — the phases above got re-evaluated once framed that way (POS and Nómina both moved from "maybe" to "confirmed needed"). When a new Dataico collection's relevance is unclear, ask directly rather than defaulting to "probably not needed" — see how Phase 12/15 flipped once asked plainly. "Keep it simple" (`CLAUDE.md`) still governs *how* each confirmed-needed phase gets built (no unneeded variants/fields), it's not a reason to leave a real need unbuilt.
 
 ## Explicitly out of scope for now
 
 | Item | Why deferred |
 |---|---|
-| Nómina Electrónica (Dataico collection 5) | Payroll reporting, unrelated to this store's customer-facing invoicing pivot. Revisit only if the business explicitly asks for it. |
 | Factura electrónica — sector salud (Dataico collection 2) | Healthcare-sector billing fields; this is a spare parts store, not a healthcare provider. |
-| Eventos de recepción (Dataico collection 6, Phase 11) | Only relevant for acknowledging invoices *received from suppliers* — this store issues invoices, it doesn't need to process incoming ones through this app. |
+| Eventos de recepción (Dataico collection 6, Phase 11) | Only relevant for acknowledging invoices *received from suppliers* — confirmed with the human this isn't a current need. |
 | CI/CD pipeline | Not set up; manual deployment acceptable at current scale (see `DEFINITION_OF_DONE.md`). |
 | End-to-end / integration tests | Unit tests on services are the current bar (see `TESTING.md`). |
 | Fixed test coverage thresholds | Deliberately not enforced — see `TESTING.md`. |
