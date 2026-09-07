@@ -1,16 +1,19 @@
 # Phase 9 — Consulta DIAN Terceros (Frontend)
 
-**Status: Pending — waits for the backend contract from `docs/phases/PHASE_9_THIRD_PARTIES.md`.**
+**Status: Partially done.** The reusable pieces are built; the actual UI integration point is Phase 10's invoice form, which doesn't exist yet.
 
 ## Goal
 
 Let whoever is creating an invoice look up/validate a customer's legal identification data inline, instead of hand-typing it and hoping it's correct.
 
-## Scope (high-level — firms up once the backend contract exists)
+## What shipped
 
-- [ ] A customer-lookup input (by document number) inside the invoice-creation flow (Phase 10's frontend), not a standalone page — this is a lookup that feeds another form, similar in spirit to `SearchableSelect`'s inline-create pattern already used for product classification
-- [ ] Clear feedback when a lookup fails (typo, unregistered tercero) vs. succeeds
-- [ ] `services/thirdParties.ts` + `hooks/useThirdPartyLookup.ts`
+- `services/thirdParties.ts` — `lookupThirdParty({ identification, identificationType })`.
+- `hooks/useThirdPartyLookup.ts` — on-demand query (same `enabled`-gated pattern as `useCheckReference` in `useProducts.ts`), 30s stale time, no retry (a lookup miss is a normal outcome, not a transient failure to retry).
+
+## Still pending — belongs to Phase 10, not this one
+
+- The actual input/UI inside the invoice-creation form: an identification field, a "buscar" action or debounced auto-lookup, and clear feedback for "not found" vs. found (auto-filling the customer's name/email). This is deliberately not built as a standalone page now — see `docs/phases/PHASE_9_THIRD_PARTIES.md`.
 
 ## Related documents
 
