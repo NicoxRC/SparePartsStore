@@ -19,6 +19,7 @@ A task is **not done** just because the code works on your machine. This is the 
 
 - [ ] Every Dataico endpoint path, payload field, and auth mechanic used actually comes from that module's shared reference — not inferred from another module's shape or from general REST conventions. If something needed wasn't in the reference, that was flagged and confirmed before writing code, not guessed.
 - [ ] Error responses from Dataico (rejected invoice, DIAN validation failure, etc.) are surfaced to the user in a way they can act on — not swallowed into a generic "something went wrong."
+- [ ] Scope matches what this specific (small, car spare-parts) store actually needs, not maximal coverage of what Dataico's API can do — see `PROJECT_ROADMAP.md`'s "Design philosophy" note. A field/option/document type the reference supports but this store doesn't use is left out, not built "for completeness."
 
 ## Checklist for review (self-review when solo)
 

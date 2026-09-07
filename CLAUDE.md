@@ -16,6 +16,8 @@ SparePartsStore/
 
 > Folder names: `docs/Requirements.md` (now retired) used to say `backend/`/`frontend/`; the scaffolded folders are `api`/`client`. Kept as-is — idiomatic names, no practical benefit to renaming.
 
+**Keep it simple.** The client is a small car spare-parts store, not an enterprise — they've explicitly asked for the app to stay as simple and fast as possible. Before adding a module, an abstraction, a config option, or handling for an edge case, check whether the store actually needs it or whether it's just the "more complete" way to build something. Default to the simpler option. This applies with extra weight to the invoicing phases below — Dataico's API surface is large, and it would be easy to build far more depth than a small store's day-to-day sales actually require. When scoping a phase, say explicitly what was left out to keep it simple, so it reads as a decision, not an oversight.
+
 **Sisco is retired.** The system used to export an `.xlsx` file (`GET /export/articulos`) for a separate invoicing tool called Sisco. As of this pivot, **Dataico's API is the only invoicing channel** going forward — see `docs/PROJECT_ROADMAP.md` for the retirement plan and `docs/GLOSSARY.md` for what replaces it.
 
 ## Required reading before writing any code

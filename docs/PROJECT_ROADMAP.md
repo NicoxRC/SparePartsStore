@@ -2,6 +2,10 @@
 
 High-level development phases for CasaRespuestos. Answers "what comes before what" — not a sprint plan, not a fixed time box. There's no external tracker; a phase here is the unit of tracking (see `CONTRIBUTING.md`).
 
+## Design philosophy — keep it simple
+
+The client is a small car spare-parts store, not an enterprise, and has explicitly asked for the app to stay simple and fast — see `CLAUDE.md`. Dataico's API surface (8 modules, DIAN compliance, tax/retention/charge line items) makes it easy to over-build far past what a small store's actual counter-sale workflow needs. Every phase below should be scoped to what this specific store needs, not to "complete coverage" of what Dataico's API can do — see each phase's own notes for what's deliberately left out.
+
 ## How to read this roadmap
 
 Phases 1–6 are **already built** — documented here retrospectively so the roadmap reflects reality, with a phase brief in `docs/phases/` for each. Phase 7 onward is the **invoicing pivot**: CasaRespuestos moving from inventory-only to inventory + Dataico-based electronic invoicing. Each invoicing phase corresponds to one of the 8 Dataico Postman collections shared with this project, and its `docs/phases/PHASE_N_....md` brief stays a high-level goal only until that module's API reference is actually shared — see `CLAUDE.md`.
