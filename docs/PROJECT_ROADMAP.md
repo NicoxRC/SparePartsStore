@@ -52,9 +52,9 @@ Shared plumbing every invoicing phase depends on, so it's built once instead of 
 
 ## Phase 9 — Consulta DIAN Terceros
 
-Corresponds to Dataico's "7. Consulta DIAN Terceros" collection — third-party (customer) lookup/validation, used to fill in correct legal identification data before issuing an invoice against a customer. See `docs/phases/PHASE_9_THIRD_PARTIES.md` — pending reference.
+**Backend done; frontend integration point is Phase 10.** Corresponds to Dataico's "7. Consulta DIAN Terceros" collection — third-party (customer) lookup/validation, used to fill in correct legal identification data before issuing an invoice against a customer. See `docs/phases/PHASE_9_THIRD_PARTIES.md`.
 
-**Exit criteria:** a customer's legal ID data can be looked up/validated from the invoice-creation flow instead of hand-typed and hoped-correct.
+**Exit criteria:** a customer's legal ID data can be looked up/validated from the invoice-creation flow instead of hand-typed and hoped-correct. *(Lookup endpoint ready; wiring it into the invoice form happens as part of Phase 10.)*
 
 ## Phase 10 — Factura electrónica estándar (core invoicing)
 

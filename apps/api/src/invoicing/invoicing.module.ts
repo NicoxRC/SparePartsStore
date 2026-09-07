@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { DataicoModule } from './dataico/dataico.module';
 import { ResolutionsModule } from './resolutions/resolutions.module';
+import { ThirdPartiesModule } from './third-parties/third-parties.module';
 
 /**
  * Aggregates every Dataico electronic-invoicing sub-domain — see
@@ -14,6 +15,6 @@ import { ResolutionsModule } from './resolutions/resolutions.module';
  * DataicoModule directly without a circular dependency.
  */
 @Module({
-  imports: [DataicoModule, ResolutionsModule],
+  imports: [DataicoModule, ResolutionsModule, ThirdPartiesModule],
 })
 export class InvoicingModule {}
