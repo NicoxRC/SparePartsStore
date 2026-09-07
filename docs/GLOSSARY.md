@@ -79,8 +79,8 @@ The unique code DIAN/the provider assigns to a validated electronic invoice — 
 ### Documento soporte (Support document)
 A DIAN document a business issues **for itself** when it buys from a supplier who isn't obligated to invoice electronically (e.g. an informal/small supplier) — the buyer generates the document instead of receiving one. Corresponds to Dataico's "4. Documento soporte" collection. Relevant to this business if it regularly buys spare parts from informal suppliers; scope/priority pending confirmation with the human — see `PROJECT_ROADMAP.md`.
 
-### Eventos de recepción (Reception events)
-DIAN's mechanism for the *receiving* party of an invoice to acknowledge/reject/dispute it (e.g. "recibido", "reclamo"), and generally the channel through which document status updates (accepted, rejected by DIAN) flow back. Corresponds to Dataico's "6. Eventos de recepción" collection — likely the closest thing to a webhook/status-callback mechanism this integration has. Exact mechanics (webhook vs. polling, payload shape) pending that module's reference.
+### Eventos de recepción (Reception events) — out of scope
+DIAN's mechanism for the *receiving* party of an invoice to acknowledge/accept/reject it: Acuse de recibido, Aceptación Tácita/Expresa, Recibido de prestación, Rechazo. **Confirmed out of scope** — this is entirely about acting as the buyer acknowledging a supplier's invoice, not about tracking status on invoices this store issues (that's "Consulta Factura," see "Factura electrónica" below). Corresponds to Dataico's "6. Eventos de recepción" collection. See `docs/phases/PHASE_11_RECEPTION_EVENTS.md`.
 
 ### POS Electrónico (Electronic POS document)
 A lighter-weight DIAN document type for point-of-sale transactions, an alternative to a full "factura electrónica" for qualifying sales. Corresponds to Dataico's "3. POS Electrónico" collection. Candidate to actually use for this store's day-to-day counter sales instead of full invoices, depending on DIAN's eligibility rules and what the business needs — a decision for the human before that phase starts, not something to assume.

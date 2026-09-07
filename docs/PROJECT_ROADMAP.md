@@ -62,11 +62,9 @@ Shared plumbing every invoicing phase depends on, so it's built once instead of 
 
 **Exit criteria:** an invoice can be created against a sale, sent to Dataico, validated by DIAN, with its CUFE/status retrieved and re-checkable on demand, a failed send/email retriable without duplicating the document *(met — also decrements stock automatically)* — plus credit/debit notes issued against an already-sent invoice *(blocked: the only shared credit-note example is contaminated with health-sector fields; debit note deferred alongside it by choice)*.
 
-## Phase 11 — Eventos de recepción (status/reception events)
+## Phase 11 — Eventos de recepción — **out of scope, confirmed with the human**
 
-Corresponds to Dataico's "6. Eventos de recepción" collection — very likely this integration's status-callback mechanism (accepted/rejected by DIAN, etc.). See `docs/phases/PHASE_11_RECEPTION_EVENTS.md` — pending reference for whether this is a webhook this API must expose, or a query this API polls.
-
-**Exit criteria:** an invoice's real DIAN status is reflected in this system without the admin having to check Dataico's own portal manually.
+Corresponds to Dataico's "6. Eventos de recepción" collection. Turned out, once its real request list was seen (Acuse de recibido, Aceptación Tácita/Expresa, Rechazo, Recibido de prestación), to be entirely about acting as the **receiving** party of an invoice — acknowledging/accepting/rejecting a bill a *supplier* sends this store — not a status-callback mechanism for invoices this store issues. Confirmed with the human this isn't a current need (Phase 10's "Consulta Factura" already covers checking this store's own issued-invoice status). See `docs/phases/PHASE_11_RECEPTION_EVENTS.md`.
 
 ## Phase 12 — POS Electrónico
 
@@ -90,6 +88,7 @@ Once Phase 10 (or whichever invoicing phase first reaches production use) is liv
 |---|---|
 | Nómina Electrónica (Dataico collection 5) | Payroll reporting, unrelated to this store's customer-facing invoicing pivot. Revisit only if the business explicitly asks for it. |
 | Factura electrónica — sector salud (Dataico collection 2) | Healthcare-sector billing fields; this is a spare parts store, not a healthcare provider. |
+| Eventos de recepción (Dataico collection 6, Phase 11) | Only relevant for acknowledging invoices *received from suppliers* — this store issues invoices, it doesn't need to process incoming ones through this app. |
 | CI/CD pipeline | Not set up; manual deployment acceptable at current scale (see `DEFINITION_OF_DONE.md`). |
 | End-to-end / integration tests | Unit tests on services are the current bar (see `TESTING.md`). |
 | Fixed test coverage thresholds | Deliberately not enforced — see `TESTING.md`. |

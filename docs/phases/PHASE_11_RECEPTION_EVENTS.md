@@ -1,26 +1,20 @@
-# Phase 11 — Eventos de recepción (Backend)
+# Phase 11 — Eventos de recepción
 
-**Status: Pending — awaiting the "6. Eventos de recepción" Dataico reference.**
+**Status: Out of scope, confirmed with the human.**
 
-## Goal
+## What this collection actually is (corrected from an earlier assumption)
 
-Keep this system's record of an invoice's DIAN status accurate without an admin having to check Dataico's own portal by hand.
+The original scope for this phase assumed "Eventos de recepción" was a status-webhook mechanism for keeping *this store's own issued invoices* up to date automatically. Seeing the real collection contents corrected that: it's entirely about being the **receiving** party of an invoice — the actions a buyer takes on a bill their supplier sent them:
 
-## Scope (high-level — firms up once the reference is shared)
+- Enviar eventos: Acuse de recibido, Aceptación Tácita, Acuse de recibido - Jurídica, Recibido de prestación, Aceptación Expresa, Rechazo
+- Consultar Evento
 
-- [ ] `invoicing/reception-events/` module
-- [ ] Determine the actual mechanism from the reference: an inbound webhook this API must expose and secure (signature verification, same category of concern as any inbound webhook), or an outbound polling query against Dataico
-- [ ] Update the local invoice record's status when a reception/acceptance/rejection event is received
-- [ ] Surface a rejected/disputed invoice clearly to the admin — this is the kind of failure that needs a human to act on, not just a log line
+None of this applies to CasaRespuestos issuing invoices to its own customers (that's Phase 10, done — "Consulta Factura" already covers "check an invoice's status without opening Dataico's portal"). It would only matter if this store wanted to also track/acknowledge the electronic invoices **its own suppliers** send **it** — confirmed with the human that this is not a current need.
 
-## Explicitly blocked on
+## Decision
 
-Whether this is push (webhook) or pull (polling), the event payload shape, and — if a webhook — how to verify it actually came from Dataico.
-
-## Exit criteria
-
-An invoice's status shown in this app matches its real DIAN status without manual cross-checking.
+Deferred indefinitely, not just "pending a reference" — this is a scope decision, not a blocked one. Revisit only if the business later asks to track supplier invoices through this app.
 
 ## Related documents
 
-- `docs/phasesClient/PHASE_11_RECEPTION_EVENTS.md`, `docs/GLOSSARY.md` ("Eventos de recepción")
+- `docs/PROJECT_ROADMAP.md` ("Explicitly out of scope for now"), `docs/phases/PHASE_10_INVOICING_STANDARD.md` (covers this store's own issued-invoice status via Consulta Factura)
