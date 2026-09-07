@@ -226,9 +226,12 @@ Added Phase 10 — a local record of every invoice sent to Dataico. See `docs/GL
 | `request_payload` | JSONB | The exact body sent to Dataico — the full legal record of what was invoiced (line items, taxes, customer data), since there's no separate `invoice_items` table. |
 | `response_payload` | JSONB, nullable | Dataico's response, **minus the `xml` field** (the full base64 UBL document — redundant with `xml_url`, would bloat every row). |
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
-| `created_at` | TIMESTAMPTZ | **No `updated_at`, no `deleted_at` — append-only**, and no `invoice_items` child table — line items live inside `request_payload` rather than being normalized, since Dataico's item/tax shape is still only partially confirmed (see the phase doc's "Still not confirmed" section) and promoting it to rigid columns now would mean modeling fields that might not generalize once notas crédito/débito are confirmed. |
+| `created_at` | TIMESTAMPTZ | No `deleted_at`, and no `invoice_items` child table — line items live inside `request_payload` rather than being normalized, since Dataico's item/tax shape is still only partially confirmed (see the phase doc's "Still not confirmed" section) and promoting it to rigid columns now would mean modeling fields that might not generalize once notas crédito/débito are confirmed. |
+| `updated_at` | TIMESTAMPTZ | Added via `AddUpdatedAtToInvoices` (a follow-up migration, not the original `CreateInvoices`). **Unlike every other table in this document, `invoices` is NOT append-only** — a resend or a status refresh (see below) legitimately updates the same row's status/CUFE/urls in place, since it's a correction to the same legal document, not a new one. |
 
 **Business logic (`InvoicesService.create`):** resolves the active `invoices`-type resolution from `dian_resolutions`, validates stock for every line item up front, sends the request, and — only after Dataico accepts it — decrements stock per item via the existing `InventoryService.createMovement` and persists this row. See the phase doc for the full ordering rationale (a DIAN-accepted invoice can't be un-sent, so failing on insufficient stock has to happen before the Dataico call, not after).
+
+**Business logic (`InvoicesService.resend` / `.refreshStatus`):** both call Dataico (`PUT /invoices/{dataico_uuid}` for resend, `GET /invoices?number=` for refresh) and update the SAME row's status/CUFE/urls via a shared `mapDataicoResponse()` helper — also used by `create` — rather than inserting a new row. See `docs/phases/PHASE_10_INVOICING_STANDARD.md`.
 
 ## Migrations (chronological)
 
@@ -245,6 +248,7 @@ Added Phase 10 — a local record of every invoice sent to Dataico. See `docs/GL
 | 9 | `CreateInventoryMovements` | `movement_type` enum, `inventory_movements` table (FKs, indexes on `product_id` and `created_at DESC`), backfills one `initial` movement per pre-existing product with stock > 0. |
 | 10 | `CreateDianResolutions` | Phase 8. `dian_resolution_document_type` enum (`invoice`, `support_docs`), `dian_resolutions` table (FK to `users`, indexes on `(document_type, prefix)` and `created_at DESC`). |
 | 11 | `CreateInvoices` | Phase 10. `invoices` table (FK to `users`, indexes on `created_at DESC` and `customer_identification`). |
+| 12 | `AddUpdatedAtToInvoices` | Phase 10 (resend/query follow-up). Adds `invoices.updated_at` — needed once resend/refresh started updating existing rows instead of only ever inserting. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

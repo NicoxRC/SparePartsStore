@@ -131,7 +131,7 @@ apps/api/src/invoicing/
 │   └── dataico-api.exception.ts        # maps a non-2xx Dataico response to a clear NestJS exception
 ├── resolutions/                        # built in Phase 8 — "8. Actualizar o vincular resoluciones"
 ├── third-parties/                      # built in Phase 9 — "7. Consulta DIAN Terceros"
-├── invoices/                           # built in Phase 10 (send only) — "1. Factura electrónica estándar" (notas crédito/débito pending)
+├── invoices/                           # built in Phase 10 (send/resend/query) — "1. Factura electrónica estándar" (notas crédito/débito blocked/deferred, see that phase doc)
 ├── reception-events/                   # "6. Eventos de recepción" — DIAN status/acceptance callbacks
 ├── pos/                                # "3. POS Electrónico" — added when that phase starts
 ├── support-documents/                  # "4. Documento soporte" — added when that phase starts

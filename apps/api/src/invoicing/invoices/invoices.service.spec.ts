@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { InventoryService } from '../../inventory/inventory.service';
 import { Product } from '../../products/entities/product.entity';
@@ -14,10 +14,15 @@ describe('InvoicesService', () => {
   let service: InvoicesService;
   let invoicesRepository: {
     create: jest.Mock<Partial<Invoice>, [Partial<Invoice>]>;
-    save: jest.Mock;
+    save: jest.Mock<Promise<Invoice>, [Partial<Invoice>]>;
     findAndCount: jest.Mock;
+    findOne: jest.Mock;
   };
-  let dataicoClient: { post: jest.Mock<Promise<unknown>, [string, unknown]> };
+  let dataicoClient: {
+    post: jest.Mock<Promise<unknown>, [string, unknown]>;
+    put: jest.Mock<Promise<unknown>, [string, unknown]>;
+    get: jest.Mock<Promise<unknown>, [string]>;
+  };
   let dataicoConfig: { accountId: string };
   let resolutionsService: { findActiveForDocumentType: jest.Mock };
   let productsService: { findOne: jest.Mock };
@@ -53,12 +58,21 @@ describe('InvoicesService', () => {
   beforeEach(() => {
     invoicesRepository = {
       create: jest.fn<Partial<Invoice>, [Partial<Invoice>]>((entity) => entity),
-      save: jest.fn((entity: Partial<Invoice>) =>
-        Promise.resolve({ ...entity, id: 'inv-1', createdAt: new Date() }),
+      save: jest.fn<Promise<Invoice>, [Partial<Invoice>]>((entity) =>
+        Promise.resolve({
+          ...entity,
+          id: 'inv-1',
+          createdAt: new Date(),
+        } as Invoice),
       ),
       findAndCount: jest.fn(),
+      findOne: jest.fn(),
     };
-    dataicoClient = { post: jest.fn<Promise<unknown>, [string, unknown]>() };
+    dataicoClient = {
+      post: jest.fn<Promise<unknown>, [string, unknown]>(),
+      put: jest.fn<Promise<unknown>, [string, unknown]>(),
+      get: jest.fn<Promise<unknown>, [string]>(),
+    };
     dataicoConfig = { accountId: 'account-123' };
     resolutionsService = { findActiveForDocumentType: jest.fn() };
     productsService = { findOne: jest.fn().mockResolvedValue(product) };
@@ -176,6 +190,101 @@ describe('InvoicesService', () => {
       expect(created.dataicoUuid).toBe('dataico-uuid-1');
       expect(created.totalAmount).toBe(119000);
       expect(created.responsePayload).not.toHaveProperty('xml');
+    });
+  });
+
+  describe('findOne', () => {
+    it('throws NotFoundException when the invoice does not exist', async () => {
+      invoicesRepository.findOne.mockResolvedValue(null);
+      await expect(service.findOne('missing')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('resend', () => {
+    const existingInvoice = {
+      id: 'inv-1',
+      dataicoUuid: 'dataico-uuid-1',
+      dataicoNumber: 'FVE1225',
+      createdAt: new Date(),
+    } as unknown as Invoice;
+
+    it('rejects when the invoice has no Dataico uuid on file', async () => {
+      invoicesRepository.findOne.mockResolvedValue({
+        ...existingInvoice,
+        dataicoUuid: null,
+      });
+
+      await expect(service.resend('inv-1', {})).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(dataicoClient.put).not.toHaveBeenCalled();
+    });
+
+    it('PUTs to /invoices/{dataicoUuid} with the confirmed actions-only body', async () => {
+      invoicesRepository.findOne.mockResolvedValue({ ...existingInvoice });
+      invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+        Promise.resolve(entity as Invoice),
+      );
+      dataicoClient.put.mockResolvedValue({
+        dian_status: 'DIAN_ACEPTADO',
+        cufe: 'new-cufe',
+      });
+
+      await service.resend('inv-1', { sendDian: true, sendEmail: true });
+
+      expect(dataicoClient.put).toHaveBeenCalledWith(
+        '/invoices/dataico-uuid-1',
+        { actions: { send_dian: true, send_email: true } },
+      );
+    });
+
+    it('updates the existing row in place rather than creating a new one', async () => {
+      invoicesRepository.findOne.mockResolvedValue({ ...existingInvoice });
+      invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+        Promise.resolve(entity as Invoice),
+      );
+      dataicoClient.put.mockResolvedValue({ dian_status: 'DIAN_ACEPTADO' });
+
+      await service.resend('inv-1', {});
+
+      expect(invoicesRepository.create).not.toHaveBeenCalled();
+      const saved = invoicesRepository.save.mock.calls[0][0] as Invoice;
+      expect(saved.id).toBe('inv-1');
+      expect(saved.dianStatus).toBe('DIAN_ACEPTADO');
+    });
+  });
+
+  describe('refreshStatus', () => {
+    it('rejects when the invoice has no Dataico number on file', async () => {
+      invoicesRepository.findOne.mockResolvedValue({
+        id: 'inv-1',
+        dataicoNumber: null,
+      });
+
+      await expect(service.refreshStatus('inv-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(dataicoClient.get).not.toHaveBeenCalled();
+    });
+
+    it('queries /invoices?number= using the stored dataicoNumber', async () => {
+      invoicesRepository.findOne.mockResolvedValue({
+        id: 'inv-1',
+        dataicoNumber: 'FVE1225',
+        createdAt: new Date(),
+      });
+      invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+        Promise.resolve(entity as Invoice),
+      );
+      dataicoClient.get.mockResolvedValue({ dian_status: 'DIAN_ACEPTADO' });
+
+      await service.refreshStatus('inv-1');
+
+      expect(dataicoClient.get).toHaveBeenCalledWith(
+        '/invoices?number=FVE1225',
+      );
     });
   });
 });

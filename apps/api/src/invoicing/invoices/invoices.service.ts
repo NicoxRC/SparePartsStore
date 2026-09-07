@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-document-type.enum';
@@ -13,6 +17,7 @@ import { ResolutionsService } from '../resolutions/resolutions.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
 import { QueryInvoicesDto } from './dto/query-invoices.dto';
+import { ResendInvoiceDto } from './dto/resend-invoice.dto';
 import { Invoice } from './entities/invoice.entity';
 
 /** Dataico's confirmed "Envío Factura" success response, minus `xml` (see Invoice entity). */
@@ -136,13 +141,9 @@ export class InvoicesService {
       await this.inventoryService.createMovement(movementDto, createdById);
     }
 
-    const responsePayload: Record<string, unknown> = { ...response };
-    delete responsePayload.xml;
-
     const invoice = this.invoicesRepository.create({
       number: dto.number,
       prefix: resolution.prefix,
-      dataicoNumber: response.number ?? null,
       resolutionNumber: resolution.resolutionNumber,
       customerIdentificationType: dto.customerIdentificationType,
       customerIdentification: dto.customerIdentification,
@@ -152,22 +153,13 @@ export class InvoicesService {
       customerEmail: dto.customerEmail,
       issueDate: dto.issueDate,
       paymentDate: dto.paymentDate,
-      dianStatus: response.dian_status ?? null,
-      customerStatus: response.customer_status ?? null,
-      emailStatus: response.email_status ?? null,
-      cufe: response.cufe ?? null,
-      dataicoUuid: response.uuid ?? null,
-      xmlUrl: response.xml_url ?? null,
-      pdfUrl: response.pdf_url ?? null,
-      qrCode: response.qrcode ?? null,
-      dianMessages: response.dian_messages ?? null,
       totalAmount: items.reduce(
         (sum, item) => sum + item.taxBase + item.taxAmount,
         0,
       ),
       requestPayload,
-      responsePayload,
       createdBy: { id: createdById } as Invoice['createdBy'],
+      ...this.mapDataicoResponse(response),
     });
 
     const saved = await this.invoicesRepository.save(invoice);
@@ -188,6 +180,100 @@ export class InvoicesService {
     return {
       data: invoices.map((invoice) => InvoiceResponseDto.fromEntity(invoice)),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findOne(id: string): Promise<Invoice> {
+    const invoice = await this.invoicesRepository.findOne({ where: { id } });
+    if (!invoice) {
+      throw new NotFoundException('Invoice not found');
+    }
+    return invoice;
+  }
+
+  /**
+   * "Reenviar factura" — re-triggers an action (DIAN submission and/or
+   * customer email) on an invoice that already exists in Dataico. This
+   * does NOT create a new fiscal document; it's for recovering from a
+   * failed DIAN submission or a failed email delivery on the SAME
+   * invoice, identified by Dataico's own uuid (not our local id, not the
+   * business number). Confirmed: `PUT /invoices/{dataico_uuid}` with just
+   * `{ actions }` — see docs/phases/PHASE_10_INVOICING_STANDARD.md.
+   */
+  async resend(id: string, dto: ResendInvoiceDto): Promise<InvoiceResponseDto> {
+    const invoice = await this.findOne(id);
+    if (!invoice.dataicoUuid) {
+      throw new BadRequestException(
+        'Esta factura no tiene un uuid de Dataico registrado — no se puede reenviar.',
+      );
+    }
+
+    const response = await this.dataicoClient.put<DataicoInvoiceResponse>(
+      `/invoices/${invoice.dataicoUuid}`,
+      {
+        actions: {
+          send_dian: dto.sendDian ?? true,
+          send_email: dto.sendEmail ?? false,
+        },
+      },
+    );
+
+    Object.assign(invoice, this.mapDataicoResponse(response));
+    const saved = await this.invoicesRepository.save(invoice);
+    return InvoiceResponseDto.fromEntity(saved);
+  }
+
+  /**
+   * "Consulta Factura" — re-queries Dataico for this invoice's current
+   * state by its business number and refreshes the local row. Useful
+   * when a resend/create's local save might have raced with a status
+   * change on Dataico's side. Confirmed: `GET /invoices?number=`.
+   *
+   * Does NOT recover an invoice that Dataico accepted but was never
+   * saved locally at all (e.g. a crash between the Dataico call and our
+   * save) — that edge case is a known limitation, see the phase doc.
+   */
+  async refreshStatus(id: string): Promise<InvoiceResponseDto> {
+    const invoice = await this.findOne(id);
+    if (!invoice.dataicoNumber) {
+      throw new BadRequestException(
+        'Esta factura no tiene un número de Dataico registrado — no se puede consultar.',
+      );
+    }
+
+    const response = await this.dataicoClient.get<DataicoInvoiceResponse>(
+      `/invoices?number=${encodeURIComponent(invoice.dataicoNumber)}`,
+    );
+
+    Object.assign(invoice, this.mapDataicoResponse(response));
+    const saved = await this.invoicesRepository.save(invoice);
+    return InvoiceResponseDto.fromEntity(saved);
+  }
+
+  /**
+   * Maps the fields this app tracks out of any Dataico invoice response
+   * (shared by create/resend/refresh — all three hit the same resource,
+   * per the confirmed reference). Strips `xml` before storing it as
+   * `responsePayload` — see the Invoice entity's own note on why.
+   */
+  private mapDataicoResponse(
+    response: DataicoInvoiceResponse,
+  ): Partial<Invoice> {
+    const responsePayload: Record<string, unknown> = { ...response };
+    delete responsePayload.xml;
+
+    return {
+      dataicoNumber: response.number ?? null,
+      dianStatus: response.dian_status ?? null,
+      customerStatus: response.customer_status ?? null,
+      emailStatus: response.email_status ?? null,
+      cufe: response.cufe ?? null,
+      dataicoUuid: response.uuid ?? null,
+      xmlUrl: response.xml_url ?? null,
+      pdfUrl: response.pdf_url ?? null,
+      qrCode: response.qrcode ?? null,
+      dianMessages: response.dian_messages ?? null,
+      responsePayload,
     };
   }
 
