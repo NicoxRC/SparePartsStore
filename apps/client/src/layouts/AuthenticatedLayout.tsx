@@ -8,11 +8,14 @@ export function AuthenticatedLayout() {
   const navItems = [
     { to: '/products', label: 'Productos', icon: '📦' },
     { to: '/inventory', label: 'Inventario', icon: '🏭' },
+    ...(user?.role !== 'auditor'
+      ? [{ to: '/invoicing/invoices', label: 'Facturas', icon: '🧾' }]
+      : []),
     ...(user?.role === 'admin'
       ? [
           { to: '/users', label: 'Usuarios', icon: '👥' },
           { to: '/catalogs', label: 'Catálogos', icon: '🏷️' },
-          { to: '/invoicing/resolutions', label: 'Resoluciones', icon: '🧾' },
+          { to: '/invoicing/resolutions', label: 'Resoluciones DIAN', icon: '📄' },
         ]
       : []),
   ];

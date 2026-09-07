@@ -12,6 +12,8 @@ import { InventoryPage } from './pages/InventoryPage';
 import { LoginPage } from './pages/LoginPage';
 import { LookupFormPage } from './pages/LookupFormPage';
 import { LookupListPage } from './pages/LookupListPage';
+import { InvoiceFormPage } from './pages/InvoiceFormPage';
+import { InvoicesListPage } from './pages/InvoicesListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsListPage } from './pages/ProductsListPage';
 import { ResolutionFormPage } from './pages/ResolutionFormPage';
@@ -46,6 +48,8 @@ function App() {
                 <Route path="/inventory" element={<InventoryPage />} />
 
                 <Route element={<EmployeeRoute />}>
+                  <Route path="/invoicing/invoices" element={<InvoicesListPage />} />
+                  <Route path="/invoicing/invoices/new" element={<InvoiceFormPage />} />
                   <Route path="/products/new" element={<ProductFormPage />} />
                   <Route path="/products/:id/edit" element={<ProductFormPage />} />
                 </Route>
