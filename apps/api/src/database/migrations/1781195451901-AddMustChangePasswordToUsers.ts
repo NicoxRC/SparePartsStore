@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner, TableColumn } from 'typeorm';
 
-export class AddMustChangePasswordToUsers1781195451901
-  implements MigrationInterface
-{
+export class AddMustChangePasswordToUsers1781195451901 implements MigrationInterface {
   name = 'AddMustChangePasswordToUsers1781195451901';
 
   public async up(queryRunner: QueryRunner): Promise<void> {

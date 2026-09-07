@@ -1,16 +1,36 @@
+import { ApiProperty } from '@nestjs/swagger';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { User } from '../entities/user.entity';
 
 export class UserResponseDto {
+  @ApiProperty()
   id: string;
+
+  @ApiProperty()
   email: string;
+
+  @ApiProperty()
   firstName: string;
+
+  @ApiProperty()
   lastName: string;
+
+  @ApiProperty({ enum: UserRole })
   role: UserRole;
+
+  @ApiProperty()
   isActive: boolean;
+
+  @ApiProperty()
   mustChangePassword: boolean;
+
+  @ApiProperty({ nullable: true })
   lastLoginAt: string | null;
+
+  @ApiProperty()
   createdAt: string;
+
+  @ApiProperty()
   updatedAt: string;
 
   static fromEntity(user: User): UserResponseDto {
