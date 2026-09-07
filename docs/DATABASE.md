@@ -253,6 +253,31 @@ Added Phase 12 — a local record of every POS Electrónico document sent to Dat
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at`, `updated_at` | TIMESTAMPTZ | Mutable like `invoices` (a future resend/refresh updates in place), not append-only. |
 
+### `payroll_entries`
+
+Added Phase 15 — a local record of every Nómina Electrónica period submitted to Dataico. **This app is not the source of truth for payroll** — every figure (salary, accruals, deductions) is already calculated elsewhere and just forwarded here; see `docs/phases/PHASE_15_PAYROLL.md`. That's why `employee_payload`/`accruals`/`deductions` are JSONB rather than normalized columns/tables — there is no employee table to join against.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `number`, `prefix` | INT / VARCHAR | What this app sent. |
+| `employee_identification`, `employee_name` | VARCHAR | Promoted to real columns purely for listing/search; everything else about the employee lives in `employee_payload`. |
+| `employee_payload` | JSONB | Full employee object exactly as sent to Dataico (hyphenated field names, `code` auto-set equal to `identification` — see the phase doc). |
+| `salary` | NUMERIC(14,2) | |
+| `periodicity` | VARCHAR | Confirmed value seen: `MENSUAL`. |
+| `initial_settlement_date`, `final_settlement_date`, `issue_date`, `payment_date` | DATE | |
+| `accruals`, `deductions` | JSONB | Free-form `{code, amount, days?, percentage?, description?}` line items — not a locked enum, this app doesn't validate payroll business rules. |
+| `notes` | JSONB, nullable | |
+| `dian_status`, `cufe`, `dataico_uuid`, `xml_url`, `pdf_url` | nullable | **Not confirmed** — no Nómina response example was ever shared; these mirror the confirmed standard-invoice response's field names as an assumption, see the phase doc. |
+| `request_payload` | JSONB | The exact body sent to Dataico. |
+| `response_payload` | JSONB, nullable | Dataico's response, minus the `xml` field (same convention as `invoices`/`pos_invoices`). |
+| `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at` | TIMESTAMPTZ | Mutable like `invoices`/`pos_invoices` (a future refresh updates in place), not append-only. |
+
+**Business logic (`PayrollService.create`):** builds the confirmed payload (including the `send_dian` underscore exception amid an otherwise hyphenated payload, and `employee.code` auto-derived from `employee.identification`), submits it, and persists this row only after Dataico accepts.
+
+**Business logic (`PayrollService.refreshStatus`):** `GET /payroll-entries/{prefix}/{number}` — **path segments, not a query string**, unlike every other confirmed Dataico resource.
+
 ## Migrations (chronological)
 
 | # | Migration | What it did |
@@ -270,6 +295,7 @@ Added Phase 12 — a local record of every POS Electrónico document sent to Dat
 | 11 | `CreateInvoices` | Phase 10. `invoices` table (FK to `users`, indexes on `created_at DESC` and `customer_identification`). |
 | 12 | `AddUpdatedAtToInvoices` | Phase 10 (resend/query follow-up). Adds `invoices.updated_at` — needed once resend/refresh started updating existing rows instead of only ever inserting. |
 | 13 | `CreatePosInvoices` | Phase 12. `pos_invoices` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
+| 14 | `CreatePayrollEntries` | Phase 15. `payroll_entries` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

@@ -134,7 +134,7 @@ apps/api/src/invoicing/
 ├── invoices/                           # built in Phase 10 (send/resend/query) — "1. Factura electrónica estándar" (notas crédito/débito blocked/deferred, see that phase doc)
 ├── pos/                                # built in Phase 12 (send/query) — "3. POS Electrónico". Uses DataicoConfig.posBaseUrl (staging only — no production URL yet), a separate host from the rest of this integration.
 ├── support-documents/                  # "4. Documento soporte" — Phase 13, priority still unconfirmed
-└── payroll/                            # "5. Nómina Electrónica" — Phase 15, CONFIRMED needed (legal requirement, this store has formal employees), added when its reference lands
+└── payroll/                            # built in Phase 15 (send/query) — "5. Nómina Electrónica". Uses DataicoConfig.payrollBaseUrl (same host as standard invoicing, different API path). Pass-through only — not this app's source of truth for payroll, see docs/phases/PHASE_15_PAYROLL.md.
 
 # Not planned — confirmed out of scope, see PROJECT_ROADMAP.md:
 #   "6. Eventos de recepción"        — acknowledging invoices FROM suppliers, not relevant to an issuer
