@@ -9,5 +9,6 @@ import { ResolutionsService } from './resolutions.service';
   imports: [TypeOrmModule.forFeature([DianResolution]), DataicoModule],
   controllers: [ResolutionsController],
   providers: [ResolutionsService],
+  exports: [ResolutionsService],
 })
 export class ResolutionsModule {}

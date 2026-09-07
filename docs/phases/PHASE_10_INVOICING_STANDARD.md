@@ -1,14 +1,12 @@
 # Phase 10 — Factura electrónica estándar (Backend)
 
-**Status: Pending — not started.** The centerpiece of the invoicing pivot. Per `docs/PROJECT_ROADMAP.md`'s phase order, this comes **after** Phase 8 (DIAN resolutions) and Phase 9 (Consulta DIAN Terceros) — don't start implementing this phase before those land, even though the reference below happens to already be available.
+**Status: Done** (send-invoice only — resend/query/credit-note/debit-note are still pending their own reference, see below). The centerpiece of the invoicing pivot.
 
 ## Goal
 
 Issue a real, DIAN-validated electronic invoice from a sale, plus credit and debit notes against it.
 
-## Confirmed reference — "Envío Factura" (send invoice)
-
-A real, working request was shared during Phase 7 (to unblock the shared Dataico client's auth mechanism) — recorded here now so it's ready when this phase starts, per this project's own "read the shared reference, don't guess" rule:
+## Confirmed reference — "Envío Factura" (Estructura básica)
 
 ```
 POST https://api.dataico.com/direct/dataico_api/v2/invoices
@@ -16,92 +14,86 @@ Content-Type: application/json
 Auth-token: <DATAICO_AUTH_TOKEN>
 ```
 
+Chose "Estructura básica" deliberately over the collection's many other variants (IMP Licor, IMP Bolsa, ICUI/IBUA, Anticipo, Mandato, Obsequio, AIU, RET_FUENTE/RET_ICA, Sector salud) — per `CLAUDE.md`'s "keep it simple" principle, a car spare-parts store doesn't need those special-tax scenarios. Confirmed request:
+
 ```json
 {
-  "actions": { "send_dian": true, "send_email": false },
+  "actions": { "send_dian": false, "send_email": false },
   "invoice": {
     "env": "PRODUCCION",
-    "number": "994010611",
-    "dataico_account_id": "002979c5-7c23-43ab-aa98-3fa7dce6e4d0",
-    "issue_date": "26/06/2024",
-    "payment_date": "26/06/2024",
+    "dataico_account_id": "01991bd8-316a-8785-957b-b63ea8407f2c",
+    "operation": "ESTANDAR",
     "invoice_type_code": "FACTURA_VENTA",
-    "payment_means": "CREDIT_TRANSFER",
-    "payment_means_type": "DEBITO",
+    "issue_date": "17/02/2026",
     "order_reference": "",
-    "numbering": {
-      "resolution_number": "18760000001",
-      "prefix": "FEE",
-      "flexible": true
-    },
+    "number": 1225,
+    "payment_means": "BANK_TRANSFER",
+    "payment_means_type": "DEBITO",
+    "payment_date": "17/02/2026",
+    "numbering": { "resolution_number": "18764105397963", "prefix": "FVE", "flexible": true },
     "customer": {
-      "party_identification_type": "NIT",
-      "party_identification": "905445000",
-      "party_type": "PERSONA_JURIDICA",
-      "tax_level_code": "SIMPLIFICADO",
-      "regimen": "SIMPLE",
-      "company_name": "NOMBRE DE LA EMPRESA",
-      "first_name": "",
-      "family_name": "",
-      "department": "11",
-      "city": "001",
-      "address_line": "DIRECCIÓN DEL CLIENTE",
-      "country_code": "CO",
-      "email": "correodeprueba@gmail.com",
-      "phone": "3000000000"
+      "tax_level_code": "COMUN", "regimen": "", "party_type": "PERSONA_JURIDICA",
+      "party_identification_type": "NIT", "party_identification": "830033494",
+      "country_code": "CO", "department": "11", "city": "001",
+      "address_line": "AV CR 19 105 52 P 6", "email": "info@heel.com.co",
+      "first_name": "", "family_name": "", "company_name": "HEEL COLOMBIA LTDA"
     },
     "items": [
       {
-        "sku": "REFERENCIA",
-        "quantity": 1,
-        "description": "NOMBRE DEL PRODUCTO O SERVICIO",
-        "measuring_unit": "94",
-        "price": 150000,
-        "discount_rate": 10,
-        "taxes": [
-          { "tax_category": "IVA", "tax_rate": 19, "tax-base": 90, "base_amount": 135000, "tax_amount": 25650 },
-          { "tax_category": "IMP_CONSUMO", "tax_rate": 2 }
-        ]
+        "sku": "01", "measuring_unit": "94", "quantity": 70849,
+        "description": "SERVICIOS DE MAQUILA-UNIDADES SIN REEMPAQUE", "price": 281,
+        "taxes": [{ "tax_category": "IVA", "tax_rate": 19, "tax_base": 100, "tax_amount": 3782628 }],
+        "retentions": []
       }
     ],
-    "notes": ["NOTA U OBSERVACIONES DE LA FACTURA DJ1556"],
-    "retentions": [
-      { "tax_category": "RET_ICA", "tax_rate": 0.96 },
-      { "tax_category": "RET_FUENTE", "tax_rate": 11 }
-    ],
-    "charges": [
-      { "reason": "DESCUENTO POR PRONTO PAGO", "base_amount": 1000, "discount": true }
-    ]
+    "notes": []
   }
 }
 ```
 
-Notes on this payload, recorded so nobody re-derives them from scratch:
+And its confirmed success response (fields this app actually stores are in **bold**):
 
-- `numbering.resolution_number`/`prefix`/`flexible` is exactly the DIAN resolution data Phase 8 needs to manage — the two phases share this shape.
-- `customer.*` is exactly the tercero data Phase 9's lookup should be able to fill in — `party_identification_type`/`party_identification`/`party_type`/`tax_level_code`/`regimen` all look like DIAN catalog codes, not free text; confirm the full valid-value lists once Phase 9's own reference is available rather than assuming only the values seen here (`NIT`, `PERSONA_JURIDICA`, `SIMPLIFICADO`, `SIMPLE`) are the complete sets.
-- `items[].taxes[].tax-base` uses a **hyphen**, inconsistent with every other field's underscore convention — this is Dataico's real field name as shown, not a typo to "fix" on our side; sending `tax_base` instead would likely be silently ignored or rejected.
-- `env: "PRODUCCION"` implies a sandbox/test value likely exists (e.g. `"PRUEBAS"` or `"HABILITACION"`) — **not confirmed**, don't assume the exact string without checking, since sending production-mode by accident during development would be a real DIAN submission.
-- `number` is caller-supplied here — confirm with Phase 8's resolution reference whether this must fall within the resolution's authorized range, and who's responsible for tracking the next available number (this app, or Dataico).
-- `dataico_account_id` identifies which Dataico account this invoice is issued under — likely a stable, per-deployment value (env var candidate), not something computed per request. Not yet added as an env var since this phase hasn't started; add it via `docs/ENVIRONMENT_VARIABLES.md` when it does.
+- **`dian_status`** (e.g. `"DIAN_ACEPTADO"`), `customer_status`, `email_status`
+- **`number`** (Dataico's own, e.g. `"FVE1225"` — prefix+number concatenated, different from the request's plain integer `number`)
+- **`cufe`**, **`uuid`** (Dataico's internal document id, distinct from the CUFE)
+- **`xml_url`**, **`pdf_url`**, **`qrcode`** (the DIAN QR payload text), **`dian_messages`** (array of validation notices — can be non-empty even on a `DIAN_ACEPTADO` invoice)
+- `xml` — the full base64 UBL document. **Deliberately not persisted** (see `Invoice` entity) — redundant with `xml_url`, and would bloat every row.
+- `customer` (echoed, but `department`/`city` come back as **names**, not the DANE codes sent in the request), `items` (echoed, without the tax breakdown), `numbering`, `retentions`, `payment_date`, `validation_date`
+
+**Anomaly, not replicated**: the confirmed example's `tax_base` is `100` for every item regardless of the item's actual price×quantity — this doesn't reconcile mathematically with the item's real subtotal or the returned `tax_amount`. This app computes `tax_base`/`tax_amount` itself using the standard, uncontroversial formula (`tax_base = round(price × quantity)`, `tax_amount = round(tax_base × tax_rate / 100)`) rather than copying that example's inconsistent numbers — see `InvoicesService.resolveItems()`.
+
+**Test/dry-run mechanism confirmed**: controlled via `actions.send_dian: false`, not a special `env` value — only `"PRODUCCION"` has been seen for `env`. This app always sends `send_dian: true` (see "Deliberately left out" below).
+
+## What shipped
+
+- [x] `invoices` table (see `docs/DATABASE.md`) — promotes the fields this app actually queries (status, CUFE, customer identity) to real columns, keeps the full request/response as JSONB rather than normalizing Dataico's rich, still-partially-confirmed payload.
+- [x] `InvoicesService.create()`:
+  1. Resolves the active INVOICE resolution from Phase 8's `dian_resolutions` (via `ResolutionsService.findActiveForDocumentType`) — rejects with a clear message if none exists, rather than sending an invoice with no legal numbering.
+  2. Validates stock for **every** item up front, before calling Dataico — a DIAN-accepted invoice can't be un-sent, so failing early on insufficient stock is safer than sending first and discovering it after.
+  3. Builds and sends the confirmed request shape, `sku`/`description`/`price` pulled live from the `Product` entity (not re-typed by the caller).
+  4. On success, decrements stock per item via the existing `InventoryService.createMovement` (reused as-is, not reimplemented) — this is what actually connects the invoicing and inventory pillars.
+  5. Persists the local `Invoice` row with the response's status/CUFE/urls mapped, `xml` stripped from the stored response.
+- [x] `POST`/`GET /api/invoicing/invoices` (ADMIN, EMPLOYEE — same tier as Products, since this is the everyday counter-sale action), Swagger-documented.
+- [x] `DATAICO_ACCOUNT_ID` added as a new env var (see `docs/ENVIRONMENT_VARIABLES.md`) — stable per deployment, not re-entered per invoice.
+- [x] Unit tests: rejects with no active resolution, rejects on insufficient stock (both without calling Dataico), sends the confirmed payload shape with correctly computed tax, decrements stock only after Dataico succeeds, persists the mapped response excluding `xml`.
+
+## Deliberately left out (keep it simple — see `CLAUDE.md`)
+
+- **No draft/dry-run mode exposed.** `actions.send_dian` is hardcoded `true` — an invoice created through this app IS the real submission, no separate "test send" concept in the UI.
+- **No sequential/auto-numbering.** `number` is caller-supplied (via the form), not auto-incremented from the resolution's range — revisit if manual entry proves error-prone in practice.
+- **No DANE department/city catalog.** The form takes raw DANE codes as free text (e.g. `"11"`, `"001"`) rather than a searchable lookup — this store's customer base is small enough that typing the code is acceptable for now.
+- **Single, hardcoded tax category (IVA).** No retentions, no invoice-level charges/discounts — matches "Estructura básica," not the more complex variants this store doesn't need.
+- **No compensation/rollback if stock-decrement or the local save fails after Dataico already accepted the invoice.** Documented as a known, low-probability edge case (single small store, low concurrency) rather than built around with a saga pattern — recoverable manually if it ever happens.
 
 ## Still not confirmed — do not guess
 
-- Resend invoice ("Reenviar factura"), query invoice ("Consulta Factura"), credit note ("Nota crédito"), and debit note ("Nota débito") request/response shapes — only "Envío Factura" has been shared so far.
-- The full success response shape for "Envío Factura" itself (CUFE, Dataico's internal invoice ID, DIAN status) — only the request side is confirmed above.
-- Valid value lists for every enum-like field seen above.
+- Resend invoice ("Reenviar factura"), query invoice ("Consulta Factura"), credit note ("Nota crédito"), debit note ("Nota débito") — none of these have been shared yet.
+- The full valid-value lists for `payment_means`, `payment_means_type`, `tax_level_code`, `regimen`, `party_type` — only the values seen in the two confirmed examples are used in the UI's `<select>` options.
 
-## Scope (once this phase actually starts)
+## Exit criteria (met, for send-invoice)
 
-- [ ] `invoicing/invoices/` module — depends on `DataicoClientService` (Phase 7, done), an active resolution (Phase 8), ideally customer data (Phase 9)
-- [ ] Local schema for an invoice (line items, totals/taxes, customer reference, Dataico's document ID, DIAN status, CUFE, timestamps) — see `docs/DATABASE.md`'s "Invoicing tables" section, now sketched against the payload above but not yet implemented
-- [ ] Send invoice, resend invoice, query invoice, credit note, debit note — pending their own reference confirmation where noted above
-- [ ] Decide how invoice line items relate to `Product` — likely `sku` maps to `products.reference`, snapshotting price/description at issue time the same way `docs/DATABASE.md` already snapshots other historical data in this project
-
-## Exit criteria
-
-A sale can produce a real electronic invoice, sent to Dataico, validated by DIAN, with a retrievable CUFE and status — and a credit/debit note can be issued against it afterward.
+A sale can produce a real electronic invoice, sent to Dataico, validated by DIAN, with a retrievable CUFE and status, and inventory is decremented accordingly. Credit/debit notes and resend/query are follow-up work once their references are shared.
 
 ## Related documents
 
-- `docs/phasesClient/PHASE_10_INVOICING_STANDARD.md`, `docs/DATABASE.md` ("Invoicing tables"), `docs/GLOSSARY.md`, `docs/phases/PHASE_7_DATAICO_FOUNDATION.md`
+- `docs/phasesClient/PHASE_10_INVOICING_STANDARD.md`, `docs/DATABASE.md` ("invoices"), `docs/GLOSSARY.md`, `docs/phases/PHASE_8_RESOLUTIONS.md`, `docs/phases/PHASE_9_THIRD_PARTIES.md`

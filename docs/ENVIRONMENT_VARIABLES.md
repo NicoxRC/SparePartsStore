@@ -61,12 +61,14 @@ SEED_ADMIN_LAST_NAME=User
 ```bash
 DATAICO_BASE_URL=https://api.dataico.com/direct/dataico_api/v2
 DATAICO_AUTH_TOKEN=replace-with-the-real-dataico-auth-token
+DATAICO_ACCOUNT_ID=replace-with-the-real-dataico-account-id
 ```
 
 | Variable | Required | Description |
 |---|---|---|
 | `DATAICO_BASE_URL` | ✅ | Confirmed against a real request. `DataicoClientService` prepends this to every call (e.g. `POST {DATAICO_BASE_URL}/invoices`). |
 | `DATAICO_AUTH_TOKEN` | ✅ | Sent as a **custom `Auth-token` header** on every request — not `Authorization: Bearer`, not OAuth. There is no token refresh flow. Get the real value from the Dataico account this store invoices under; never commit it. |
+| `DATAICO_ACCOUNT_ID` | ✅ | Added Phase 10 — the `dataico_account_id` every invoice payload requires, identifying which Dataico account this store invoices under. Stable per deployment, so it's configured once here instead of re-entered on every invoice. |
 
 Further invoicing phases (resolutions, third-parties, invoices, reception-events) reuse these same two variables via the shared `DataicoClientService` — no new Dataico connection variables are expected per phase, only per-feature ones if a phase's reference calls for something beyond these two (e.g. a specific `dataico_account_id`, seen in the Phase 10 invoice payload — see `docs/phases/PHASE_10_INVOICING_STANDARD.md`).
 

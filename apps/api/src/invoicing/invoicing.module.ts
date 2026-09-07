@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { DataicoModule } from './dataico/dataico.module';
+import { InvoicesModule } from './invoices/invoices.module';
 import { ResolutionsModule } from './resolutions/resolutions.module';
 import { ThirdPartiesModule } from './third-parties/third-parties.module';
 
@@ -15,6 +16,11 @@ import { ThirdPartiesModule } from './third-parties/third-parties.module';
  * DataicoModule directly without a circular dependency.
  */
 @Module({
-  imports: [DataicoModule, ResolutionsModule, ThirdPartiesModule],
+  imports: [
+    DataicoModule,
+    ResolutionsModule,
+    ThirdPartiesModule,
+    InvoicesModule,
+  ],
 })
 export class InvoicingModule {}
