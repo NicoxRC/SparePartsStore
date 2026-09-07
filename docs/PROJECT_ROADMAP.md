@@ -46,9 +46,9 @@ Shared plumbing every invoicing phase depends on, so it's built once instead of 
 
 ## Phase 8 — DIAN resolutions (Actualizar o vincular resoluciones)
 
-Corresponds to Dataico's "8. Actualizar o vincular resoluciones" collection. Built **before** the invoicing phase itself, deliberately — a business can't legally send an invoice without an active DIAN numbering resolution on file (see `GLOSSARY.md`). See `docs/phases/PHASE_8_RESOLUTIONS.md` — pending that module's shared reference.
+**Done.** Corresponds to Dataico's "8. Actualizar o vincular resoluciones" collection. Built **before** the invoicing phase itself, deliberately — a business can't legally send an invoice without an active DIAN numbering resolution on file (see `GLOSSARY.md`). See `docs/phases/PHASE_8_RESOLUTIONS.md`.
 
-**Exit criteria:** an admin can view/associate the DIAN resolution(s) this business is authorized to invoice under.
+**Exit criteria (met):** an admin can view/associate the DIAN resolution(s) this business is authorized to invoice under.
 
 ## Phase 9 — Consulta DIAN Terceros
 
