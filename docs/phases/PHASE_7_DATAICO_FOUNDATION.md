@@ -1,34 +1,29 @@
 # Phase 7 — Dataico foundation (Backend)
 
-**Status: In progress.** The non-Dataico-specific plumbing is done; the actual Dataico client is blocked on the Authorization reference (see below).
+**Status: Done.**
 
 ## Goal
 
 Build the shared plumbing every invoicing phase depends on, once, instead of each Dataico module reinventing auth/config/error-handling.
 
-## Scope
+## What shipped
 
-- [x] Global exception filter (`common/filters/http-exception.filter.ts`) — normalizes every thrown exception to `{ statusCode, message, error?, timestamp, path }` without altering any existing field consumers already match on (e.g. `PasswordChangeRequired`); unrecognized errors are logged and mapped to a generic 500. Registered in `main.ts` via `app.useGlobalFilters(...)`. Unit-tested in `http-exception.filter.spec.ts`.
-- [x] `@nestjs/swagger@11.4.7` wired up in `main.ts`, served at `/api/docs`. `auth` module fully documented (`@ApiTags`/`@ApiOperation`/`@ApiResponse`, `@ApiProperty` on its DTOs and on `UserResponseDto`) as the required smoke test — every **new** endpoint from this point on needs the same, per `docs/DEFINITION_OF_DONE.md`.
-- [x] `invoicing.module.ts` scaffolded (empty `@Module({})`) and registered in `app.module.ts`, ready for sub-domain modules (`resolutions/`, `third-parties/`, `invoices/`, `reception-events/`, ...).
-- [ ] `invoicing/dataico/dataico-client.service.ts` — authenticated HTTP client wrapping Dataico's API (auth mechanism TBD from the reference: API key, Bearer token, OAuth — see "Pending Dataico reference" below)
-- [ ] `invoicing/dataico/dataico.config.ts` — typed config via `ConfigService` (base URL, credentials, sandbox vs. production flag)
-- [ ] Consistent Dataico-error-to-application-error mapping (a rejected/malformed request to Dataico should surface as a clear, actionable NestJS exception, not a raw passthrough)
+- [x] Global exception filter (`common/filters/http-exception.filter.ts`) — normalizes every thrown exception to `{ statusCode, message, error?, timestamp, path }` without altering any existing field consumers already match on (e.g. `PasswordChangeRequired`); unrecognized errors are logged and mapped to a generic 500. Registered in `main.ts` via `app.useGlobalFilters(...)`.
+- [x] `@nestjs/swagger@11.4.7` wired up in `main.ts`, served at `/api/docs`. `auth` module fully documented (`@ApiTags`/`@ApiOperation`/`@ApiResponse`, `@ApiProperty` on its DTOs and on `UserResponseDto`) as the required smoke test.
+- [x] `invoicing.module.ts` scaffolded and registered in `app.module.ts`, ready for sub-domain modules (`resolutions/`, `third-parties/`, `invoices/`, `reception-events/`, ...).
+- [x] `invoicing/dataico/dataico.config.ts` — typed config via `ConfigService`, reading `DATAICO_BASE_URL` (defaults to `https://api.dataico.com/direct/dataico_api/v2`) and `DATAICO_AUTH_TOKEN`.
+- [x] `invoicing/dataico/dataico-client.service.ts` — authenticated HTTP client using Node's built-in `fetch`. **Auth mechanism confirmed**: a custom `Auth-token: <token>` header on every request (not Bearer, not OAuth) — verified against a real request shared for the "Factura electrónica estándar" collection.
+- [x] `invoicing/dataico/dataico-api.exception.ts` — maps a non-2xx Dataico response to a `DataicoApiException`: passes through Dataico's own status for a 4xx (actionable — e.g. a rejected invoice), maps anything else (network failure, upstream 5xx) to `502 Bad Gateway`.
+- [x] Unit tests for both the exception filter and the Dataico client (mocked `fetch`), covering the happy path, a 4xx passthrough, a network failure, and a 5xx-to-502 mapping.
 
-## Pending Dataico reference
+## How the Authorization reference was obtained
 
-This phase needs, at minimum, the collection-level **Authorization** setup (API key vs. Bearer vs. OAuth) shared from the Postman workspace before the client service can be implemented for real — see `CLAUDE.md`. Everything else in this phase (exception filter, Swagger) can be built independently of that.
+A real, working cURL request for `POST https://api.dataico.com/direct/dataico_api/v2/invoices` (the "Envío Factura" endpoint from the "1. Factura electrónica estándar" collection) was shared directly by the human, showing the `Auth-token` header in use. This unblocked the client/config for **every** Dataico module, not just invoicing — the same base URL and header apply across the API. See `docs/phases/PHASE_10_INVOICING_STANDARD.md` for what that same request revealed about the invoice payload shape itself (recorded there, not implemented yet — Phase 10 hasn't started).
 
-## Definition of done for this phase
+## Exit criteria (met)
 
-- [x] `npm run build` / `npm run lint` / `npm run test` all pass with `InvoicingModule` registered but empty
-- [x] Swagger UI is reachable at `/api/docs` and documents the `auth` module as the smoke test
-- [ ] A unit test exists for `DataicoClientService` against a mocked HTTP layer, not a real Dataico call — pending the client itself
-
-## Out of scope
-
-No actual invoice/resolution/third-party logic yet — that's phases 8 onward.
+A shared, tested Dataico client exists that every subsequent invoicing module can inject rather than re-implement; every new endpoint from this point on is Swagger-documented.
 
 ## Related documents
 
-- `docs/ARCHITECTURE.md` ("Invoicing module"), `docs/ENVIRONMENT_VARIABLES.md` ("Invoicing (Dataico) — pending")
+- `docs/ARCHITECTURE.md` ("Invoicing module"), `docs/ENVIRONMENT_VARIABLES.md` ("Invoicing (Dataico)"), `docs/phases/PHASE_10_INVOICING_STANDARD.md`

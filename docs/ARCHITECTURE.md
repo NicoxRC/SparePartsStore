@@ -124,9 +124,10 @@ Dataico's API surface is split into 8 Postman collections; each becomes its own 
 ```
 apps/api/src/invoicing/
 ├── invoicing.module.ts
-├── dataico/
-│   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this
-│   └── dataico.config.ts               # typed config (base URL, credentials) via ConfigService
+├── dataico/                             # built in Phase 7 — see docs/phases/PHASE_7_DATAICO_FOUNDATION.md
+│   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this. Auth is a custom `Auth-token` header, not Bearer/OAuth.
+│   ├── dataico.config.ts               # typed config (DATAICO_BASE_URL, DATAICO_AUTH_TOKEN) via ConfigService
+│   └── dataico-api.exception.ts        # maps a non-2xx Dataico response to a clear NestJS exception
 ├── resolutions/                        # "8. Actualizar o vincular resoluciones"
 ├── third-parties/                      # "7. Consulta DIAN Terceros"
 ├── invoices/                           # "1. Factura electrónica estándar" (facturas + notas crédito/débito)

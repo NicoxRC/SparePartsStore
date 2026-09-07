@@ -56,9 +56,19 @@ SEED_ADMIN_LAST_NAME=User
 | `BCRYPT_ROUNDS` | ✅ | Password hashing cost factor, default `10`. |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_FIRST_NAME`, `SEED_ADMIN_LAST_NAME` | Only for `npm run seed:admin` | Creates the first admin account. Change the password after first login. The seed is idempotent — skips if the email already exists. |
 
-### Invoicing (Dataico) — pending, added per phase
+### Invoicing (Dataico)
 
-No Dataico-related environment variables exist yet. Each invoicing phase (`docs/phases/PHASE_7_DATAICO_FOUNDATION.md` onward) adds exactly the variables its shared API reference actually requires (API key/token, base URL, environment/sandbox flag, etc.) — **don't pre-declare placeholder Dataico variables before a phase's reference confirms their real names**, since a guessed name here just has to be renamed later once the real one is known. This section gets filled in as each phase lands.
+```bash
+DATAICO_BASE_URL=https://api.dataico.com/direct/dataico_api/v2
+DATAICO_AUTH_TOKEN=replace-with-the-real-dataico-auth-token
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATAICO_BASE_URL` | ✅ | Confirmed against a real request. `DataicoClientService` prepends this to every call (e.g. `POST {DATAICO_BASE_URL}/invoices`). |
+| `DATAICO_AUTH_TOKEN` | ✅ | Sent as a **custom `Auth-token` header** on every request — not `Authorization: Bearer`, not OAuth. There is no token refresh flow. Get the real value from the Dataico account this store invoices under; never commit it. |
+
+Further invoicing phases (resolutions, third-parties, invoices, reception-events) reuse these same two variables via the shared `DataicoClientService` — no new Dataico connection variables are expected per phase, only per-feature ones if a phase's reference calls for something beyond these two (e.g. a specific `dataico_account_id`, seen in the Phase 10 invoice payload — see `docs/phases/PHASE_10_INVOICING_STANDARD.md`).
 
 ---
 
