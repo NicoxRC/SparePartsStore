@@ -13,6 +13,10 @@ import { DataicoConfig } from './dataico.config';
  * https://api.dataico.com/direct/dataico_api/v2, JSON body, and a single
  * custom `Auth-token` header — not Bearer, not OAuth. Uses Node's built-in
  * `fetch` rather than adding an HTTP client dependency.
+ *
+ * `baseUrl` can be overridden per call (see Phase 12 / POS Electrónico) —
+ * Dataico's POS endpoints live under a different host (staging, per the
+ * only reference shared so far) than the rest of the API.
  */
 @Injectable()
 export class DataicoClientService {
@@ -20,29 +24,40 @@ export class DataicoClientService {
 
   constructor(private readonly config: DataicoConfig) {}
 
-  post<TResponse>(path: string, body: unknown): Promise<TResponse> {
-    return this.request<TResponse>(path, {
-      method: 'POST',
-      body: JSON.stringify(body),
-    });
+  post<TResponse>(
+    path: string,
+    body: unknown,
+    baseUrl?: string,
+  ): Promise<TResponse> {
+    return this.request<TResponse>(
+      path,
+      { method: 'POST', body: JSON.stringify(body) },
+      baseUrl,
+    );
   }
 
-  get<TResponse>(path: string): Promise<TResponse> {
-    return this.request<TResponse>(path, { method: 'GET' });
+  get<TResponse>(path: string, baseUrl?: string): Promise<TResponse> {
+    return this.request<TResponse>(path, { method: 'GET' }, baseUrl);
   }
 
-  put<TResponse>(path: string, body: unknown): Promise<TResponse> {
-    return this.request<TResponse>(path, {
-      method: 'PUT',
-      body: JSON.stringify(body),
-    });
+  put<TResponse>(
+    path: string,
+    body: unknown,
+    baseUrl?: string,
+  ): Promise<TResponse> {
+    return this.request<TResponse>(
+      path,
+      { method: 'PUT', body: JSON.stringify(body) },
+      baseUrl,
+    );
   }
 
   private async request<TResponse>(
     path: string,
     init: { method: string; body?: string },
+    baseUrlOverride?: string,
   ): Promise<TResponse> {
-    const url = `${this.config.baseUrl}${path}`;
+    const url = `${baseUrlOverride ?? this.config.baseUrl}${path}`;
 
     let response: Response;
     try {

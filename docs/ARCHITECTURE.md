@@ -126,13 +126,13 @@ apps/api/src/invoicing/
 ├── invoicing.module.ts
 ├── dataico/                             # built in Phase 7 — see docs/phases/PHASE_7_DATAICO_FOUNDATION.md
 │   ├── dataico.module.ts               # exports DataicoClientService — sub-domain modules import THIS, not InvoicingModule (avoids a circular dependency)
-│   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this. Auth is a custom `Auth-token` header, not Bearer/OAuth.
+│   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this. Auth is a custom `Auth-token` header, not Bearer/OAuth. `get`/`post`/`put` accept an optional per-call base URL override (added for Phase 12/POS, which lives on a different host).
 │   ├── dataico.config.ts               # typed config (DATAICO_BASE_URL, DATAICO_AUTH_TOKEN) via ConfigService
 │   └── dataico-api.exception.ts        # maps a non-2xx Dataico response to a clear NestJS exception
 ├── resolutions/                        # built in Phase 8 — "8. Actualizar o vincular resoluciones"
 ├── third-parties/                      # built in Phase 9 — "7. Consulta DIAN Terceros"
 ├── invoices/                           # built in Phase 10 (send/resend/query) — "1. Factura electrónica estándar" (notas crédito/débito blocked/deferred, see that phase doc)
-├── pos/                                # "3. POS Electrónico" — Phase 12, CONFIRMED high priority (most sales are counter sales), added when its reference lands
+├── pos/                                # built in Phase 12 (send/query) — "3. POS Electrónico". Uses DataicoConfig.posBaseUrl (staging only — no production URL yet), a separate host from the rest of this integration.
 ├── support-documents/                  # "4. Documento soporte" — Phase 13, priority still unconfirmed
 └── payroll/                            # "5. Nómina Electrónica" — Phase 15, CONFIRMED needed (legal requirement, this store has formal employees), added when its reference lands
 

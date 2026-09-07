@@ -58,12 +58,18 @@ export class ResolutionsService {
    * one — there is no separate "is active" flag, see the entity's own
    * comment. Used by InvoicesService to auto-fill an invoice's numbering
    * instead of asking the caller to re-type it every time.
+   *
+   * `subtype` optionally narrows further — a business can have separate
+   * resolutions for ordinary electronic invoices (`subtype: 'ELECTRONICO'`)
+   * and for POS Electrónico (`subtype: 'POS'`), both under the same
+   * `documentType: invoice` — see docs/phases/PHASE_12_POS.md.
    */
   async findActiveForDocumentType(
     documentType: DianResolutionDocumentType,
+    subtype?: string,
   ): Promise<DianResolution | null> {
     return this.resolutionsRepository.findOne({
-      where: { documentType },
+      where: subtype ? { documentType, subtype } : { documentType },
       order: { createdAt: 'DESC' },
     });
   }

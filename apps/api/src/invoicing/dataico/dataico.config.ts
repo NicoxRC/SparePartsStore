@@ -18,6 +18,23 @@ export class DataicoConfig {
     );
   }
 
+  /**
+   * POS Electrónico (Phase 12) lives on a different Dataico host than
+   * everything else in this integration — the only reference shared so far
+   * points at a staging environment (`staging.dataico.com`), not the
+   * production `api.dataico.com` used elsewhere. Kept as its own variable,
+   * separate from `DATAICO_BASE_URL`, so swapping in the real production
+   * POS URL later is a one-variable change, not a code change — and so it
+   * can never accidentally make the rest of the API (invoices, resolutions,
+   * terceros) point at staging too.
+   */
+  get posBaseUrl(): string {
+    return this.configService.get<string>(
+      'DATAICO_POS_BASE_URL',
+      'https://staging.dataico.com/direct/dataico_api/v2',
+    );
+  }
+
   get authToken(): string {
     const token = this.configService.get<string>('DATAICO_AUTH_TOKEN');
     if (!token) {

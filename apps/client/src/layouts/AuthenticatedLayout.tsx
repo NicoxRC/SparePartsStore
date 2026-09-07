@@ -9,7 +9,13 @@ export function AuthenticatedLayout() {
     { to: '/products', label: 'Productos', icon: '📦' },
     { to: '/inventory', label: 'Inventario', icon: '🏭' },
     ...(user?.role !== 'auditor'
-      ? [{ to: '/invoicing/invoices', label: 'Facturas', icon: '🧾' }]
+      ? [
+          // POS first — confirmed with the human as this store's primary
+          // sale flow (most sales are counter sales), ahead of the full
+          // invoice form.
+          { to: '/invoicing/pos-invoices', label: 'Venta POS', icon: '🛒' },
+          { to: '/invoicing/invoices', label: 'Facturas', icon: '🧾' },
+        ]
       : []),
     ...(user?.role === 'admin'
       ? [
