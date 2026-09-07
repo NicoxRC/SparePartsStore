@@ -12,6 +12,7 @@ export function AuthenticatedLayout() {
       ? [
           { to: '/users', label: 'Usuarios', icon: '👥' },
           { to: '/catalogs', label: 'Catálogos', icon: '🏷️' },
+          { to: '/invoicing/resolutions', label: 'Resoluciones', icon: '🧾' },
         ]
       : []),
   ];
