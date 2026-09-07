@@ -72,3 +72,28 @@ export async function createInvoice(
   );
   return data;
 }
+
+export interface ResendInvoiceInput {
+  sendDian?: boolean;
+  sendEmail?: boolean;
+}
+
+export async function resendInvoice(
+  id: string,
+  input: ResendInvoiceInput = {},
+): Promise<InvoiceResponse> {
+  const { data } = await api.post<InvoiceResponse>(
+    `/invoicing/invoices/${id}/resend`,
+    input,
+  );
+  return data;
+}
+
+export async function refreshInvoiceStatus(
+  id: string,
+): Promise<InvoiceResponse> {
+  const { data } = await api.post<InvoiceResponse>(
+    `/invoicing/invoices/${id}/refresh`,
+  );
+  return data;
+}
