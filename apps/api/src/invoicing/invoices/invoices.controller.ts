@@ -1,4 +1,12 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -15,6 +23,7 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
 import { QueryInvoicesDto } from './dto/query-invoices.dto';
+import { ResendInvoiceDto } from './dto/resend-invoice.dto';
 import { InvoicesService } from './invoices.service';
 
 @ApiTags('Invoicing — invoices')
@@ -52,5 +61,40 @@ export class InvoicesController {
     @Query() query: QueryInvoicesDto,
   ): Promise<PaginatedResponseDto<InvoiceResponseDto>> {
     return this.invoicesService.findAll(query);
+  }
+
+  @ApiOperation({ summary: 'Get one invoice by its local id' })
+  @ApiResponse({ status: 200, type: InvoiceResponseDto })
+  @Get(':id')
+  async findOne(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<InvoiceResponseDto> {
+    const invoice = await this.invoicesService.findOne(id);
+    return InvoiceResponseDto.fromEntity(invoice);
+  }
+
+  @ApiOperation({
+    summary:
+      'Reenviar factura — re-trigger DIAN submission and/or email on an invoice that already exists in Dataico (not a new document)',
+  })
+  @ApiResponse({ status: 200, type: InvoiceResponseDto })
+  @ApiResponse({ status: 502, description: 'Dataico/DIAN rejected the resend' })
+  @Post(':id/resend')
+  resend(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ResendInvoiceDto,
+  ): Promise<InvoiceResponseDto> {
+    return this.invoicesService.resend(id, dto);
+  }
+
+  @ApiOperation({
+    summary: "Consulta Factura — refresh this invoice's status from Dataico",
+  })
+  @ApiResponse({ status: 200, type: InvoiceResponseDto })
+  @Post(':id/refresh')
+  refreshStatus(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<InvoiceResponseDto> {
+    return this.invoicesService.refreshStatus(id);
   }
 }

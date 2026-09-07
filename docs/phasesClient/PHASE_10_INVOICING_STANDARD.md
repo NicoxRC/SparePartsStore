@@ -1,6 +1,6 @@
 # Phase 10 — Factura electrónica estándar (Frontend)
 
-**Status: Done** (send-invoice flow only). The main UI deliverable of the invoicing pivot.
+**Status: Done** — send, resend, and status refresh. The main UI deliverable of the invoicing pivot.
 
 ## Goal
 
@@ -8,7 +8,7 @@ Let staff issue a real electronic invoice against a sale, from a phone, as easil
 
 ## What shipped
 
-- **`InvoicesListPage`** (`/invoicing/invoices`) — table of sent invoices (number, customer, total, DIAN status badge, issue date, PDF link), paginated.
+- **`InvoicesListPage`** (`/invoicing/invoices`) — table of sent invoices (number, customer, total, DIAN status badge, issue date, PDF link), paginated. Each row has **"Consultar"** (refresh status from Dataico) and **"Reenviar"** (retry a failed DIAN submission/email without creating a duplicate) actions, with per-row loading state and inline error messages.
 - **`InvoiceFormPage`** (`/invoicing/invoices/new`) — the main deliverable:
   - Invoice details (number, dates, payment means/type — `<select>`s with the values confirmed so far, not free text).
   - Customer section wired to **Phase 9's third-party lookup**: entering an identification and clicking "Buscar" calls `useThirdPartyLookup` (via manual `refetch()`, not auto-fetch) and auto-fills company name/email on a hit; shows a clear "not found" message otherwise. Persona jurídica/natural toggles which name fields show.
@@ -20,8 +20,9 @@ Let staff issue a real electronic invoice against a sale, from a phone, as easil
 ## Deliberately left out (keep it simple)
 
 - No DANE department/city picker — plain text inputs for the codes, matching the backend's own simplification.
-- No resend/credit-note/debit-note UI — their backend references aren't confirmed yet (see `docs/phases/PHASE_10_INVOICING_STANDARD.md`).
+- No credit-note/debit-note UI — blocked/deferred on the backend side, see `docs/phases/PHASE_10_INVOICING_STANDARD.md`'s "Still not confirmed" section.
 - No draft/preview step before sending — matches the backend hardcoding `send_dian: true`; submitting the form IS sending the real invoice.
+- No toast/notification system — resend/refresh feedback is a simple top-of-page `Alert` on failure, not a per-action toast; this app has no toast component yet, and adding one just for this felt like more than the action warrants.
 
 ## Related documents
 

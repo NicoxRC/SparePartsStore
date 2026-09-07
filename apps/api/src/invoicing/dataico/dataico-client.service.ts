@@ -31,6 +31,13 @@ export class DataicoClientService {
     return this.request<TResponse>(path, { method: 'GET' });
   }
 
+  put<TResponse>(path: string, body: unknown): Promise<TResponse> {
+    return this.request<TResponse>(path, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    });
+  }
+
   private async request<TResponse>(
     path: string,
     init: { method: string; body?: string },

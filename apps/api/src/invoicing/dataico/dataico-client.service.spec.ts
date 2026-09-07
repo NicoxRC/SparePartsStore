@@ -53,6 +53,30 @@ describe('DataicoClientService', () => {
     expect(result).toEqual({ id: 'inv-1' });
   });
 
+  it('sends a PUT request with a JSON body', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () =>
+        Promise.resolve(JSON.stringify({ dian_status: 'DIAN_ACEPTADO' })),
+    });
+
+    const result = await service.put('/invoices/uuid-1', {
+      actions: { send_dian: true, send_email: false },
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.dataico.com/direct/dataico_api/v2/invoices/uuid-1',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({
+          actions: { send_dian: true, send_email: false },
+        }),
+      }),
+    );
+    expect(result).toEqual({ dian_status: 'DIAN_ACEPTADO' });
+  });
+
   it('throws DataicoApiException with the upstream status on a 4xx response', async () => {
     fetchMock.mockResolvedValue({
       ok: false,

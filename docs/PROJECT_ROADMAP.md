@@ -58,9 +58,9 @@ Shared plumbing every invoicing phase depends on, so it's built once instead of 
 
 ## Phase 10 — Factura electrónica estándar (core invoicing)
 
-**Send-invoice done; resend/query/notes still pending their own reference.** The centerpiece of the pivot. Corresponds to Dataico's "1. Factura electrónica estándar" collection ("Estructura básica" variant — see `CLAUDE.md`'s "keep it simple"). See `docs/phases/PHASE_10_INVOICING_STANDARD.md`.
+**Send, resend, and query done. Credit/debit notes blocked/deferred** — see `docs/phases/PHASE_10_INVOICING_STANDARD.md`. The centerpiece of the pivot. Corresponds to Dataico's "1. Factura electrónica estándar" collection ("Estructura básica" variant — see `CLAUDE.md`'s "keep it simple").
 
-**Exit criteria:** an invoice can be created against a sale, sent to Dataico, validated by DIAN, and its CUFE/status retrieved *(met — also decrements stock automatically)* — plus credit/debit notes issued against an already-sent invoice *(pending)*.
+**Exit criteria:** an invoice can be created against a sale, sent to Dataico, validated by DIAN, with its CUFE/status retrieved and re-checkable on demand, a failed send/email retriable without duplicating the document *(met — also decrements stock automatically)* — plus credit/debit notes issued against an already-sent invoice *(blocked: the only shared credit-note example is contaminated with health-sector fields; debit note deferred alongside it by choice)*.
 
 ## Phase 11 — Eventos de recepción (status/reception events)
 

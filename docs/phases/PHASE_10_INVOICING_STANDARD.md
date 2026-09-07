@@ -1,6 +1,6 @@
 # Phase 10 — Factura electrónica estándar (Backend)
 
-**Status: Done** (send-invoice only — resend/query/credit-note/debit-note are still pending their own reference, see below). The centerpiece of the invoicing pivot.
+**Status: Done** — send, resend, and query. Credit note and debit note remain pending (see below). The centerpiece of the invoicing pivot.
 
 ## Goal
 
@@ -64,6 +64,29 @@ And its confirmed success response (fields this app actually stores are in **bol
 
 **Test/dry-run mechanism confirmed**: controlled via `actions.send_dian: false`, not a special `env` value — only `"PRODUCCION"` has been seen for `env`. This app always sends `send_dian: true` (see "Deliberately left out" below).
 
+## Confirmed reference — "Reenviar factura" (resend) and "Consulta Factura" (query)
+
+Resend does **not** create a new document — it re-triggers an action (DIAN submission and/or email) on an invoice that already exists in Dataico, addressed by Dataico's own `uuid` (not our local id, not the business number):
+
+```
+PUT https://api.dataico.com/direct/dataico_api/v2/invoices/{dataico_uuid}
+Content-Type: application/json
+Auth-token: <DATAICO_AUTH_TOKEN>
+
+{ "actions": { "send_dian": true, "send_email": false } }
+```
+
+Confirmed against two identical real examples (different uuids/tokens, same shape) — this is the whole body, no `invoice` object. Query is a `GET` by business number:
+
+```
+GET https://api.dataico.com/direct/dataico_api/v2/invoices?number=FE12621
+Auth-token: <DATAICO_AUTH_TOKEN>
+```
+
+No response example was shared for query — **assumed** (not guessed from nothing) to return the same shape as "Envío Factura"'s confirmed response, since it's the same resource. `InvoicesService` reuses the identical response-mapping logic for create/resend/refresh (`mapDataicoResponse()`), so if the query response ever turns out to differ, there's exactly one place to fix it.
+
+**Security note, recorded for future readers**: every curl shared for this sub-feature included a `Cookie: AWSALBAPP-*=...` header (AWS load-balancer session cookies, evidently captured incidentally when the request was recorded in Postman). These are **not** part of Dataico's actual auth contract — the very first confirmed request (Phase 7) had no Cookie header and worked fine — so they are deliberately not sent by `DataicoClientService`.
+
 ## What shipped
 
 - [x] `invoices` table (see `docs/DATABASE.md`) — promotes the fields this app actually queries (status, CUFE, customer identity) to real columns, keeps the full request/response as JSONB rather than normalizing Dataico's rich, still-partially-confirmed payload.
@@ -76,6 +99,9 @@ And its confirmed success response (fields this app actually stores are in **bol
 - [x] `POST`/`GET /api/invoicing/invoices` (ADMIN, EMPLOYEE — same tier as Products, since this is the everyday counter-sale action), Swagger-documented.
 - [x] `DATAICO_ACCOUNT_ID` added as a new env var (see `docs/ENVIRONMENT_VARIABLES.md`) — stable per deployment, not re-entered per invoice.
 - [x] Unit tests: rejects with no active resolution, rejects on insufficient stock (both without calling Dataico), sends the confirmed payload shape with correctly computed tax, decrements stock only after Dataico succeeds, persists the mapped response excluding `xml`.
+- [x] `InvoicesService.resend()` / `.refreshStatus()` — `POST /api/invoicing/invoices/:id/resend` and `/:id/refresh`. Unlike everything else in this table, these **update the existing row in place** (added `updatedAt` via a follow-up migration) rather than inserting a new one — a resend/refresh is a correction to the same legal document, not a new one. `DataicoClientService.put()` added alongside `get`/`post`.
+- [x] `GET /api/invoicing/invoices/:id` — needed so resend/refresh have something to act on from the UI.
+- [x] Frontend: "Reenviar"/"Consultar" actions per row on `InvoicesListPage`, with per-row loading state and inline error surfacing.
 
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
 
@@ -87,12 +113,13 @@ And its confirmed success response (fields this app actually stores are in **bol
 
 ## Still not confirmed — do not guess
 
-- Resend invoice ("Reenviar factura"), query invoice ("Consulta Factura"), credit note ("Nota crédito"), debit note ("Nota débito") — none of these have been shared yet.
-- The full valid-value lists for `payment_means`, `payment_means_type`, `tax_level_code`, `regimen`, `party_type` — only the values seen in the two confirmed examples are used in the UI's `<select>` options.
+- **Credit note ("Nota crédito") — blocked, not just pending.** The only example shared is contaminated with health-sector fields (a `health` block with `PLAN_DE_BENEFICIOS`/`PAGO_POR_EVENTO`, and `operation: "SS_SIN_APORTE"`) — copied verbatim across multiple differently-named requests in the Postman collection ("Enviar Nota Credito" and "Enviar Nota Credito - Anular FE SS-CUFE" have the *identical* body), which means it's a generic/reused test fixture, not a real standard-invoicing example. Confirmed with the human not to implement against this. Needs either a genuinely clean example or a live test with Dataico support before building.
+- **Debit note ("Nota débito") — deferred by choice, not blocked.** Its one example looks clean (matches the invoice's own customer shape, no health contamination), but was deliberately not implemented alongside resend/query — the human asked to treat credit and debit notes as one pair, and to hold off until the credit note situation above is resolved, rather than shipping half the pair.
+- The full valid-value lists for `payment_means`, `payment_means_type`, `tax_level_code`, `regimen`, `party_type` — only the values seen in the confirmed examples are used in the UI's `<select>` options.
 
-## Exit criteria (met, for send-invoice)
+## Exit criteria (met, for send/resend/query)
 
-A sale can produce a real electronic invoice, sent to Dataico, validated by DIAN, with a retrievable CUFE and status, and inventory is decremented accordingly. Credit/debit notes and resend/query are follow-up work once their references are shared.
+A sale can produce a real electronic invoice, sent to Dataico, validated by DIAN, with a retrievable CUFE and status; inventory is decremented accordingly; a failed DIAN submission or email can be retried without creating a duplicate document; and an invoice's live status can be re-pulled on demand. Credit/debit notes remain follow-up work — see "Still not confirmed" above.
 
 ## Related documents
 

@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../../users/entities/user.entity';
 
@@ -19,9 +20,12 @@ const decimalTransformer = {
 /**
  * A local record of an invoice actually sent to Dataico — see
  * docs/DATABASE.md and docs/phases/PHASE_10_INVOICING_STANDARD.md.
- * Append-only, same convention as `inventory_movements`/`dian_resolutions`:
- * this table doesn't model resends/credit-notes/status-refresh yet
- * (Phases 11+), it's just "what did we send and what did Dataico say."
+ * Unlike `inventory_movements`/`dian_resolutions`, this table is NOT
+ * append-only: a resend or a status refresh legitimately updates the same
+ * row's status/CUFE/urls in place — a resend/refresh is a correction to
+ * the SAME legal document, not a new one, so a second row would be
+ * misleading. `updatedAt` was added specifically for this (see the
+ * `AddUpdatedAtToInvoices` migration).
  *
  * `request_payload`/`response_payload` store the full Dataico bodies as
  * JSONB rather than normalizing every nested field (items, taxes,
@@ -152,4 +156,7 @@ export class Invoice {
 
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
+
+  @UpdateDateColumn({ name: 'updated_at' })
+  updatedAt: Date;
 }
