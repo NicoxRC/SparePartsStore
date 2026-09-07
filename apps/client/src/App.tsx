@@ -14,6 +14,8 @@ import { LookupFormPage } from './pages/LookupFormPage';
 import { LookupListPage } from './pages/LookupListPage';
 import { InvoiceFormPage } from './pages/InvoiceFormPage';
 import { InvoicesListPage } from './pages/InvoicesListPage';
+import { PayrollFormPage } from './pages/PayrollFormPage';
+import { PayrollListPage } from './pages/PayrollListPage';
 import { PosInvoiceFormPage } from './pages/PosInvoiceFormPage';
 import { PosInvoicesListPage } from './pages/PosInvoicesListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
@@ -78,6 +80,15 @@ function App() {
                   <Route
                     path="/invoicing/resolutions/new"
                     element={<ResolutionFormPage />}
+                  />
+
+                  <Route
+                    path="/invoicing/payroll-entries"
+                    element={<PayrollListPage />}
+                  />
+                  <Route
+                    path="/invoicing/payroll-entries/new"
+                    element={<PayrollFormPage />}
                   />
 
                   <Route
