@@ -11,6 +11,6 @@ import { DataicoConfig } from './dataico.config';
  */
 @Module({
   providers: [DataicoConfig, DataicoClientService],
-  exports: [DataicoClientService],
+  exports: [DataicoConfig, DataicoClientService],
 })
 export class DataicoModule {}

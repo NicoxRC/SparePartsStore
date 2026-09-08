@@ -35,6 +35,21 @@ export class DataicoConfig {
     );
   }
 
+  /**
+   * Nómina Electrónica (Phase 15) lives under a different API path than
+   * everything else — `/direct/payroll-api/v2` instead of
+   * `/direct/dataico_api/v2` — same host, different service. Kept as its
+   * own variable for the same reason as `posBaseUrl`: a one-variable
+   * change instead of a code change if this ever needs to point
+   * somewhere else.
+   */
+  get payrollBaseUrl(): string {
+    return this.configService.get<string>(
+      'DATAICO_PAYROLL_BASE_URL',
+      'https://api.dataico.com/direct/payroll-api/v2',
+    );
+  }
+
   get authToken(): string {
     const token = this.configService.get<string>('DATAICO_AUTH_TOKEN');
     if (!token) {

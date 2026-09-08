@@ -82,11 +82,11 @@ Once Phase 10 (or whichever invoicing phase first reaches production use) is liv
 
 **Exit criteria:** `export` module deleted, its route gone, `docs/ARCHITECTURE.md`/`DATABASE.md` updated to drop references to it as current, not just historical.
 
-## Phase 15 — Nómina Electrónica — **confirmed needed, legal requirement**
+## Phase 15 — Nómina Electrónica — **Done** (send + query)
 
-Corresponds to Dataico's "5. Nómina Electrónica" collection. **Reclassified from "out of scope" after asking the human directly**: this store has formal employees, and DIAN requires electronic payroll reporting for any business with formal employees — this isn't a nice-to-have, it's a compliance obligation independent of the customer-facing invoicing pivot. Needs its own Postman reference before scoping, per `CLAUDE.md`.
+Corresponds to Dataico's "5. Nómina Electrónica" collection. **Reclassified from "out of scope" after asking the human directly**: this store has formal employees, and DIAN requires electronic payroll reporting for any business with formal employees — this isn't a nice-to-have, it's a compliance obligation independent of the customer-facing invoicing pivot. Confirmed scope: this app is a pass-through only (submits already-calculated figures), not the source of truth for payroll. See `docs/phases/PHASE_15_PAYROLL.md`.
 
-**Exit criteria:** this store's payroll can be reported to DIAN electronically through Dataico, meeting the legal requirement.
+**Exit criteria:** this store's payroll can be reported to DIAN electronically through Dataico, meeting the legal requirement. *(met — batch submission and resend deliberately deferred, see the phase doc)*
 
 ---
 

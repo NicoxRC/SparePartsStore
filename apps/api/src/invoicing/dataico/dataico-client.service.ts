@@ -93,7 +93,18 @@ export class DataicoClientService {
     try {
       return JSON.parse(raw);
     } catch {
-      return raw;
+      // Dataico error bodies have been observed with a literal, unescaped
+      // newline inside a JSON string value (invalid per spec) — escape
+      // stray control characters and retry once before giving up.
+      try {
+        return JSON.parse(
+          raw.replace(/[\n\r\t]/g, (char) =>
+            char === '\n' ? '\\n' : char === '\r' ? '\\r' : '\\t',
+          ),
+        );
+      } catch {
+        return raw;
+      }
     }
   }
 }

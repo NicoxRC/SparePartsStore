@@ -22,6 +22,7 @@ export function AuthenticatedLayout() {
           { to: '/users', label: 'Usuarios', icon: '👥' },
           { to: '/catalogs', label: 'Catálogos', icon: '🏷️' },
           { to: '/invoicing/resolutions', label: 'Resoluciones DIAN', icon: '📄' },
+          { to: '/invoicing/payroll-entries', label: 'Nómina electrónica', icon: '🧑‍💼' },
         ]
       : []),
   ];
