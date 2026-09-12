@@ -34,3 +34,23 @@ export type ProductFormInput = z.input<typeof productFormSchema>;
 
 /** Shape after validation/coercion (e.g. salePrice as number). */
 export type ProductFormValues = z.output<typeof productFormSchema>;
+
+/**
+ * Quick-create variant used from the product-search dropdown on the invoice
+ * forms — same fields/messages as the full product form, minus `stock`
+ * (there's no separate "initial stock" concept here) plus `quantity`, the
+ * amount being sold right now. The caller sends `quantity` as `stock` when
+ * creating the product, then pre-fills the same quantity on the new line item.
+ */
+export const quickCreateProductSchema = productFormSchema.omit({ stock: true }).extend({
+  quantity: z.coerce
+    .number({ message: 'La cantidad debe ser un número.' })
+    .int('La cantidad debe ser un número entero.')
+    .min(1, 'La cantidad mínima es 1.'),
+});
+
+/** Shape of the raw form fields (before Zod coercion). */
+export type QuickCreateProductInput = z.input<typeof quickCreateProductSchema>;
+
+/** Shape after validation/coercion. */
+export type QuickCreateProductValues = z.output<typeof quickCreateProductSchema>;
