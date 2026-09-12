@@ -253,6 +253,33 @@ Added Phase 12 — a local record of every POS Electrónico document sent to Dat
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at`, `updated_at` | TIMESTAMPTZ | Mutable like `invoices` (a future resend/refresh updates in place), not append-only. |
 
+### `customers`
+
+Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap phase) — a persisted local "customer address book" so store staff can search/reuse a customer across sales instead of retyping or re-looking-up every time. See `docs/GLOSSARY.md` ("Cliente / Customer (local)") for how this differs from "Tercero."
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `identification_type` | VARCHAR(20) | Free string (not a TS enum, same reasoning as `dian_resolutions.subtype`), uppercased at the DTO layer. |
+| `identification` | VARCHAR(50) | |
+| `party_type` | VARCHAR(20) | Canonical values `PERSONA_JURIDICA` / `PERSONA_NATURAL` (the standard-invoice vocabulary), validated with `@IsIn` at the DTO layer — not a DB enum. The POS flow's `NATURAL`/`JURIDICA` values are mapped to/from this only in the frontend; this entity is flow-agnostic. |
+| `company_name` | VARCHAR(255), nullable | |
+| `first_name`, `family_name` | VARCHAR(150), nullable | |
+| `tax_level_code` | VARCHAR(20), nullable | |
+| `regimen` | VARCHAR(50), nullable | |
+| `country_code` | VARCHAR(2), nullable | DB default `CO` |
+| `department`, `city` | VARCHAR(10), nullable | DANE codes as free text, matching how the existing invoice form already handles this — no lookup catalog. |
+| `address_line` | VARCHAR(255), nullable | |
+| `email` | VARCHAR(255) | `NOT NULL`, validated `@IsEmail()` |
+| `phone` | VARCHAR(50), nullable | |
+| `responsable_iva` | BOOLEAN | default `false` |
+| `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard, see Conventions |
+
+**Uniqueness**: partial unique index on `(identification_type, identification) WHERE deleted_at IS NULL` — the same composite technique used elsewhere in this document, enforced at the DB level plus an app-level pre-check in `CustomersService` for a clean `ConflictException` message (see `CODING_STANDARDS.md`'s two-layer pattern).
+
+**Business logic**: this is a standalone local address book, not FK'd from `invoices`/`pos_invoices` — those tables keep their existing denormalized `customer_*` columns untouched (see those tables above; they predate this table and there was nothing to join against at the time). `customers` has no `remove()`/delete endpoint in v1 — nothing references it by FK, so a stale entry costs nothing.
+
 ### `payroll_entries`
 
 Added Phase 15 — a local record of every Nómina Electrónica period submitted to Dataico. **This app is not the source of truth for payroll** — every figure (salary, accruals, deductions) is already calculated elsewhere and just forwarded here; see `docs/phases/PHASE_15_PAYROLL.md`. That's why `employee_payload`/`accruals`/`deductions` are JSONB rather than normalized columns/tables — there is no employee table to join against.
@@ -296,6 +323,7 @@ Added Phase 15 — a local record of every Nómina Electrónica period submitted
 | 12 | `AddUpdatedAtToInvoices` | Phase 10 (resend/query follow-up). Adds `invoices.updated_at` — needed once resend/refresh started updating existing rows instead of only ever inserting. |
 | 13 | `CreatePosInvoices` | Phase 12. `pos_invoices` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
 | 14 | `CreatePayrollEntries` | Phase 15. `payroll_entries` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
+| 15 | `CreateCustomers` | Small enhancement (not a numbered phase). `customers` table (FKs to `users` for both audit columns, partial unique index on `(identification_type, identification)`, indexes on `created_at DESC` and `identification`). Hand-written — no live database was reachable to generate/verify it against, see the note in this migration's PR/commit. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

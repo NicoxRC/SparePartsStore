@@ -55,6 +55,8 @@ apps/api/src/
 ├── brands/                              # lookup — Marca
 │   (all three share an identical shape — see DATABASE.md)
 │
+├── customers/                           # local customer address book (not Dataico — no HTTP calls), reusable across sales
+│
 ├── inventory/
 │   ├── inventory.controller.ts
 │   ├── inventory.service.ts

@@ -1,21 +1,31 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState } from 'react';
-import { useFieldArray, useForm, useWatch } from 'react-hook-form';
+import {
+  useFieldArray,
+  useForm,
+  useWatch,
+  type FieldErrors,
+  type UseFormRegister,
+} from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CustomerPicker } from '../components/CustomerPicker';
+import { QuickCreateProductDialog } from '../components/QuickCreateProductDialog';
 import { SelectField } from '../components/SelectField';
 import { TextField } from '../components/TextField';
+import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
 import { useProducts } from '../hooks/useProducts';
-import { useThirdPartyLookup } from '../hooks/useThirdPartyLookup';
 import { getApiErrorMessage } from '../lib/errors';
 import {
   invoiceFormSchema,
   type InvoiceFormInput,
   type InvoiceFormValues,
 } from '../lib/schemas/invoice';
+import type { CustomerInput, CustomerPartyType, CustomerResponse } from '../services/customers';
 import type { ProductResponse } from '../services/products';
+import type { ThirdPartyResponse } from '../services/thirdParties';
 
 const DEFAULT_TAX_RATE = 19;
 
@@ -23,14 +33,161 @@ function todayIsoDate(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+interface CustomerSectionProps {
+  register: UseFormRegister<InvoiceFormInput>;
+  errors: FieldErrors<InvoiceFormInput>;
+  customerPartyType: string;
+  customerSearchQuery: string;
+  onCustomerSearchQueryChange: (value: string) => void;
+  customerIdentification: string;
+  customerIdentificationType: string;
+  onSelectCustomer: (customer: CustomerResponse) => void;
+  onDianResult: (result: ThirdPartyResponse) => void;
+  onSaveCustomer: () => void;
+  canSaveCustomer: boolean;
+  isSavingCustomer: boolean;
+  saveCustomerError: unknown;
+}
+
+function CustomerSection({
+  register,
+  errors,
+  customerPartyType,
+  customerSearchQuery,
+  onCustomerSearchQueryChange,
+  customerIdentification,
+  customerIdentificationType,
+  onSelectCustomer,
+  onDianResult,
+  onSaveCustomer,
+  canSaveCustomer,
+  isSavingCustomer,
+  saveCustomerError,
+}: CustomerSectionProps) {
+  return (
+    <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-auto px-3 py-2 text-xs sm:min-h-0 sm:px-3 sm:py-1.5"
+          disabled={!canSaveCustomer}
+          isLoading={isSavingCustomer}
+          onClick={onSaveCustomer}
+        >
+          Guardar cliente
+        </Button>
+      </div>
+
+      {saveCustomerError !== null && saveCustomerError !== undefined && (
+        <Alert variant="error">{getApiErrorMessage(saveCustomerError)}</Alert>
+      )}
+
+      <CustomerPicker
+        searchQuery={customerSearchQuery}
+        onSearchQueryChange={onCustomerSearchQueryChange}
+        identification={customerIdentification}
+        identificationType={customerIdentificationType}
+        onSelectCustomer={onSelectCustomer}
+        onDianResult={onDianResult}
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <SelectField
+          label="Tipo de identificación"
+          error={errors.customerIdentificationType?.message}
+          {...register('customerIdentificationType')}
+        >
+          <option value="NIT">NIT</option>
+          <option value="CC">Cédula de ciudadanía</option>
+        </SelectField>
+        <TextField
+          label="Identificación"
+          placeholder="830033494"
+          error={errors.customerIdentification?.message}
+          {...register('customerIdentification')}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <SelectField
+          label="Tipo de persona"
+          error={errors.customerPartyType?.message}
+          {...register('customerPartyType')}
+        >
+          <option value="PERSONA_JURIDICA">Persona jurídica</option>
+          <option value="PERSONA_NATURAL">Persona natural</option>
+        </SelectField>
+        <SelectField
+          label="Responsabilidad tributaria"
+          error={errors.customerTaxLevelCode?.message}
+          {...register('customerTaxLevelCode')}
+        >
+          <option value="COMUN">Común</option>
+          <option value="SIMPLIFICADO">Simplificado</option>
+        </SelectField>
+
+        {customerPartyType === 'PERSONA_JURIDICA' ? (
+          <div className="sm:col-span-2">
+            <TextField
+              label="Razón social"
+              error={errors.customerCompanyName?.message}
+              {...register('customerCompanyName')}
+            />
+          </div>
+        ) : (
+          <>
+            <TextField
+              label="Nombres"
+              error={errors.customerFirstName?.message}
+              {...register('customerFirstName')}
+            />
+            <TextField
+              label="Apellidos"
+              error={errors.customerFamilyName?.message}
+              {...register('customerFamilyName')}
+            />
+          </>
+        )}
+
+        <TextField
+          label="Código DANE de departamento"
+          placeholder="11"
+          error={errors.customerDepartment?.message}
+          {...register('customerDepartment')}
+        />
+        <TextField
+          label="Código DANE de ciudad"
+          placeholder="001"
+          error={errors.customerCity?.message}
+          {...register('customerCity')}
+        />
+        <div className="sm:col-span-2">
+          <TextField
+            label="Dirección"
+            error={errors.customerAddressLine?.message}
+            {...register('customerAddressLine')}
+          />
+        </div>
+        <TextField
+          label="Correo"
+          type="email"
+          error={errors.customerEmail?.message}
+          {...register('customerEmail')}
+        />
+      </div>
+    </section>
+  );
+}
+
 export function InvoiceFormPage() {
   const navigate = useNavigate();
   const createMutation = useCreateInvoice();
   const [productQuery, setProductQuery] = useState('');
-  const [lookupTarget, setLookupTarget] = useState({
-    identification: '',
-    identificationType: 'NIT',
-  });
+  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
   const {
     register,
@@ -73,37 +230,84 @@ export function InvoiceFormPage() {
   } = useFieldArray({ control, name: 'items' });
 
   const customerPartyType = useWatch({ control, name: 'customerPartyType' });
+  const customerIdentification = useWatch({ control, name: 'customerIdentification' });
+  const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
+  const customerEmail = useWatch({ control, name: 'customerEmail' });
   const watchedItems = useWatch({ control, name: 'items' });
 
   const productsQuery = useProducts({ search: productQuery, limit: 10 });
-  const thirdPartyLookup = useThirdPartyLookup(lookupTarget, false);
+  const createCustomerMutation = useCreateCustomer();
+  const updateCustomerMutation = useUpdateCustomer(selectedCustomerId ?? '');
+  const saveCustomerMutation = selectedCustomerId ? updateCustomerMutation : createCustomerMutation;
 
-  const handleLookupCustomer = async () => {
-    const identification = getValues('customerIdentification');
-    const identificationType = getValues('customerIdentificationType');
-    if (!identification || !identificationType) return;
+  const handleSelectCustomer = (customer: CustomerResponse) => {
+    setSelectedCustomerId(customer.id);
+    setValue('customerIdentificationType', customer.identificationType);
+    setValue('customerIdentification', customer.identification);
+    setValue('customerPartyType', customer.partyType);
+    setValue('customerTaxLevelCode', customer.taxLevelCode || 'COMUN');
+    setValue('customerRegimen', customer.regimen ?? '');
+    setValue('customerCompanyName', customer.companyName ?? '');
+    setValue('customerFirstName', customer.firstName ?? '');
+    setValue('customerFamilyName', customer.familyName ?? '');
+    setValue('customerCountryCode', customer.countryCode ?? 'CO');
+    setValue('customerDepartment', customer.department ?? '');
+    setValue('customerCity', customer.city ?? '');
+    setValue('customerAddressLine', customer.addressLine ?? '');
+    setValue('customerEmail', customer.email);
+    setCustomerSearchQuery('');
+  };
 
-    setLookupTarget({ identification, identificationType });
-    const result = await thirdPartyLookup.refetch();
-    if (result.data) {
-      if (result.data.companyName) setValue('customerCompanyName', result.data.companyName);
-      if (result.data.firstName) setValue('customerFirstName', result.data.firstName);
-      if (result.data.familyName) setValue('customerFamilyName', result.data.familyName);
-      if (result.data.email) setValue('customerEmail', result.data.email);
+  const handleDianResult = (result: ThirdPartyResponse) => {
+    if (result.companyName) setValue('customerCompanyName', result.companyName);
+    if (result.firstName) setValue('customerFirstName', result.firstName);
+    if (result.familyName) setValue('customerFamilyName', result.familyName);
+    if (result.email) setValue('customerEmail', result.email);
+  };
+
+  const handleSaveCustomer = async () => {
+    const values = getValues();
+    const payload: CustomerInput = {
+      identificationType: values.customerIdentificationType,
+      identification: values.customerIdentification,
+      partyType: values.customerPartyType as CustomerPartyType,
+      companyName: values.customerCompanyName || undefined,
+      firstName: values.customerFirstName || undefined,
+      familyName: values.customerFamilyName || undefined,
+      taxLevelCode: values.customerTaxLevelCode || undefined,
+      regimen: values.customerRegimen || undefined,
+      countryCode: values.customerCountryCode || undefined,
+      department: values.customerDepartment || undefined,
+      city: values.customerCity || undefined,
+      addressLine: values.customerAddressLine || undefined,
+      email: values.customerEmail,
+    };
+    try {
+      const saved = selectedCustomerId
+        ? await updateCustomerMutation.mutateAsync(payload)
+        : await createCustomerMutation.mutateAsync(payload);
+      setSelectedCustomerId(saved.id);
+    } catch {
+      // surfaced via saveCustomerMutation.isError / .error below
     }
   };
 
-  const handleAddProduct = (product: ProductResponse) => {
+  const handleAddProduct = (product: ProductResponse, quantity = 1) => {
     appendItem({
       productId: product.id,
       reference: product.reference,
       description: product.description,
       price: product.salePrice,
       stock: product.stock,
-      quantity: 1,
+      quantity,
       taxRate: DEFAULT_TAX_RATE,
     });
     setProductQuery('');
+  };
+
+  const handleProductCreated = (product: ProductResponse, quantity: number) => {
+    handleAddProduct(product, quantity);
+    setIsCreateProductOpen(false);
   };
 
   const onSubmit = async (values: InvoiceFormValues) => {
@@ -207,112 +411,21 @@ export function InvoiceFormPage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
-            Cliente
-          </h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <SelectField
-              label="Tipo de identificación"
-              error={errors.customerIdentificationType?.message}
-              {...register('customerIdentificationType')}
-            >
-              <option value="NIT">NIT</option>
-              <option value="CC">Cédula de ciudadanía</option>
-            </SelectField>
-            <div className="flex items-end gap-2">
-              <div className="flex-1">
-                <TextField
-                  label="Identificación"
-                  placeholder="830033494"
-                  error={errors.customerIdentification?.message}
-                  {...register('customerIdentification')}
-                />
-              </div>
-              <Button
-                type="button"
-                variant="secondary"
-                className="mb-[1px] sm:w-auto sm:px-4"
-                isLoading={thirdPartyLookup.isFetching}
-                onClick={() => void handleLookupCustomer()}
-              >
-                Buscar
-              </Button>
-            </div>
-          </div>
-
-          {thirdPartyLookup.isFetched && !thirdPartyLookup.data && (
-            <Alert variant="info">No se encontró un tercero con esa identificación en la DIAN.</Alert>
-          )}
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <SelectField
-              label="Tipo de persona"
-              error={errors.customerPartyType?.message}
-              {...register('customerPartyType')}
-            >
-              <option value="PERSONA_JURIDICA">Persona jurídica</option>
-              <option value="PERSONA_NATURAL">Persona natural</option>
-            </SelectField>
-            <SelectField
-              label="Responsabilidad tributaria"
-              error={errors.customerTaxLevelCode?.message}
-              {...register('customerTaxLevelCode')}
-            >
-              <option value="COMUN">Común</option>
-              <option value="SIMPLIFICADO">Simplificado</option>
-            </SelectField>
-
-            {customerPartyType === 'PERSONA_JURIDICA' ? (
-              <div className="sm:col-span-2">
-                <TextField
-                  label="Razón social"
-                  error={errors.customerCompanyName?.message}
-                  {...register('customerCompanyName')}
-                />
-              </div>
-            ) : (
-              <>
-                <TextField
-                  label="Nombres"
-                  error={errors.customerFirstName?.message}
-                  {...register('customerFirstName')}
-                />
-                <TextField
-                  label="Apellidos"
-                  error={errors.customerFamilyName?.message}
-                  {...register('customerFamilyName')}
-                />
-              </>
-            )}
-
-            <TextField
-              label="Código DANE de departamento"
-              placeholder="11"
-              error={errors.customerDepartment?.message}
-              {...register('customerDepartment')}
-            />
-            <TextField
-              label="Código DANE de ciudad"
-              placeholder="001"
-              error={errors.customerCity?.message}
-              {...register('customerCity')}
-            />
-            <div className="sm:col-span-2">
-              <TextField
-                label="Dirección"
-                error={errors.customerAddressLine?.message}
-                {...register('customerAddressLine')}
-              />
-            </div>
-            <TextField
-              label="Correo"
-              type="email"
-              error={errors.customerEmail?.message}
-              {...register('customerEmail')}
-            />
-          </div>
-        </section>
+        <CustomerSection
+          register={register}
+          errors={errors}
+          customerPartyType={customerPartyType}
+          customerSearchQuery={customerSearchQuery}
+          onCustomerSearchQueryChange={setCustomerSearchQuery}
+          customerIdentification={customerIdentification}
+          customerIdentificationType={customerIdentificationType}
+          onSelectCustomer={handleSelectCustomer}
+          onDianResult={handleDianResult}
+          onSaveCustomer={() => void handleSaveCustomer()}
+          canSaveCustomer={Boolean(customerIdentification) && Boolean(customerEmail)}
+          isSavingCustomer={saveCustomerMutation.isPending}
+          saveCustomerError={saveCustomerMutation.isError ? saveCustomerMutation.error : null}
+        />
 
         <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
@@ -346,6 +459,13 @@ export function InvoiceFormPage() {
                     </button>
                   ))
                 )}
+                <button
+                  type="button"
+                  onClick={() => setIsCreateProductOpen(true)}
+                  className="w-full border-t border-line px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-mist"
+                >
+                  + Crear producto nuevo
+                </button>
               </div>
             )}
           </div>
@@ -425,6 +545,14 @@ export function InvoiceFormPage() {
           </Button>
         </div>
       </form>
+
+      {isCreateProductOpen && (
+        <QuickCreateProductDialog
+          initialReference={productQuery}
+          onClose={() => setIsCreateProductOpen(false)}
+          onCreated={handleProductCreated}
+        />
+      )}
     </div>
   );
 }
