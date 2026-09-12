@@ -127,7 +127,7 @@ export function SearchableSelect({
 
   return (
     <div className="flex flex-col gap-1.5" ref={containerRef}>
-      <label htmlFor={fieldId} className="text-sm font-medium text-[#3F4654]">
+      <label htmlFor={fieldId} className="text-sm font-medium text-steel">
         {label}
       </label>
       <div className="relative">
@@ -154,13 +154,13 @@ export function SearchableSelect({
             setHighlightedIndex(0);
           }}
           onKeyDown={handleKeyDown}
-          className={`min-h-12 w-full rounded-lg border bg-white px-4 py-3 pr-9 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2A4A]/30 focus:border-[#1E2A4A] disabled:bg-[#F7F6F4] disabled:text-[#8B92A3] sm:min-h-11 sm:py-2.5 sm:text-sm ${
-            error ? 'border-[#C2483A]' : 'border-[#D8DCE6]'
+          className={`min-h-12 w-full rounded-sm border bg-white px-4 py-3 pr-9 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink disabled:bg-canvas disabled:text-fog sm:min-h-11 sm:py-2.5 sm:text-sm ${
+            error ? 'border-rust' : 'border-line'
           }`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${fieldId}-error` : undefined}
         />
-        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-[#8B92A3]">
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-fog">
           ▾
         </span>
 
@@ -168,7 +168,7 @@ export function SearchableSelect({
           <ul
             id={`${fieldId}-listbox`}
             role="listbox"
-            className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-lg border border-[#D8DCE6] bg-white py-1 shadow-lg"
+            className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-sm border border-line bg-white py-1 shadow-lg"
           >
             {clearLabel && (
               <li
@@ -176,19 +176,19 @@ export function SearchableSelect({
                 aria-selected={value === ''}
                 onClick={() => handleSelect('')}
                 className={`cursor-pointer px-4 py-2.5 text-sm ${
-                  safeHighlightedIndex === 0 ? 'bg-[#F2F4F8]' : ''
-                } ${value === '' ? 'font-semibold text-[#1E2A4A]' : 'text-gray-900'}`}
+                  safeHighlightedIndex === 0 ? 'bg-mist' : ''
+                } ${value === '' ? 'font-semibold text-ink' : 'text-gray-900'}`}
               >
                 {clearLabel}
               </li>
             )}
 
             {listQuery.isLoading && (
-              <li className="px-4 py-2.5 text-sm text-[#8B92A3]">Buscando…</li>
+              <li className="px-4 py-2.5 text-sm text-fog">Buscando…</li>
             )}
 
             {!listQuery.isLoading && options.length === 0 && (
-              <li className="px-4 py-2.5 text-sm text-[#8B92A3]">Sin resultados</li>
+              <li className="px-4 py-2.5 text-sm text-fog">Sin resultados</li>
             )}
 
             {options.map((option, index) => {
@@ -200,8 +200,8 @@ export function SearchableSelect({
                   aria-selected={value === option.id}
                   onClick={() => handleSelect(option.id)}
                   className={`cursor-pointer px-4 py-2.5 text-sm ${
-                    safeHighlightedIndex === optionIndex ? 'bg-[#F2F4F8]' : ''
-                  } ${value === option.id ? 'font-semibold text-[#1E2A4A]' : 'text-gray-900'}`}
+                    safeHighlightedIndex === optionIndex ? 'bg-mist' : ''
+                  } ${value === option.id ? 'font-semibold text-ink' : 'text-gray-900'}`}
                 >
                   {option.name}
                 </li>
@@ -213,8 +213,8 @@ export function SearchableSelect({
                 role="option"
                 aria-selected={false}
                 onClick={openCreateDialog}
-                className={`cursor-pointer border-t border-[#E4E8EF] px-4 py-2.5 text-sm font-medium text-[#1E2A4A] ${
-                  safeHighlightedIndex === optionCount - 1 ? 'bg-[#F2F4F8]' : ''
+                className={`cursor-pointer border-t border-line px-4 py-2.5 text-sm font-medium text-ink ${
+                  safeHighlightedIndex === optionCount - 1 ? 'bg-mist' : ''
                 }`}
               >
                 + Crear {label.toLowerCase()}
@@ -225,7 +225,7 @@ export function SearchableSelect({
         )}
       </div>
       {error && (
-        <p id={`${fieldId}-error`} className="text-sm text-[#C2483A]">
+        <p id={`${fieldId}-error`} className="text-sm text-rust">
           {error}
         </p>
       )}

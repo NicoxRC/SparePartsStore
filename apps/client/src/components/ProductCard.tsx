@@ -24,40 +24,40 @@ export function ProductCard({
   isDeleting,
 }: ProductCardProps) {
   return (
-    <div className="flex h-full flex-col rounded-xl border border-[#E4E8EF] bg-white p-4 shadow-sm transition-shadow hover:shadow-md">
+    <div className="flex h-full flex-col rounded border border-line bg-white p-4 transition-colors hover:border-fog">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold text-[#1E2A4A]">
+          <p className="truncate text-base font-semibold text-ink">
             {product.description}
           </p>
-          <span className="mt-1 inline-block rounded border border-[#D8DCE6] bg-[#F7F6F4] px-1.5 py-0.5 font-mono text-xs text-[#3F4654]">
+          <span className="mt-1 inline-block rounded border border-line bg-canvas px-1.5 py-0.5 font-mono text-xs text-steel">
             {product.reference}
           </span>
         </div>
-        <p className="shrink-0 text-base font-bold text-[#E8853A]">
+        <p className="shrink-0 font-mono text-base font-bold text-signal">
           {currencyFormatter.format(product.salePrice)}
         </p>
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-[#3F4654]">
+      <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-steel">
         <div>
-          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Costo</dt>
-          <dd>{currencyFormatter.format(product.cost)}</dd>
+          <dt className="text-xs uppercase tracking-wide text-fog">Costo</dt>
+          <dd className="font-mono">{currencyFormatter.format(product.cost)}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Stock</dt>
-          <dd>{product.stock}</dd>
+          <dt className="text-xs uppercase tracking-wide text-fog">Stock</dt>
+          <dd className="font-mono">{product.stock}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Departamento</dt>
+          <dt className="text-xs uppercase tracking-wide text-fog">Departamento</dt>
           <dd className="truncate">{product.department.name}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Grupo</dt>
+          <dt className="text-xs uppercase tracking-wide text-fog">Grupo</dt>
           <dd className="truncate">{product.group.name}</dd>
         </div>
         <div>
-          <dt className="text-xs uppercase tracking-wide text-[#8B92A3]">Marca</dt>
+          <dt className="text-xs uppercase tracking-wide text-fog">Marca</dt>
           <dd className="truncate">{product.brand.name}</dd>
         </div>
       </dl>

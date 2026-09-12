@@ -43,19 +43,19 @@ function AdjustModal({ product, onClose }: AdjustModalProps) {
 
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
-        <h2 className="text-lg font-semibold text-[#1E2A4A]">Ajustar stock</h2>
-        <p className="mt-1 text-sm text-[#3F4654]">
+      <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+        <h2 className="text-lg font-semibold text-ink">Ajustar stock</h2>
+        <p className="mt-1 text-sm text-steel">
           <span className="font-mono font-medium">{product.reference}</span> — {product.description}
         </p>
-        <p className="mt-0.5 text-sm text-[#8B92A3]">
-          Stock actual: <span className="font-semibold text-[#1E2A4A]">{product.stock}</span>
+        <p className="mt-0.5 text-sm text-fog">
+          Stock actual: <span className="font-semibold text-ink">{product.stock}</span>
         </p>
 
         <div className="mt-4 flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="qty" className="text-sm font-medium text-[#3F4654]">
-              Cantidad <span className="font-normal text-[#8B92A3]">(+ agregar / − restar)</span>
+            <label htmlFor="qty" className="text-sm font-medium text-steel">
+              Cantidad <span className="font-normal text-fog">(+ agregar / − restar)</span>
             </label>
             <input
               id="qty"
@@ -64,27 +64,27 @@ function AdjustModal({ product, onClose }: AdjustModalProps) {
               placeholder="Ej: 10 ó -3"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className={`min-h-12 w-full rounded-lg border px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-[#1E2A4A] focus:outline-none focus:ring-2 focus:ring-[#1E2A4A]/30 sm:min-h-11 sm:py-2.5 sm:text-sm ${
-                stockWouldGoNegative ? 'border-[#C2483A]' : 'border-[#D8DCE6]'
+              className={`min-h-12 w-full rounded-sm border px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm ${
+                stockWouldGoNegative ? 'border-rust' : 'border-line'
               }`}
             />
             {stockWouldGoNegative && (
-              <p className="text-sm text-[#C2483A]">
+              <p className="text-sm text-rust">
                 Stock insuficiente. Stock actual: {product.stock}
               </p>
             )}
             {isValidQty && !stockWouldGoNegative && (
-              <p className="text-sm text-[#8B92A3]">
+              <p className="text-sm text-fog">
                 Nuevo stock:{' '}
-                <span className="font-semibold text-[#1E2A4A]">{newStock}</span>
+                <span className="font-semibold text-ink">{newStock}</span>
               </p>
             )}
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="notes" className="text-sm font-medium text-[#3F4654]">
+            <label htmlFor="notes" className="text-sm font-medium text-steel">
               Notas{' '}
-              <span className="font-normal text-[#8B92A3]">(opcional)</span>
+              <span className="font-normal text-fog">(opcional)</span>
             </label>
             <textarea
               id="notes"
@@ -93,7 +93,7 @@ function AdjustModal({ product, onClose }: AdjustModalProps) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
-              className="w-full resize-none rounded-lg border border-[#D8DCE6] px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-[#1E2A4A] focus:outline-none focus:ring-2 focus:ring-[#1E2A4A]/30"
+              className="w-full resize-none rounded-sm border border-line px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
             />
           </div>
         </div>
@@ -162,13 +162,13 @@ export function InventoryPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
           Inventario
         </h1>
         <button
           type="button"
           onClick={() => setShowMovements((p) => !p)}
-          className="text-sm font-medium text-[#1E2A4A] underline decoration-[#D8DCE6] underline-offset-4 hover:decoration-[#1E2A4A]"
+          className="text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
         >
           {showMovements ? 'Ver productos' : 'Ver movimientos'}
         </button>
@@ -199,24 +199,24 @@ export function InventoryPage() {
                   {productsQuery.data.data.map((product) => (
                     <div
                       key={product.id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-[#E4E8EF] bg-white px-4 py-3"
+                      className="flex items-center justify-between gap-3 rounded border border-line bg-white px-4 py-3"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-mono text-sm font-semibold text-[#1E2A4A]">
+                        <p className="truncate font-mono text-sm font-semibold text-ink">
                           {product.reference}
                         </p>
-                        <p className="truncate text-sm text-[#3F4654]">
+                        <p className="truncate text-sm text-steel">
                           {product.description}
                         </p>
-                        <p className="mt-0.5 text-sm text-[#8B92A3]">
+                        <p className="mt-0.5 text-sm text-fog">
                           Stock:{' '}
                           <span
                             className={`font-semibold ${
                               product.stock === 0
-                                ? 'text-[#C2483A]'
+                                ? 'text-rust'
                                 : product.stock <= 5
-                                  ? 'text-[#C67C1A]'
-                                  : 'text-[#2F6B45]'
+                                  ? 'text-amber'
+                                  : 'text-ok'
                             }`}
                           >
                             {product.stock}
@@ -227,7 +227,7 @@ export function InventoryPage() {
                         <button
                           type="button"
                           onClick={() => setAdjustProduct(product)}
-                          className="shrink-0 rounded-lg border border-[#D8DCE6] bg-white px-3 py-2 text-sm font-medium text-[#3F4654] hover:bg-[#F7F6F4] active:bg-[#E4E8EF]"
+                          className="shrink-0 rounded-sm border border-line bg-white px-3 py-2 text-sm font-medium text-steel hover:bg-canvas active:bg-line"
                         >
                           + Stock
                         </button>
@@ -264,24 +264,24 @@ export function InventoryPage() {
                   {movementsQuery.data.data.map((m) => (
                     <div
                       key={m.id}
-                      className="rounded-xl border border-[#E4E8EF] bg-white px-4 py-3"
+                      className="rounded border border-line bg-white px-4 py-3"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate font-mono text-sm font-semibold text-[#1E2A4A]">
+                          <p className="truncate font-mono text-sm font-semibold text-ink">
                             {m.productReference}
                           </p>
-                          <p className="truncate text-sm text-[#3F4654]">
+                          <p className="truncate text-sm text-steel">
                             {m.productDescription}
                           </p>
                         </div>
                         <span
                           className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
                             m.movementType === 'purchase'
-                              ? 'bg-[#E9F3EC] text-[#2F6B45]'
+                              ? 'bg-ok-tint text-ok'
                               : m.movementType === 'initial'
-                                ? 'bg-[#EEF2FF] text-[#3B5BDB]'
-                                : 'bg-[#FFF8E7] text-[#C67C1A]'
+                                ? 'bg-indigo-tint text-indigo'
+                                : 'bg-amber-tint text-amber'
                           }`}
                         >
                           {m.movementType === 'purchase'
@@ -291,15 +291,15 @@ export function InventoryPage() {
                               : 'Ajuste'}
                         </span>
                       </div>
-                      <div className="mt-1.5 flex items-center gap-3 text-sm text-[#8B92A3]">
+                      <div className="mt-1.5 flex items-center gap-3 text-sm text-fog">
                         <span
-                          className={`font-semibold ${m.quantity > 0 ? 'text-[#2F6B45]' : 'text-[#C2483A]'}`}
+                          className={`font-semibold ${m.quantity > 0 ? 'text-ok' : 'text-rust'}`}
                         >
                           {m.quantity > 0 ? '+' : ''}{m.quantity} uds
                         </span>
                         {m.notes && <span className="truncate">— {m.notes}</span>}
                       </div>
-                      <div className="mt-1 flex items-center justify-between text-xs text-[#8B92A3]">
+                      <div className="mt-1 flex items-center justify-between text-xs text-fog">
                         <span>
                           {m.createdBy
                             ? `${m.createdBy.firstName} ${m.createdBy.lastName}`

@@ -29,21 +29,21 @@ export function ChangePasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F7F6F4] px-4 py-8">
+    <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-8">
       <div className="w-full max-w-sm sm:max-w-md">
         <div className="mb-6 text-center sm:mb-8">
-          <p className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-[#E8853A]">
+          <p className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-signal">
             Inventario de repuestos
           </p>
-          <h1 className="mt-2 text-lg font-semibold text-[#1E2A4A]">
+          <h1 className="mt-2 text-lg font-semibold text-ink">
             Cambia tu contraseña
           </h1>
-          <p className="mt-1 text-sm text-[#8B92A3]">
+          <p className="mt-1 text-sm text-fog">
             Por seguridad, debes establecer una nueva contraseña antes de continuar.
           </p>
         </div>
 
-        <div className="rounded-2xl border border-[#E4E8EF] bg-white p-6 shadow-sm sm:p-8">
+        <div className="rounded border border-line bg-white p-6 sm:p-8">
           {changePasswordError && <Alert variant="error">{changePasswordError}</Alert>}
 
           <form

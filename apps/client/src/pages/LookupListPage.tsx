@@ -57,7 +57,7 @@ export function LookupListPage({
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
           {title}
         </h1>
         <Link to={`${basePath}/new`} className="shrink-0">
@@ -91,10 +91,10 @@ export function LookupListPage({
               {listQuery.data.data.map((item) => (
                 <div
                   key={item.id}
-                  className="flex flex-col gap-2 rounded-xl border border-[#E4E8EF] bg-white p-4 shadow-sm"
+                  className="flex flex-col gap-2 rounded border border-line bg-white p-4"
                 >
                   <div>
-                    <p className="truncate text-base font-semibold text-[#1E2A4A]">
+                    <p className="truncate text-base font-semibold text-ink">
                       {item.name}
                     </p>
                   </div>
@@ -125,11 +125,11 @@ export function LookupListPage({
 
       {itemPendingDelete && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
-            <h2 className="text-lg font-semibold text-[#1E2A4A]">
+          <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+            <h2 className="text-lg font-semibold text-ink">
               Eliminar {itemLabelSingular}
             </h2>
-            <p className="mt-2 text-sm text-[#3F4654]">
+            <p className="mt-2 text-sm text-steel">
               ¿Seguro que deseas eliminar{' '}
               <span className="font-medium">{itemPendingDelete.name}</span>? Esta acción
               no se puede deshacer.

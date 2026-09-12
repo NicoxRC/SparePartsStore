@@ -3,6 +3,7 @@ import type { IScannerControls } from '@zxing/browser';
 import { DecodeHintType, NotFoundException } from '@zxing/library';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { IconCamera, IconClose } from './icons';
 
 interface BarcodeScannerModalProps {
   onScanned: (value: string) => void;
@@ -52,8 +53,8 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
 
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/80 p-4">
-      <div className="w-full max-w-sm overflow-hidden rounded-2xl bg-black shadow-lg">
-        <div className="flex items-center justify-between bg-[#1E2A4A] px-4 py-3">
+      <div className="w-full max-w-sm overflow-hidden rounded bg-black shadow-lg">
+        <div className="flex items-center justify-between bg-ink px-4 py-3">
           <span className="text-sm font-semibold text-white">Escanear código de barras</span>
           <button
             type="button"
@@ -61,18 +62,18 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
             className="flex h-8 w-8 items-center justify-center rounded-full text-white/70 hover:bg-white/10 hover:text-white"
             aria-label="Cerrar"
           >
-            ✕
+            <IconClose className="h-4 w-4" />
           </button>
         </div>
 
         {error ? (
           <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
-            <span className="text-3xl">📷</span>
+            <IconCamera className="h-9 w-9 text-white/60" />
             <p className="text-sm text-white/80">{error}</p>
             <button
               type="button"
               onClick={onClose}
-              className="mt-2 rounded-lg bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20"
+              className="mt-2 rounded-sm bg-white/10 px-4 py-2 text-sm text-white hover:bg-white/20"
             >
               Cerrar
             </button>
@@ -81,7 +82,7 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
           <div className="relative aspect-video w-full bg-black">
             <video ref={videoRef} className="h-full w-full object-cover" autoPlay muted playsInline />
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <div className="h-24 w-72 rounded-lg border-2 border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]" />
+              <div className="h-24 w-72 rounded-sm border-2 border-white/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.45)]" />
             </div>
           </div>
         )}

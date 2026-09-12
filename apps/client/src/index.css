@@ -1,1 +1,36 @@
 @import 'tailwindcss';
+
+@theme {
+  /* Neutrals — graphite/steel, no warm "friendly" cream */
+  --color-ink: #111214; /* primary text, dark surfaces (sidebar, headers) */
+  --color-ink-2: #26282c; /* hover state on ink surfaces */
+  --color-ink-3: #050506; /* active/pressed state on ink surfaces */
+  --color-steel: #4b5160; /* secondary text */
+  --color-fog: #8b92a0; /* tertiary/meta text, placeholders */
+  --color-line: #dcdfe3; /* borders, dividers */
+  --color-mist: #e8e7e3; /* hover background on light surfaces */
+  --color-canvas: #f1f0ed; /* page background */
+
+  /* Brand accent — taken from the logo's red, used sparingly */
+  --color-signal: #c8231f;
+  --color-signal-2: #a01c19;
+
+  /* Status */
+  --color-rust: #9a3226; /* destructive actions */
+  --color-rust-2: #7e2a20;
+  --color-rust-3: #611f18;
+  --color-rust-tint: #f3e2de;
+  --color-rust-line: #e9c9c0;
+
+  --color-ok: #2f6b45;
+  --color-ok-tint: #e7efe9;
+  --color-ok-line: #cfe6d7;
+
+  --color-amber: #a8711a;
+  --color-amber-tint: #f5ecda;
+
+  --color-indigo: #465372;
+  --color-indigo-tint: #e7eaf0;
+
+  --color-info-tint: #e9eaec;
+}

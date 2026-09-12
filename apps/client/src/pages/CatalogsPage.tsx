@@ -1,46 +1,47 @@
 import { Link } from 'react-router-dom';
+import { IconFolder, IconStore, IconTag } from '../components/icons';
 
 const catalogs = [
   {
     to: '/departments',
     title: 'Departamentos',
     description: 'Administra los departamentos de productos.',
-    icon: '🏬',
+    Icon: IconStore,
   },
   {
     to: '/groups',
     title: 'Grupos',
     description: 'Administra los grupos de productos.',
-    icon: '🗂️',
+    Icon: IconFolder,
   },
   {
     to: '/brands',
     title: 'Marcas',
     description: 'Administra las marcas de productos.',
-    icon: '🏷️',
+    Icon: IconTag,
   },
 ];
 
 export function CatalogsPage() {
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
         Catálogos
       </h1>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {catalogs.map((catalog) => (
+        {catalogs.map(({ to, title, description, Icon }) => (
           <Link
-            key={catalog.to}
-            to={catalog.to}
-            className="flex items-center gap-4 rounded-xl border border-[#E4E8EF] bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+            key={to}
+            to={to}
+            className="flex items-center gap-4 rounded border border-line bg-white p-4 transition-colors hover:border-fog"
           >
-            <span className="text-3xl" aria-hidden="true">
-              {catalog.icon}
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-canvas text-ink">
+              <Icon className="h-6 w-6" />
             </span>
             <div className="min-w-0">
-              <p className="text-base font-semibold text-[#1E2A4A]">{catalog.title}</p>
-              <p className="truncate text-sm text-[#8B92A3]">{catalog.description}</p>
+              <p className="text-base font-semibold text-ink">{title}</p>
+              <p className="truncate text-sm text-fog">{description}</p>
             </div>
           </Link>
         ))}

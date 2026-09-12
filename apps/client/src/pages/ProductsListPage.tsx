@@ -62,7 +62,7 @@ export function ProductsListPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
           Productos
         </h1>
         <div className="flex shrink-0 gap-2">
@@ -98,14 +98,14 @@ export function ProductsListPage() {
           <button
             type="button"
             onClick={() => setShowFilters((prev) => !prev)}
-            className="self-start text-sm font-medium text-[#1E2A4A] underline decoration-[#D8DCE6] underline-offset-4 hover:decoration-[#1E2A4A] sm:mb-2.5 sm:self-auto"
+            className="self-start text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink sm:mb-2.5 sm:self-auto"
           >
             {showFilters ? 'Ocultar filtros' : 'Mostrar filtros'}
           </button>
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 gap-2 rounded-lg border border-[#E4E8EF] bg-white p-3 sm:grid-cols-3 sm:gap-3 sm:p-4">
+          <div className="grid grid-cols-1 gap-2 rounded-sm border border-line bg-white p-3 sm:grid-cols-3 sm:gap-3 sm:p-4">
             <SearchableSelect
               label="Departamento"
               resource="departments"
@@ -179,9 +179,9 @@ export function ProductsListPage() {
 
       {productPendingDelete && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
-            <h2 className="text-lg font-semibold text-[#1E2A4A]">Eliminar producto</h2>
-            <p className="mt-2 text-sm text-[#3F4654]">
+          <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+            <h2 className="text-lg font-semibold text-ink">Eliminar producto</h2>
+            <p className="mt-2 text-sm text-steel">
               ¿Seguro que deseas eliminar{' '}
               <span className="font-medium">{productPendingDelete.description}</span>?
               Esta acción no se puede deshacer.
