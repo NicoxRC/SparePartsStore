@@ -8,6 +8,7 @@ import { DepartmentsModule } from './departments/departments.module';
 import { ExportModule } from './export/export.module';
 import { GroupsModule } from './groups/groups.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { InvoicingModule } from './invoicing/invoicing.module';
 import { ProductsModule } from './products/products.module';
 import { UsersModule } from './users/users.module';
 
@@ -38,6 +39,7 @@ import { UsersModule } from './users/users.module';
     BrandsModule,
     ExportModule,
     InventoryModule,
+    InvoicingModule,
   ],
 })
 export class AppModule {}
