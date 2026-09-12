@@ -14,8 +14,8 @@ import { getApiErrorMessage } from '../lib/errors';
 const PAGE_SIZE = 20;
 
 const DIAN_STATUS_STYLE: Record<string, string> = {
-  DIAN_ACEPTADO: 'bg-[#E9F3EC] text-[#2F6B45]',
-  DIAN_RECHAZADO: 'bg-[#FBEAE7] text-[#A93C30]',
+  DIAN_ACEPTADO: 'bg-ok-tint text-ok',
+  DIAN_RECHAZADO: 'bg-rust-tint text-rust-2',
 };
 
 export function InvoicesListPage() {
@@ -53,7 +53,7 @@ export function InvoicesListPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
           Facturas
         </h1>
         <Link to="/invoicing/invoices/new">
@@ -74,9 +74,9 @@ export function InvoicesListPage() {
           {invoicesQuery.data.data.length === 0 ? (
             <Alert variant="info">Todavía no se ha enviado ninguna factura.</Alert>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-[#E4E8EF] bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-[#E4E8EF] text-sm">
-                <thead className="bg-[#F7F6F4] text-left text-xs font-medium uppercase tracking-wide text-[#8B92A3]">
+            <div className="overflow-x-auto rounded border border-line bg-white">
+              <table className="min-w-full divide-y divide-line text-sm">
+                <thead className="bg-canvas text-left text-xs font-medium uppercase tracking-wide text-fog">
                   <tr>
                     <th className="px-4 py-3">Número</th>
                     <th className="px-4 py-3">Cliente</th>
@@ -86,12 +86,12 @@ export function InvoicesListPage() {
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E4E8EF]">
+                <tbody className="divide-y divide-line">
                   {invoicesQuery.data.data.map((invoice) => {
                     const isActioning = actioningId === invoice.id;
                     return (
                       <tr key={invoice.id}>
-                        <td className="px-4 py-3 font-medium text-[#1E2A4A]">
+                        <td className="px-4 py-3 font-medium text-ink">
                           {invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`}
                         </td>
                         <td className="px-4 py-3">
@@ -104,7 +104,7 @@ export function InvoicesListPage() {
                           {invoice.dianStatus ? (
                             <span
                               className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                                DIAN_STATUS_STYLE[invoice.dianStatus] ?? 'bg-[#EEF1F7] text-[#1E2A4A]'
+                                DIAN_STATUS_STYLE[invoice.dianStatus] ?? 'bg-info-tint text-ink'
                               }`}
                             >
                               {invoice.dianStatus}
@@ -121,7 +121,7 @@ export function InvoicesListPage() {
                                 href={invoice.pdfUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="text-sm font-medium text-[#1E2A4A] hover:underline"
+                                className="text-sm font-medium text-ink hover:underline"
                               >
                                 Ver PDF
                               </a>
@@ -130,7 +130,7 @@ export function InvoicesListPage() {
                               type="button"
                               disabled={isActioning}
                               onClick={() => void handleRefresh(invoice.id)}
-                              className="text-sm font-medium text-[#1E2A4A] hover:underline disabled:opacity-40"
+                              className="text-sm font-medium text-ink hover:underline disabled:opacity-40"
                             >
                               Consultar
                             </button>
@@ -138,7 +138,7 @@ export function InvoicesListPage() {
                               type="button"
                               disabled={isActioning}
                               onClick={() => void handleResend(invoice.id)}
-                              className="text-sm font-medium text-[#1E2A4A] hover:underline disabled:opacity-40"
+                              className="text-sm font-medium text-ink hover:underline disabled:opacity-40"
                             >
                               Reenviar
                             </button>

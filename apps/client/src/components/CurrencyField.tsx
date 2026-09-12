@@ -33,7 +33,7 @@ export function CurrencyField({
 
   return (
     <div className="flex flex-col gap-1.5">
-      <label htmlFor={fieldId} className="text-sm font-medium text-[#3F4654]">
+      <label htmlFor={fieldId} className="text-sm font-medium text-steel">
         {label}
       </label>
       <input
@@ -45,14 +45,14 @@ export function CurrencyField({
         onChange={handleChange}
         onBlur={onBlur}
         placeholder={placeholder}
-        className={`min-h-12 w-full rounded-lg border px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2A4A]/30 focus:border-[#1E2A4A] sm:min-h-11 sm:py-2.5 sm:text-sm ${
-          error ? 'border-[#C2483A]' : 'border-[#D8DCE6]'
+        className={`min-h-12 w-full rounded-sm border px-4 py-3 font-mono text-base text-gray-900 placeholder:text-gray-400 placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:min-h-11 sm:py-2.5 sm:text-sm ${
+          error ? 'border-rust' : 'border-line'
         }`}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${fieldId}-error` : undefined}
       />
       {error && (
-        <p id={`${fieldId}-error`} className="text-sm text-[#C2483A]">
+        <p id={`${fieldId}-error`} className="text-sm text-rust">
           {error}
         </p>
       )}

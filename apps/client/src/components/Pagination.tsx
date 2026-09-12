@@ -22,18 +22,18 @@ export function Pagination({ meta, onPageChange }: PaginationProps) {
         type="button"
         onClick={() => onPageChange(page - 1)}
         disabled={page <= 1}
-        className="min-h-11 min-w-11 rounded-lg border border-[#D8DCE6] bg-white px-4 py-2 text-sm font-medium text-[#3F4654] hover:bg-[#F0F2F6] disabled:opacity-40"
+        className="min-h-11 min-w-11 rounded-sm border border-line bg-white px-4 py-2 text-sm font-medium text-steel hover:bg-mist disabled:opacity-40"
       >
         Anterior
       </button>
-      <p className="text-sm text-[#8B92A3]">
+      <p className="text-sm text-fog">
         Página {page} de {totalPages} · {total} resultados
       </p>
       <button
         type="button"
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages}
-        className="min-h-11 min-w-11 rounded-lg border border-[#D8DCE6] bg-white px-4 py-2 text-sm font-medium text-[#3F4654] hover:bg-[#F0F2F6] disabled:opacity-40"
+        className="min-h-11 min-w-11 rounded-sm border border-line bg-white px-4 py-2 text-sm font-medium text-steel hover:bg-mist disabled:opacity-40"
       >
         Siguiente
       </button>

@@ -75,7 +75,7 @@ export function UserFormPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
         {isEditMode ? 'Editar usuario' : 'Nuevo usuario'}
       </h1>
 
@@ -85,7 +85,7 @@ export function UserFormPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
-        className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6"
+        className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6"
         noValidate
       >
         <TextField
@@ -129,7 +129,7 @@ export function UserFormPage() {
           />
         </div>
 
-        <p className="text-sm text-[#8B92A3]">
+        <p className="text-sm text-fog">
           {isEditMode
             ? 'Si asignas una nueva contraseña, el usuario deberá cambiarla al iniciar sesión.'
             : 'Puedes asignar una contraseña simple. El usuario deberá cambiarla al iniciar sesión por primera vez.'}

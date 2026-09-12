@@ -46,8 +46,8 @@ export function CreateLookupDialog({
 
   return createPortal(
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-lg">
-        <h2 className="text-lg font-semibold text-[#1E2A4A]">Nuevo {label}</h2>
+      <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+        <h2 className="text-lg font-semibold text-ink">Nuevo {label}</h2>
 
         {createMutation.isError && (
           <Alert variant="error">{getApiErrorMessage(createMutation.error)}</Alert>

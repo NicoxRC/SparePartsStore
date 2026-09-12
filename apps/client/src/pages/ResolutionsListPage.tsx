@@ -21,7 +21,7 @@ export function ResolutionsListPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
           Resoluciones DIAN
         </h1>
         <Link to="/invoicing/resolutions/new">
@@ -43,9 +43,9 @@ export function ResolutionsListPage() {
               facturar electrónicamente.
             </Alert>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border border-[#E4E8EF] bg-white shadow-sm">
-              <table className="min-w-full divide-y divide-[#E4E8EF] text-sm">
-                <thead className="bg-[#F7F6F4] text-left text-xs font-medium uppercase tracking-wide text-[#8B92A3]">
+            <div className="overflow-x-auto rounded border border-line bg-white">
+              <table className="min-w-full divide-y divide-line text-sm">
+                <thead className="bg-canvas text-left text-xs font-medium uppercase tracking-wide text-fog">
                   <tr>
                     <th className="px-4 py-3">Tipo</th>
                     <th className="px-4 py-3">Prefijo</th>
@@ -55,10 +55,10 @@ export function ResolutionsListPage() {
                     <th className="px-4 py-3">Vigencia</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E4E8EF]">
+                <tbody className="divide-y divide-line">
                   {resolutionsQuery.data.data.map((resolution) => (
                     <tr key={resolution.id}>
-                      <td className="px-4 py-3 font-medium text-[#1E2A4A]">
+                      <td className="px-4 py-3 font-medium text-ink">
                         {DOCUMENT_TYPE_LABEL[resolution.documentType] ??
                           resolution.documentType}
                       </td>

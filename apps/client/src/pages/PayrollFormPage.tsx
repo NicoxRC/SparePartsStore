@@ -113,7 +113,7 @@ export function PayrollFormPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
         Nuevo período de nómina
       </h1>
 
@@ -131,8 +131,8 @@ export function PayrollFormPage() {
         className="flex flex-col gap-6"
         noValidate
       >
-        <section className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#8B92A3]">
+        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
             Período
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -195,15 +195,15 @@ export function PayrollFormPage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6">
+        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-[#8B92A3]">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
               Devengos
             </h2>
             <button
               type="button"
               onClick={() => accrualsArray.append(emptyLineItem)}
-              className="text-sm font-medium text-[#1E2A4A] hover:underline"
+              className="text-sm font-medium text-ink hover:underline"
             >
               + Agregar
             </button>
@@ -237,7 +237,7 @@ export function PayrollFormPage() {
                 <button
                   type="button"
                   onClick={() => accrualsArray.remove(index)}
-                  className="text-sm font-medium text-[#C2483A] hover:underline"
+                  className="text-sm font-medium text-rust hover:underline"
                 >
                   Quitar
                 </button>
@@ -246,15 +246,15 @@ export function PayrollFormPage() {
           ))}
         </section>
 
-        <section className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6">
+        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-[#8B92A3]">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
               Deducciones
             </h2>
             <button
               type="button"
               onClick={() => deductionsArray.append(emptyLineItem)}
-              className="text-sm font-medium text-[#1E2A4A] hover:underline"
+              className="text-sm font-medium text-ink hover:underline"
             >
               + Agregar
             </button>
@@ -284,7 +284,7 @@ export function PayrollFormPage() {
                 <button
                   type="button"
                   onClick={() => deductionsArray.remove(index)}
-                  className="text-sm font-medium text-[#C2483A] hover:underline"
+                  className="text-sm font-medium text-rust hover:underline"
                 >
                   Quitar
                 </button>
@@ -293,8 +293,8 @@ export function PayrollFormPage() {
           ))}
         </section>
 
-        <section className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#8B92A3]">
+        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
             Empleado
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -369,16 +369,16 @@ export function PayrollFormPage() {
             </SelectField>
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-[#3F4654]">
+          <label className="flex items-center gap-2 text-sm text-steel">
             <input type="checkbox" {...register('employee.integralSalary')} />
             Salario integral
           </label>
-          <label className="flex items-center gap-2 text-sm text-[#3F4654]">
+          <label className="flex items-center gap-2 text-sm text-steel">
             <input type="checkbox" {...register('employee.highRisk')} />
             Alto riesgo
           </label>
 
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-[#8B92A3]">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-fog">
             Dirección
           </h3>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -400,14 +400,14 @@ export function PayrollFormPage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-2 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6">
-          <label htmlFor="notes" className="text-sm font-medium text-[#3F4654]">
+        <section className="flex flex-col gap-2 rounded border border-line bg-white p-4 sm:p-6">
+          <label htmlFor="notes" className="text-sm font-medium text-steel">
             Notas (opcional, una por línea)
           </label>
           <textarea
             id="notes"
             rows={3}
-            className="w-full rounded-lg border border-[#D8DCE6] px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#1E2A4A]/30 focus:border-[#1E2A4A] sm:text-sm"
+            className="w-full rounded-sm border border-line px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:text-sm"
             {...register('notes')}
           />
         </section>

@@ -6,6 +6,7 @@ import { Alert } from '../components/Alert';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { Button } from '../components/Button';
 import { CurrencyField } from '../components/CurrencyField';
+import { IconCamera } from '../components/icons';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
@@ -124,18 +125,18 @@ export function ProductFormPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
         {isEditMode ? 'Editar producto' : 'Nuevo producto'}
       </h1>
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
-        className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6"
+        className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6"
         noValidate
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="reference" className="text-sm font-medium text-[#3F4654]">
+            <label htmlFor="reference" className="text-sm font-medium text-steel">
               Referencia
             </label>
             <div className="flex gap-2">
@@ -143,8 +144,8 @@ export function ProductFormPage() {
                 id="reference"
                 type="text"
                 placeholder="Ej: ABC-123"
-                className={`min-h-12 w-full rounded-lg border px-4 py-3 font-mono uppercase text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1E2A4A]/30 focus:border-[#1E2A4A] sm:min-h-11 sm:py-2.5 sm:text-sm ${
-                  referenceInputInvalid ? 'border-[#C2483A]' : 'border-[#D8DCE6]'
+                className={`min-h-12 w-full rounded-sm border px-4 py-3 font-mono uppercase text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:min-h-11 sm:py-2.5 sm:text-sm ${
+                  referenceInputInvalid ? 'border-rust' : 'border-line'
                 }`}
                 aria-invalid={referenceInputInvalid}
                 aria-describedby={referenceInputInvalid ? 'reference-error' : undefined}
@@ -153,17 +154,17 @@ export function ProductFormPage() {
               <button
                 type="button"
                 onClick={() => setScannerOpen(true)}
-                className="flex min-h-12 min-w-12 items-center justify-center rounded-lg border border-[#D8DCE6] bg-white text-xl text-[#3F4654] hover:bg-[#F7F6F4] sm:min-h-11 sm:min-w-11"
+                className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-line bg-white text-steel hover:bg-canvas sm:min-h-11 sm:min-w-11"
                 aria-label="Escanear código de barras"
               >
-                📷
+                <IconCamera className="h-5 w-5" />
               </button>
             </div>
             {refCheckQuery.isFetching && (
-              <p className="text-xs text-[#8B92A3]">Verificando referencia…</p>
+              <p className="text-xs text-fog">Verificando referencia…</p>
             )}
             {referenceInputError && !refCheckQuery.isFetching && (
-              <p id="reference-error" className="text-sm text-[#C2483A]">
+              <p id="reference-error" className="text-sm text-rust">
                 {referenceInputError}
               </p>
             )}
@@ -215,8 +216,8 @@ export function ProductFormPage() {
 
         {isEditMode && productQuery.data && (
           <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-[#3F4654]">Costo (calculado)</span>
-            <div className="min-h-12 w-full rounded-lg border border-[#E4E8EF] bg-[#F7F6F4] px-4 py-3 text-base text-[#8B92A3] sm:min-h-11 sm:py-2.5 sm:text-sm">
+            <span className="text-sm font-medium text-steel">Costo (calculado)</span>
+            <div className="min-h-12 w-full rounded-sm border border-line bg-canvas px-4 py-3 text-base text-fog sm:min-h-11 sm:py-2.5 sm:text-sm">
               {currencyFormatter.format(productQuery.data.cost)}
             </div>
           </div>
@@ -299,21 +300,21 @@ export function ProductFormPage() {
 
       {feedback && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-lg">
+          <div className="w-full max-w-sm rounded bg-white p-6 text-center shadow-lg">
             <div
               className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl ${
                 feedback.type === 'success'
-                  ? 'bg-[#E9F3EC] text-[#2F6B45]'
-                  : 'bg-[#FBEAE7] text-[#A93C30]'
+                  ? 'bg-ok-tint text-ok'
+                  : 'bg-rust-tint text-rust-2'
               }`}
               aria-hidden="true"
             >
               {feedback.type === 'success' ? '✓' : '!'}
             </div>
-            <h2 className="mt-3 text-lg font-semibold text-[#1E2A4A]">
+            <h2 className="mt-3 text-lg font-semibold text-ink">
               {feedback.type === 'success' ? 'Producto creado' : 'Ocurrió un error'}
             </h2>
-            <p className="mt-2 text-sm text-[#3F4654]">{feedback.message}</p>
+            <p className="mt-2 text-sm text-steel">{feedback.message}</p>
             <Button type="button" className="mt-5 w-full" onClick={() => setFeedback(null)}>
               Aceptar
             </Button>

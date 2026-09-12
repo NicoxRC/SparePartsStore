@@ -109,7 +109,7 @@ export function PosInvoiceFormPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-[#1E2A4A] sm:text-2xl">
+      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
         Nueva venta POS
       </h1>
 
@@ -122,7 +122,7 @@ export function PosInvoiceFormPage() {
         className="flex flex-col gap-6"
         noValidate
       >
-        <section className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6">
+        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
           <div className="relative">
             <TextField
               label="Buscar producto por referencia o descripción"
@@ -130,21 +130,21 @@ export function PosInvoiceFormPage() {
               onChange={(e) => setProductQuery(e.target.value)}
             />
             {productQuery.length > 0 && productsQuery.data && (
-              <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border border-[#D8DCE6] bg-white shadow-lg">
+              <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-sm border border-line bg-white shadow-lg">
                 {productsQuery.data.data.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-[#8B92A3]">Sin resultados.</p>
+                  <p className="px-4 py-3 text-sm text-fog">Sin resultados.</p>
                 ) : (
                   productsQuery.data.data.map((product) => (
                     <button
                       key={product.id}
                       type="button"
                       onClick={() => handleAddProduct(product)}
-                      className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left text-sm hover:bg-[#F0F2F6]"
+                      className="flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left text-sm hover:bg-mist"
                     >
-                      <span className="font-medium text-[#1E2A4A]">
+                      <span className="font-medium text-ink">
                         {product.reference} — {product.description}
                       </span>
-                      <span className="text-xs text-[#8B92A3]">
+                      <span className="text-xs text-fog">
                         ${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
                       </span>
                     </button>
@@ -157,9 +157,9 @@ export function PosInvoiceFormPage() {
           {errors.items?.message && <Alert variant="error">{errors.items.message}</Alert>}
 
           {itemFields.length > 0 && (
-            <div className="overflow-x-auto rounded-lg border border-[#E4E8EF]">
-              <table className="min-w-full divide-y divide-[#E4E8EF] text-sm">
-                <thead className="bg-[#F7F6F4] text-left text-xs font-medium uppercase tracking-wide text-[#8B92A3]">
+            <div className="overflow-x-auto rounded-sm border border-line">
+              <table className="min-w-full divide-y divide-line text-sm">
+                <thead className="bg-canvas text-left text-xs font-medium uppercase tracking-wide text-fog">
                   <tr>
                     <th className="px-3 py-2">Producto</th>
                     <th className="px-3 py-2">Precio</th>
@@ -168,7 +168,7 @@ export function PosInvoiceFormPage() {
                     <th className="px-3 py-2" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E4E8EF]">
+                <tbody className="divide-y divide-line">
                   {itemFields.map((field, index) => (
                     <tr key={field.id}>
                       <td className="px-3 py-2">
@@ -180,7 +180,7 @@ export function PosInvoiceFormPage() {
                           type="number"
                           min={1}
                           max={field.stock}
-                          className="w-16 rounded-md border border-[#D8DCE6] px-2 py-1"
+                          className="w-16 rounded-sm border border-line px-2 py-1"
                           {...register(`items.${index}.quantity`)}
                         />
                       </td>
@@ -188,7 +188,7 @@ export function PosInvoiceFormPage() {
                         <input
                           type="number"
                           min={0}
-                          className="w-16 rounded-md border border-[#D8DCE6] px-2 py-1"
+                          className="w-16 rounded-sm border border-line px-2 py-1"
                           {...register(`items.${index}.taxRate`)}
                         />
                       </td>
@@ -196,7 +196,7 @@ export function PosInvoiceFormPage() {
                         <button
                           type="button"
                           onClick={() => removeItem(index)}
-                          className="text-sm font-medium text-[#C2483A] hover:underline"
+                          className="text-sm font-medium text-rust hover:underline"
                         >
                           Quitar
                         </button>
@@ -208,13 +208,13 @@ export function PosInvoiceFormPage() {
             </div>
           )}
 
-          <p className="text-right text-lg font-semibold text-[#1E2A4A]">
+          <p className="text-right text-lg font-semibold text-ink">
             Total: ${total.toLocaleString('es-CO')}
           </p>
         </section>
 
-        <section className="flex flex-col gap-4 rounded-2xl border border-[#E4E8EF] bg-white p-4 shadow-sm sm:p-6">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#8B92A3]">
+        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
             Cliente y pago
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -305,7 +305,7 @@ export function PosInvoiceFormPage() {
             />
           </div>
 
-          <label className="flex items-center gap-2 text-sm text-[#3F4654]">
+          <label className="flex items-center gap-2 text-sm text-steel">
             <input type="checkbox" {...register('responsableIva')} />
             Cliente responsable de IVA
           </label>
