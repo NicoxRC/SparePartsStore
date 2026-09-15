@@ -19,6 +19,8 @@ import { PayrollFormPage } from './pages/PayrollFormPage';
 import { PayrollListPage } from './pages/PayrollListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsListPage } from './pages/ProductsListPage';
+import { QuotationDetailPage } from './pages/QuotationDetailPage';
+import { QuotationsListPage } from './pages/QuotationsListPage';
 import { ResolutionFormPage } from './pages/ResolutionFormPage';
 import { ResolutionsListPage } from './pages/ResolutionsListPage';
 import { UserFormPage } from './pages/UserFormPage';
@@ -54,6 +56,8 @@ function App() {
                 <Route element={<EmployeeRoute />}>
                   <Route path="/invoicing/invoices" element={<InvoicesListPage />} />
                   <Route path="/ventas" element={<InvoiceFormPage />} />
+                  <Route path="/cotizaciones" element={<QuotationsListPage />} />
+                  <Route path="/cotizaciones/:id" element={<QuotationDetailPage />} />
                   <Route path="/products/new" element={<ProductFormPage />} />
                   <Route path="/products/:id/edit" element={<ProductFormPage />} />
                 </Route>
