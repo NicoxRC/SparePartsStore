@@ -26,6 +26,8 @@ The three required classification lookups every product belongs to (exactly one 
 ### Cost (Costo) vs. Sale price (Precio de venta)
 `salePrice` is what staff actually type in — the number the store sells at. `cost` is **derived from it**, not entered directly: `cost = salePrice / factor`, where the factor depends on `saleType`. This is a deliberate reverse-markup calculation, not a data-entry field — see `DATABASE.md` for the exact factors.
 
+**Still pending confirmation — do not assume either way:** whether `salePrice` is meant to already include IVA (the customer pays exactly that price) or is the pre-tax base (IVA gets added on top). `InvoicesService` currently treats it as the **pre-tax base** — `tax_base = salePrice × quantity`, IVA is computed and added to reach the invoice total — which is how it's always worked, not a new decision. Flagged directly by the human as something to revisit; if this turns out to be wrong, the fix is in `InvoicesService.resolveItems()` (and the equivalent client-side total preview in `InvoiceFormPage.tsx`), not a guess to make here.
+
 ### Sale type (Tipo de venta) — Normal / Neto
 Selects which cost factor applies to a product's reverse markup calculation (see above). In code: `SaleType.NORMAL` / `SaleType.NETO`, column `products.sale_type`.
 

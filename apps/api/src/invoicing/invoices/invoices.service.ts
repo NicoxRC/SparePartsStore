@@ -43,6 +43,8 @@ interface ResolvedItem {
   product: Product;
   quantity: number;
   taxRate: number;
+  /** Already net of any per-line discount — see resolveItems(). */
+  unitPrice: number;
   taxBase: number;
   taxAmount: number;
 }
@@ -94,7 +96,7 @@ export class InvoicesService {
         operation: 'ESTANDAR',
         invoice_type_code: 'FACTURA_VENTA',
         issue_date: this.toDataicoDate(issueDate),
-        order_reference: dto.orderReference ?? '',
+        order_reference: '',
         number,
         payment_means: dto.paymentMeans,
         payment_means_type: dto.paymentMeansType,
@@ -124,7 +126,7 @@ export class InvoicesService {
           measuring_unit: '94',
           quantity: item.quantity,
           description: item.product.description,
-          price: Number(item.product.salePrice),
+          price: item.unitPrice,
           taxes: [
             {
               tax_category: 'IVA',
@@ -297,6 +299,15 @@ export class InvoicesService {
    * up front (before calling Dataico) — a legally-sent invoice can't be
    * un-sent, so it's better to fail here than after DIAN has accepted a
    * sale this store can't actually fulfill.
+   *
+   * A fixed per-line discount (a flat COP amount, not a percentage) is
+   * subtracted from the line's pre-tax subtotal here, before IVA is
+   * computed — confirmed directly: the discount comes off the base, IVA
+   * is then calculated on the already-discounted amount. The discounted
+   * amount is folded back into a per-unit `unitPrice` (rather than kept
+   * as a separate figure) so `price × quantity` on the actual invoice
+   * always equals the discounted total — Dataico never sees a "discount"
+   * field, only the already-final numbers, per direct instruction.
    */
   private async resolveItems(dto: CreateInvoiceDto): Promise<ResolvedItem[]> {
     return Promise.all(
@@ -308,15 +319,20 @@ export class InvoicesService {
           );
         }
 
-        const taxBase = Math.round(
-          Number(product.salePrice) * itemDto.quantity,
+        const rawSubtotal = Number(product.salePrice) * itemDto.quantity;
+        const discountedSubtotal = Math.max(
+          0,
+          rawSubtotal - (itemDto.discount ?? 0),
         );
+        const unitPrice = Math.round(discountedSubtotal / itemDto.quantity);
+        const taxBase = unitPrice * itemDto.quantity;
         const taxAmount = Math.round(taxBase * (itemDto.taxRate / 100));
 
         return {
           product,
           quantity: itemDto.quantity,
           taxRate: itemDto.taxRate,
+          unitPrice,
           taxBase,
           taxAmount,
         };

@@ -41,6 +41,18 @@ import type { ThirdPartyResponse } from '../services/thirdParties';
 
 const DEFAULT_TAX_RATE = 19;
 
+/**
+ * Pre-tax subtotal for one line, net of its fixed discount (a flat COP
+ * amount, not a percentage) — confirmed directly: the discount comes off
+ * the base, IVA is calculated on what's left. Mirrors
+ * InvoicesService.resolveItems() on the backend.
+ */
+function computeItemBase(item: { price: number; quantity: unknown; discount?: unknown }): number {
+  const quantity = Number(item.quantity) || 0;
+  const discount = Number(item.discount) || 0;
+  return Math.max(0, item.price * quantity - discount);
+}
+
 interface CustomerSectionProps {
   register: UseFormRegister<InvoiceFormInput>;
   errors: FieldErrors<InvoiceFormInput>;
@@ -331,6 +343,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
       stock: product.stock,
       quantity,
       taxRate: DEFAULT_TAX_RATE,
+      discount: 0,
     });
     setProductQuery('');
     setFilterDepartmentId('');
@@ -377,7 +390,6 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
       paymentDate: values.paymentMeansType === 'CREDITO' ? values.paymentDate : undefined,
       paymentMeans: values.paymentMeans,
       paymentMeansType: values.paymentMeansType,
-      orderReference: values.orderReference || undefined,
       customerIdentificationType: values.customerIdentificationType,
       customerIdentification: values.customerIdentification,
       customerPartyType: values.customerPartyType,
@@ -391,10 +403,11 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
       customerCity: values.customerCity,
       customerAddressLine: values.customerAddressLine,
       customerEmail: values.customerEmail,
-      items: values.items.map(({ productId, quantity, taxRate }) => ({
+      items: values.items.map(({ productId, quantity, taxRate, discount }) => ({
         productId,
         quantity,
         taxRate,
+        discount: discount || undefined,
       })),
       notes: values.notes ? [values.notes] : undefined,
     });
@@ -405,9 +418,8 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
   };
 
   const total = watchedItems.reduce((sum, item) => {
-    const quantity = Number(item.quantity) || 0;
     const taxRate = Number(item.taxRate) || 0;
-    const base = item.price * quantity;
+    const base = computeItemBase(item);
     return sum + base + Math.round(base * (taxRate / 100));
   }, 0);
 
@@ -501,6 +513,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                         <th className="px-3 py-2">Precio</th>
                         <th className="px-3 py-2">Cantidad</th>
                         <th className="px-3 py-2">IVA %</th>
+                        <th className="px-3 py-2">Descuento</th>
                         <th className="px-3 py-2" />
                       </tr>
                     </thead>
@@ -532,6 +545,15 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                                 Excluida
                               </span>
                             )}
+                          </td>
+                          <td className="w-28 px-3 py-2">
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="0"
+                              className="w-24 rounded-sm border border-line px-2 py-1"
+                              {...register(`items.${index}.discount`)}
+                            />
                           </td>
                           <td className="px-3 py-2">
                             <button
@@ -631,11 +653,6 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                 Datos de la factura
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <TextField
-                  label="Referencia de orden (opcional)"
-                  error={errors.orderReference?.message}
-                  {...register('orderReference')}
-                />
                 <SelectField
                   label="Medio de pago"
                   error={errors.paymentMeans?.message}
@@ -689,7 +706,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                       )}
                     </span>
                     <span>
-                      ${(item.price * Number(item.quantity)).toLocaleString('es-CO')}
+                      ${computeItemBase(item).toLocaleString('es-CO')}
                     </span>
                   </li>
                 ))}

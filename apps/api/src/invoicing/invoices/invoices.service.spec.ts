@@ -219,6 +219,45 @@ describe('InvoicesService', () => {
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
+    it('subtracts a fixed per-line discount from the pre-tax subtotal before computing IVA', async () => {
+      await service.create(
+        {
+          ...baseDto,
+          items: [
+            { productId: 'prod-1', quantity: 2, taxRate: 19, discount: 20000 },
+          ],
+        },
+        'user-1',
+      );
+
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(dataicoClient.post).toHaveBeenCalledWith(
+        '/invoices',
+        expect.objectContaining({
+          invoice: expect.objectContaining({
+            items: [
+              expect.objectContaining({
+                // (50000 * 2 - 20000) / 2 = 40000 — price itself reflects
+                // the discount, so price × quantity on the actual invoice
+                // already equals the discounted total; Dataico never sees
+                // a separate "discount" field.
+                price: 40000,
+                taxes: [
+                  {
+                    tax_category: 'IVA',
+                    tax_rate: 19,
+                    tax_base: 80000,
+                    tax_amount: 15200,
+                  },
+                ],
+              }),
+            ],
+          }),
+        }),
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    });
+
     it('decrements stock for each item only after Dataico accepts the invoice', async () => {
       await service.create(baseDto, 'user-1');
 

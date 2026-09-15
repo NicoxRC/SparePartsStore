@@ -27,13 +27,14 @@ export interface CreateInvoiceItemInput {
   productId: string;
   quantity: number;
   taxRate: number;
+  /** Fixed COP amount, not a percentage — see CreateInvoiceItemDto. */
+  discount?: number;
 }
 
 export interface CreateInvoiceInput {
   paymentDate?: string;
   paymentMeans: string;
   paymentMeansType: string;
-  orderReference?: string;
   customerIdentificationType: string;
   customerIdentification: string;
   customerPartyType: string;
