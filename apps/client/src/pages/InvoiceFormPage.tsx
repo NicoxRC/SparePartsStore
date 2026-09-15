@@ -800,25 +800,30 @@ export function InvoiceFormPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-2">
         <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
           Venta
         </h1>
-        <p className="text-sm text-fog">
-          Caja abierta desde{' '}
-          {new Date(cashRegisterQuery.data.register?.openedAt ?? '').toLocaleTimeString(
-            'es-CO',
-            { hour: '2-digit', minute: '2-digit' },
-          )}
-          {' · '}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-tint px-2.5 py-1 text-xs font-medium text-ok">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ok" />
+            </span>
+            Caja abierta desde{' '}
+            {new Date(cashRegisterQuery.data.register?.openedAt ?? '').toLocaleTimeString(
+              'es-CO',
+              { hour: '2-digit', minute: '2-digit' },
+            )}
+          </span>
           <button
             type="button"
             onClick={() => setIsCloseDialogOpen(true)}
-            className="font-medium text-ink hover:underline"
+            className="text-xs font-medium text-steel hover:text-ink hover:underline"
           >
             Cerrar caja
           </button>
-        </p>
+        </div>
       </div>
 
       {isCloseDialogOpen && (
