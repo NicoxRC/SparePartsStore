@@ -1,7 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
-import { Button } from '../components/Button';
 import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
@@ -60,14 +58,9 @@ export function InvoicesListPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-          Facturas
-        </h1>
-        <Link to="/invoicing/invoices/new">
-          <Button className="sm:w-auto sm:px-6">+ Nueva factura</Button>
-        </Link>
-      </div>
+      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
+        Facturas
+      </h1>
 
       {cashRegisterQuery.data && (
         <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-white px-4 py-3 text-sm">

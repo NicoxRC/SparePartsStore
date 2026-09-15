@@ -50,11 +50,11 @@ export function createEmptyInvoiceDraft(): InvoiceDraft {
   };
 }
 
-/** Tab label: the customer's name once entered, otherwise "Factura N". */
+/** Tab label: the customer's name once entered, otherwise "Venta N". */
 export function invoiceDraftLabel(draft: InvoiceDraft, index: number): string {
   const { values } = draft;
   const personName = [values.customerFirstName, values.customerFamilyName]
     .filter(Boolean)
     .join(' ');
-  return values.customerCompanyName || personName || `Factura ${index + 1}`;
+  return values.customerCompanyName || personName || `Venta ${index + 1}`;
 }

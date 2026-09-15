@@ -799,7 +799,7 @@ export function InvoiceFormPage() {
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-        Nueva factura electrónica
+        Venta
       </h1>
 
       {/* Several customers can be mid-checkout at once — each tab is an
@@ -837,7 +837,7 @@ export function InvoiceFormPage() {
                   <button
                     type="button"
                     onClick={() => closeDraft(draft.id)}
-                    aria-label="Cerrar factura"
+                    aria-label="Cerrar venta"
                     className={`leading-none ${
                       isActive ? 'text-fog hover:text-ink' : 'text-fog/70 hover:text-ink'
                     }`}
@@ -851,7 +851,7 @@ export function InvoiceFormPage() {
           <button
             type="button"
             onClick={addDraft}
-            aria-label="Nueva factura"
+            aria-label="Nueva venta"
             className="shrink-0 rounded-t px-3 py-2 text-sm text-steel hover:bg-mist"
           >
             +

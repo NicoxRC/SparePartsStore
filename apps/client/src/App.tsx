@@ -53,7 +53,7 @@ function App() {
 
                 <Route element={<EmployeeRoute />}>
                   <Route path="/invoicing/invoices" element={<InvoicesListPage />} />
-                  <Route path="/invoicing/invoices/new" element={<InvoiceFormPage />} />
+                  <Route path="/ventas" element={<InvoiceFormPage />} />
                   <Route path="/products/new" element={<ProductFormPage />} />
                   <Route path="/products/:id/edit" element={<ProductFormPage />} />
                 </Route>
