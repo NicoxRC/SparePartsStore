@@ -1,5 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Repository } from 'typeorm';
+import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { InventoryService } from '../../inventory/inventory.service';
 import { Product } from '../../products/entities/product.entity';
 import { ProductsService } from '../../products/products.service';
@@ -17,6 +19,12 @@ describe('InvoicesService', () => {
     save: jest.Mock<Promise<Invoice>, [Partial<Invoice>]>;
     findAndCount: jest.Mock;
     findOne: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let numberQueryBuilder: {
+    select: jest.Mock;
+    where: jest.Mock;
+    getRawOne: jest.Mock;
   };
   let dataicoClient: {
     post: jest.Mock<Promise<unknown>, [string, unknown]>;
@@ -27,6 +35,8 @@ describe('InvoicesService', () => {
   let resolutionsService: { findActiveForDocumentType: jest.Mock };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
+  let cashRegisterService: { assertOpenToday: jest.Mock };
+  let configService: { get: jest.Mock };
 
   const product = {
     id: 'prod-1',
@@ -37,8 +47,6 @@ describe('InvoicesService', () => {
   } as unknown as Product;
 
   const baseDto: CreateInvoiceDto = {
-    number: 1225,
-    issueDate: '2026-09-07',
     paymentDate: '2026-09-07',
     paymentMeans: 'BANK_TRANSFER',
     paymentMeansType: 'DEBITO',
@@ -56,6 +64,18 @@ describe('InvoicesService', () => {
   };
 
   beforeEach(() => {
+    // 10am Bogotá (UTC-5) on 2026-09-07 — getStoreToday() resolves to
+    // '2026-09-07', matching every hardcoded '07/09/2026' expectation below.
+    jest.useFakeTimers().setSystemTime(new Date('2026-09-07T15:00:00.000Z'));
+
+    numberQueryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      // No prior local invoice for this prefix — falls back to
+      // INVOICE_NUMBER_START, mocked below to '1225' to match every
+      // existing 'FVE1225'-style expectation in this file.
+      getRawOne: jest.fn().mockResolvedValue({ max: null }),
+    };
     invoicesRepository = {
       create: jest.fn<Partial<Invoice>, [Partial<Invoice>]>((entity) => entity),
       save: jest.fn<Promise<Invoice>, [Partial<Invoice>]>((entity) =>
@@ -67,6 +87,7 @@ describe('InvoicesService', () => {
       ),
       findAndCount: jest.fn(),
       findOne: jest.fn(),
+      createQueryBuilder: jest.fn(() => numberQueryBuilder),
     };
     dataicoClient = {
       post: jest.fn<Promise<unknown>, [string, unknown]>(),
@@ -79,6 +100,14 @@ describe('InvoicesService', () => {
     inventoryService = {
       createMovement: jest.fn().mockResolvedValue(undefined),
     };
+    cashRegisterService = {
+      assertOpenToday: jest.fn().mockResolvedValue(undefined),
+    };
+    configService = {
+      get: jest.fn((key: string, defaultValue?: string) =>
+        key === 'INVOICE_NUMBER_START' ? '1225' : defaultValue,
+      ),
+    };
 
     service = new InvoicesService(
       invoicesRepository as unknown as Repository<Invoice>,
@@ -87,7 +116,24 @@ describe('InvoicesService', () => {
       resolutionsService as unknown as ResolutionsService,
       productsService as unknown as ProductsService,
       inventoryService as unknown as InventoryService,
+      cashRegisterService as unknown as CashRegisterService,
+      configService as unknown as ConfigService,
     );
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('rejects when there is no open cash register for today, without calling Dataico', async () => {
+    cashRegisterService.assertOpenToday.mockRejectedValue(
+      new BadRequestException('No hay una caja abierta para hoy.'),
+    );
+
+    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(dataicoClient.post).not.toHaveBeenCalled();
   });
 
   it('rejects when no active INVOICE resolution exists, without calling Dataico', async () => {
@@ -144,6 +190,7 @@ describe('InvoicesService', () => {
             operation: 'ESTANDAR',
             invoice_type_code: 'FACTURA_VENTA',
             issue_date: '07/09/2026',
+            number: 1225,
             numbering: {
               resolution_number: '18764105397963',
               prefix: 'FVE',
@@ -190,6 +237,45 @@ describe('InvoicesService', () => {
       expect(created.dataicoUuid).toBe('dataico-uuid-1');
       expect(created.totalAmount).toBe(119000);
       expect(created.responsePayload).not.toHaveProperty('xml');
+    });
+
+    it('auto-increments the number from the highest local one for this prefix, ignoring INVOICE_NUMBER_START', async () => {
+      numberQueryBuilder.getRawOne.mockResolvedValue({ max: '1300' });
+
+      await service.create(baseDto, 'user-1');
+
+      expect(numberQueryBuilder.where).toHaveBeenCalledWith(
+        'invoice.prefix = :prefix',
+        { prefix: 'FVE' },
+      );
+      const created = invoicesRepository.create.mock.calls[0][0];
+      expect(created.number).toBe(1301);
+    });
+
+    it('falls back to INVOICE_NUMBER_START when nothing is recorded locally yet for this prefix', async () => {
+      numberQueryBuilder.getRawOne.mockResolvedValue({ max: null });
+
+      await service.create(baseDto, 'user-1');
+
+      const created = invoicesRepository.create.mock.calls[0][0];
+      expect(created.number).toBe(1225);
+    });
+
+    it("defaults issueDate to the store's current day, never client-supplied", async () => {
+      await service.create(baseDto, 'user-1');
+
+      const created = invoicesRepository.create.mock.calls[0][0];
+      expect(created.issueDate).toBe('2026-09-07');
+    });
+
+    it('defaults paymentDate to issueDate when not given (only meaningful for CREDITO)', async () => {
+      const { paymentDate: _paymentDate, ...dtoWithoutPaymentDate } = baseDto;
+      void _paymentDate;
+
+      await service.create(dtoWithoutPaymentDate, 'user-1');
+
+      const created = invoicesRepository.create.mock.calls[0][0];
+      expect(created.paymentDate).toBe('2026-09-07');
     });
   });
 

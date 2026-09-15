@@ -7,6 +7,7 @@ export interface CustomerResponse {
   id: string;
   identificationType: string;
   identification: string;
+  identificationDv?: string;
   partyType: CustomerPartyType;
   companyName?: string;
   firstName?: string;
@@ -33,6 +34,7 @@ export interface CustomersQuery {
 export interface CustomerInput {
   identificationType: string;
   identification: string;
+  identificationDv?: string;
   partyType: CustomerPartyType;
   companyName?: string;
   firstName?: string;

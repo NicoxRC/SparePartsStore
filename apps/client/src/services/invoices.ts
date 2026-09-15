@@ -30,9 +30,7 @@ export interface CreateInvoiceItemInput {
 }
 
 export interface CreateInvoiceInput {
-  number: number;
-  issueDate: string;
-  paymentDate: string;
+  paymentDate?: string;
   paymentMeans: string;
   paymentMeansType: string;
   orderReference?: string;

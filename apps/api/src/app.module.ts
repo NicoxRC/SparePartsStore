@@ -4,6 +4,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { SnakeNamingStrategy } from 'typeorm-naming-strategies';
 import { AuthModule } from './auth/auth.module';
 import { BrandsModule } from './brands/brands.module';
+import { CashRegisterModule } from './cash-register/cash-register.module';
 import { CustomersModule } from './customers/customers.module';
 import { DepartmentsModule } from './departments/departments.module';
 import { ExportModule } from './export/export.module';
@@ -41,6 +42,7 @@ import { UsersModule } from './users/users.module';
     BrandsModule,
     ExportModule,
     InventoryModule,
+    CashRegisterModule,
     InvoicingModule,
   ],
 })

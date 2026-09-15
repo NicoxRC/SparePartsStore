@@ -57,6 +57,8 @@ apps/api/src/
 │
 ├── customers/                           # local customer address book (not Dataico — no HTTP calls), reusable across sales
 │
+├── cash-register/                       # daily "apertura/cierre de caja" (not Dataico — no HTTP calls). Gates InvoicesService.create via assertOpenToday(); reads Invoice's repository directly (not InvoicesModule) to avoid a circular module dependency — see DATABASE.md ("cash_registers") and GLOSSARY.md ("Caja")
+│
 ├── inventory/
 │   ├── inventory.controller.ts
 │   ├── inventory.service.ts
@@ -160,7 +162,7 @@ apps/client/src/
 ├── pages/            # route-level components (ProductsListPage, InventoryPage, LoginPage, ...)
 ├── components/        # reusable UI (BarcodeScannerModal, SearchableSelect, cards, modals)
 ├── layouts/           # AuthLayout, AuthenticatedLayout
-├── context/           # AuthContext (auth-context.ts + AuthContext.tsx), route guards
+├── context/           # AuthContext, InvoiceDraftsContext (each split into a plain -context.ts + a *Context.tsx provider, for Fast Refresh), route guards
 ├── hooks/             # TanStack Query hooks, one file per domain (useProducts, useInventory, ...)
 ├── services/          # axios wrappers per domain, calling `${VITE_API_URL}/api/...`
 ├── lib/
@@ -186,6 +188,10 @@ A mutation invalidates the relevant query key(s) on success — e.g. `useCreateM
 ### Routing and role guards
 
 `react-router-dom`. Everything except `/login` sits behind `ProtectedRoute` (must be authenticated; also enforces the forced-password-change redirect both ways). `AdminRoute` restricts to `role: 'admin'`; `EmployeeRoute` blocks only `auditor` (admin and employee both pass). See `GLOSSARY.md` for what each role can do.
+
+### Cross-route state that must survive navigation — Context above the router, not per-page state
+
+Most page state is local to that page's component and is fine to lose on navigation. `InvoiceDraftsProvider` (`context/InvoiceDraftsContext.tsx`) is the one exception so far: several invoice drafts can be in progress at once (more than one customer at the counter), and switching between them — or navigating away to Productos/Inventario/etc. and back — must not lose any of them. It's mounted above `<Routes>` in `App.tsx` (so it never unmounts on a route change) and also mirrors its state to `localStorage`, so an accidental refresh doesn't lose it either. `InvoiceFormPage` reads/writes into it via `useInvoiceDrafts()` instead of owning its own top-level form state; see that page for the pattern (a `key={activeDraft.id}` remount to re-seed `react-hook-form` when switching drafts, with a `watch()` subscription syncing changes back into the store). Reach for this pattern only when a page's state genuinely needs to survive leaving that page — most pages don't.
 
 ### Auth token handling
 

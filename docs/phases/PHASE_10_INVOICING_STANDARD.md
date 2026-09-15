@@ -106,10 +106,17 @@ No response example was shared for query — **assumed** (not guessed from nothi
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
 
 - **No draft/dry-run mode exposed.** `actions.send_dian` is hardcoded `true` — an invoice created through this app IS the real submission, no separate "test send" concept in the UI.
-- **No sequential/auto-numbering.** `number` is caller-supplied (via the form), not auto-incremented from the resolution's range — revisit if manual entry proves error-prone in practice.
 - **No DANE department/city catalog.** The form takes raw DANE codes as free text (e.g. `"11"`, `"001"`) rather than a searchable lookup — this store's customer base is small enough that typing the code is acceptable for now.
-- **Single, hardcoded tax category (IVA).** No retentions, no invoice-level charges/discounts — matches "Estructura básica," not the more complex variants this store doesn't need.
+- **Single, hardcoded tax category (IVA).** No retentions, no invoice-level charges/discounts — matches "Estructura básica," not the more complex variants this store doesn't need. A product with no IVA is sent as `tax_rate: 0` under the same `IVA` category (the only one confirmed) — the client marks this as "venta excluida sin IVA" purely as a local UI label, no separate field is sent to Dataico for it.
 - **No compensation/rollback if stock-decrement or the local save fails after Dataico already accepted the invoice.** Documented as a known, low-probability edge case (single small store, low concurrency) rather than built around with a saga pattern — recoverable manually if it ever happens.
+- **`number` auto-increment is a simple `MAX()` read, not a race-proof counter.** `InvoicesService.resolveNextNumber()` reads the highest locally-recorded `number` for the active resolution's prefix and adds one (seeded by `INVOICE_NUMBER_START` if nothing local exists yet — see `docs/ENVIRONMENT_VARIABLES.md`). Two concurrent creates could theoretically compute the same next number; accepted as a low-probability edge case at this store's scale rather than built around with row-locking.
+- **`issueDate` is never client-supplied.** Always the store's current local (`America/Bogotá`) day, via the same `getStoreToday()` used by the cash register — "todos son para el mismo día," per direct confirmation, since the whole invoicing flow is already gated to one calendar day by the open cash register (see `docs/GLOSSARY.md` "Caja"). `paymentDate` is only asked in the UI when `paymentMeansType` is `CREDITO`; otherwise it defaults to `issueDate` server-side.
+
+## Payment method values — payment_means_type confirmed; CASH/CARD for payment_means still not
+
+`payment_means_type` is now **fully confirmed**, both values: Dataico's own reference shows `"DEBITO"` = "Contado" (immediate) and `"CREDITO"` = "venta a crédito" (deferred) — exactly the semantics this app uses to decide whether to ask for a payment date. `payment_means` has two confirmed-working values now — `"BANK_TRANSFER"` (sent successfully in the original Phase 10 example) and `"CREDIT_TRANSFER"` (seen in a separate Dataico reference, `// Medio de pago`, not tied to a specific successful send) — both used for "transferencia," so `"BANK_TRANSFER"` was kept as the mapping since it's the one confirmed via an actual accepted request.
+
+**Still not confirmed**: `payment_means` for efectivo and tarjeta. `"CASH"` (efectivo) and `"CARD"` (tarjeta) remain a **best-effort mapping**, flagged as unconfirmed against Dataico — `"CASH"` at least matches the now-removed POS Electrónico module's own confirmed value, `"CARD"` has no precedent anywhere in this integration. **First thing to verify once a real invoice goes through Dataico with each of these two** — see `InvoicesService.create()` and `CreateInvoiceDto`.
 
 ## Still not confirmed — do not guess
 

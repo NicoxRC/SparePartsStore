@@ -3,3 +3,4 @@
 - [infra decisions](project_infra.md) — docker-compose runs DB only, env var layout, local dev credentials
 - [auth/users design](project_auth_design.md) — entity conventions (audit/soft-delete/pagination), JWT strategy, RBAC pattern reused by future modules
 - [product classification model](project_product_classification.md) — Department/Group(product_groups)/Brand replace Category/Brand+línea; table/route names, migration plan
+- [cash register design](project_cash_register_design.md) — cash_registers table, top-level module (like customers), assertOpenToday() gate in InvoicesService, America/Bogota "today", circular-dep avoidance

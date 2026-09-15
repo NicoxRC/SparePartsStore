@@ -246,6 +246,7 @@ Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap
 | `id` | UUID | PK |
 | `identification_type` | VARCHAR(20) | Free string (not a TS enum, same reasoning as `dian_resolutions.subtype`), uppercased at the DTO layer. |
 | `identification` | VARCHAR(50) | |
+| `identification_dv` | VARCHAR(5), nullable | NIT check digit ("dígito de verificación") — only meaningful when `identification_type = 'NIT'`, free text (not computed/validated server-side). **Local-only**: not part of the confirmed Dataico standard-invoice `customer` payload (see `docs/phases/PHASE_10_INVOICING_STANDARD.md`), so it is never sent to Dataico — stored here purely for this store's own record-keeping/display. |
 | `party_type` | VARCHAR(20) | Canonical values `PERSONA_JURIDICA` / `PERSONA_NATURAL` (the standard-invoice vocabulary), validated with `@IsIn` at the DTO layer — not a DB enum. The POS flow's `NATURAL`/`JURIDICA` values are mapped to/from this only in the frontend; this entity is flow-agnostic. |
 | `company_name` | VARCHAR(255), nullable | |
 | `first_name`, `family_name` | VARCHAR(150), nullable | |
@@ -289,6 +290,24 @@ Added Phase 15 — a local record of every Nómina Electrónica period submitted
 
 **Business logic (`PayrollService.refreshStatus`):** `GET /payroll-entries/{prefix}/{number}` — **path segments, not a query string**, unlike every other confirmed Dataico resource.
 
+### `cash_registers`
+
+Local bookkeeping, **not a Dataico integration** — one row per calendar day the store opens/closes its cash register ("apertura y cierre de caja"). See `docs/GLOSSARY.md` ("Caja").
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `register_date` | DATE | Plain `UNIQUE` index (not the partial/soft-delete-aware kind used elsewhere) — this table has no soft delete and nothing else FKs to it. One row per day, store-wide — not per user/session. |
+| `opened_at` | TIMESTAMPTZ | `NOT NULL` |
+| `opened_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `closed_at` | TIMESTAMPTZ, nullable | `NULL` until closed. **State is derived from `closed_at IS NULL`** — no status enum, same reasoning as `dian_resolutions`/`invoices` not carrying a redundant status column when a timestamp already implies it. |
+| `closed_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `total_amount` | NUMERIC(12,2), nullable | `NULL` until closed. **Auto-computed at close time** as the sum of that day's `invoices.total_amount` — never manually entered. |
+
+**No generic `created_at`/`updated_at`, no `deleted_at`** — `opened_at`/`closed_at` already timestamp the row's only two events, and there's no remove endpoint (nothing references this table, and per business rule a closed day is never reopened).
+
+**Business logic (`CashRegisterService`):** `open()` rejects with 409 if today's register already exists (open or closed) — one open/close cycle per day, no reopen flow. `close()` rejects with 404 if nothing was opened today, 409 if already closed; otherwise sums that day's invoices and persists the total. **`assertOpenToday()` gates `InvoicesService.create`** — a new invoice can't be created without an open register for today (400 if none). "Today" and the daily total are both computed against the **store's local calendar day (`America/Bogotá`, fixed UTC-5)**, not server time — see `common/utils/store-date.util.ts` — since Railway runs UTC and a naive UTC "today" would roll the day boundary at 7pm local time. Per-seller detail isn't tracked here; each invoice already records its own `created_by_id`.
+
 ## Migrations (chronological)
 
 | # | Migration | What it did |
@@ -309,6 +328,8 @@ Added Phase 15 — a local record of every Nómina Electrónica period submitted
 | 14 | `CreatePayrollEntries` | Phase 15. `payroll_entries` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
 | 15 | `CreateCustomers` | Small enhancement (not a numbered phase). `customers` table (FKs to `users` for both audit columns, partial unique index on `(identification_type, identification)`, indexes on `created_at DESC` and `identification`). Hand-written — no live database was reachable to generate/verify it against, see the note in this migration's PR/commit. |
 | 16 | `DropPosInvoices` | POS Electrónico removal (see `PROJECT_ROADMAP.md`). Drops the `pos_invoices` table. Hand-written, same reason as `CreateCustomers` — no live database reachable to generate against. |
+| 17 | `CreateCashRegisters` | Local enhancement (not a numbered phase). `cash_registers` table (FKs to `users` for `opened_by`/`closed_by`, plain unique index on `register_date`). Generated against a live local DB and reviewed before committing — see `DATABASE.md`'s migration workflow. |
+| 18 | `AddIdentificationDvToCustomers` | Local enhancement (not a numbered phase). Adds `customers.identification_dv VARCHAR(5)`, nullable — NIT check digit, local-only (see `customers` above). Hand-written, same reason as `CreateCashRegisters`/`DropPosInvoices` — the raw `migration:generate` diff against the live local DB included unrelated drift across every other table (stale `created_at`/`updated_at` column types, FK constraint churn), discarded in favor of a minimal hand-written `ALTER TABLE`. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

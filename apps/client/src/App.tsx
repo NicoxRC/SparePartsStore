@@ -4,6 +4,7 @@ import { AdminRoute } from './components/AdminRoute';
 import { EmployeeRoute } from './components/EmployeeRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import { InvoiceDraftsProvider } from './context/InvoiceDraftsContext';
 import { AuthLayout } from './layouts/AuthLayout';
 import { AuthenticatedLayout } from './layouts/AuthenticatedLayout';
 import { CatalogsPage } from './pages/CatalogsPage';
@@ -37,6 +38,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+        <InvoiceDraftsProvider>
           <Routes>
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
@@ -170,6 +172,7 @@ function App() {
             <Route path="/" element={<Navigate to="/products" replace />} />
             <Route path="*" element={<Navigate to="/products" replace />} />
           </Routes>
+        </InvoiceDraftsProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
