@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createEmptyInvoiceDraft, type InvoiceDraft } from '../lib/invoiceDraft';
 import { InvoiceDraftsContext } from './invoice-drafts-context';
 
-const STORAGE_KEY = 'casarespuestos:invoice-drafts';
+const STORAGE_KEY = 'casarespuestos.invoiceDrafts';
 
 interface StoredState {
   drafts: InvoiceDraft[];
