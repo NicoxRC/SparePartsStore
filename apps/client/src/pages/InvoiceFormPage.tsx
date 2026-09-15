@@ -798,6 +798,13 @@ export function InvoiceFormPage() {
 
   const activeDraft = drafts.find((draft) => draft.id === activeDraftId) ?? drafts[0];
 
+  // A draft with products added but not yet sent is a sale left mid-way —
+  // closing the register would bury it. An untouched empty draft (there's
+  // always at least one) doesn't count.
+  const pendingDraftLabels = drafts
+    .map((draft, index) => (draft.values.items.length > 0 ? invoiceDraftLabel(draft, index) : null))
+    .filter((label): label is string => label !== null);
+
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
       <div className="flex flex-col gap-2">
@@ -818,12 +825,25 @@ export function InvoiceFormPage() {
           </span>
           <button
             type="button"
+            disabled={pendingDraftLabels.length > 0}
             onClick={() => setIsCloseDialogOpen(true)}
-            className="text-xs font-medium text-steel hover:text-ink hover:underline"
+            title={
+              pendingDraftLabels.length > 0
+                ? `Termina o cierra esta pestaña primero: ${pendingDraftLabels.join(', ')}`
+                : undefined
+            }
+            className="text-xs font-medium text-steel hover:text-ink hover:underline disabled:cursor-not-allowed disabled:text-fog disabled:no-underline"
           >
             Cerrar caja
           </button>
         </div>
+        {pendingDraftLabels.length > 0 && (
+          <p className="text-xs text-fog">
+            {pendingDraftLabels.length === 1
+              ? `Tienes una venta sin terminar (${pendingDraftLabels[0]}) — termínala o ciérrala para poder cerrar caja.`
+              : `Tienes ${pendingDraftLabels.length} ventas sin terminar (${pendingDraftLabels.join(', ')}) — termínalas o ciérralas para poder cerrar caja.`}
+          </p>
+        )}
       </div>
 
       {isCloseDialogOpen && (
