@@ -35,7 +35,7 @@ export class CreateInvoiceDto {
   @ApiProperty({
     example: 'DEBITO',
     description:
-      'Only DEBITO is confirmed against a real Dataico standard-invoice example. CREDITO is not yet confirmed — see docs/phases/PHASE_10_INVOICING_STANDARD.md.',
+      'Confirmed: DEBITO = Contado (immediate), CREDITO = venta a crédito (deferred — drives whether paymentDate is required).',
   })
   @IsString()
   @IsNotEmpty()
