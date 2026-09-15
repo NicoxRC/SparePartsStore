@@ -1,6 +1,6 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsNumber, IsUUID, Min } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 
 export class CreateInvoiceItemDto {
   @ApiProperty({
@@ -25,4 +25,15 @@ export class CreateInvoiceItemDto {
   @IsNumber()
   @Min(0)
   taxRate: number;
+
+  @ApiPropertyOptional({
+    example: 20000,
+    description:
+      'Fixed COP amount taken off this line\'s pre-tax subtotal (price × quantity) before computing IVA — not a percentage. Local-only: never sent to Dataico as its own field, it only changes the tax_base/tax_amount/price this app computes and sends (see docs/DATABASE.md\'s "invoices" table). Not part of the confirmed standard-invoice payload.',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  discount?: number;
 }

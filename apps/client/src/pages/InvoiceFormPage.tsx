@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { QuickCreateProductDialog } from '../components/QuickCreateProductDialog';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -40,6 +41,29 @@ import type { ProductResponse } from '../services/products';
 import type { ThirdPartyResponse } from '../services/thirdParties';
 
 const DEFAULT_TAX_RATE = 19;
+
+/**
+ * Final line amount (what the customer pays for that line). `price` —
+ * pulled from the product's `salePrice` — is confirmed to already include
+ * IVA; a line's `taxRate: 0` is just the flag that shows the "excluida"
+ * label, not a separate calculation. The fixed discount (a flat COP
+ * amount, not a percentage) comes off the pre-tax base before IVA is
+ * re-applied — confirmed directly. Mirrors
+ * InvoicesService.resolveItems() on the backend.
+ */
+function computeItemTotal(item: {
+  price: number;
+  quantity: unknown;
+  taxRate: unknown;
+  discount?: unknown;
+}): number {
+  const quantity = Number(item.quantity) || 0;
+  const taxRate = Number(item.taxRate) || 0;
+  const discount = Number(item.discount) || 0;
+  const exclusivePrice = taxRate > 0 ? item.price / (1 + taxRate / 100) : item.price;
+  const discountedBase = Math.max(0, exclusivePrice * quantity - discount);
+  return Math.round(discountedBase * (1 + taxRate / 100));
+}
 
 interface CustomerSectionProps {
   register: UseFormRegister<InvoiceFormInput>;
@@ -331,6 +355,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
       stock: product.stock,
       quantity,
       taxRate: DEFAULT_TAX_RATE,
+      discount: 0,
     });
     setProductQuery('');
     setFilterDepartmentId('');
@@ -377,7 +402,6 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
       paymentDate: values.paymentMeansType === 'CREDITO' ? values.paymentDate : undefined,
       paymentMeans: values.paymentMeans,
       paymentMeansType: values.paymentMeansType,
-      orderReference: values.orderReference || undefined,
       customerIdentificationType: values.customerIdentificationType,
       customerIdentification: values.customerIdentification,
       customerPartyType: values.customerPartyType,
@@ -391,10 +415,11 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
       customerCity: values.customerCity,
       customerAddressLine: values.customerAddressLine,
       customerEmail: values.customerEmail,
-      items: values.items.map(({ productId, quantity, taxRate }) => ({
+      items: values.items.map(({ productId, quantity, taxRate, discount }) => ({
         productId,
         quantity,
         taxRate,
+        discount: discount || undefined,
       })),
       notes: values.notes ? [values.notes] : undefined,
     });
@@ -404,12 +429,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
     navigate('/invoicing/invoices');
   };
 
-  const total = watchedItems.reduce((sum, item) => {
-    const quantity = Number(item.quantity) || 0;
-    const taxRate = Number(item.taxRate) || 0;
-    const base = item.price * quantity;
-    return sum + base + Math.round(base * (taxRate / 100));
-  }, 0);
+  const total = watchedItems.reduce((sum, item) => sum + computeItemTotal(item), 0);
 
   return (
     <>
@@ -501,6 +521,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                         <th className="px-3 py-2">Precio</th>
                         <th className="px-3 py-2">Cantidad</th>
                         <th className="px-3 py-2">IVA %</th>
+                        <th className="px-3 py-2">Descuento</th>
                         <th className="px-3 py-2" />
                       </tr>
                     </thead>
@@ -532,6 +553,15 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                                 Excluida
                               </span>
                             )}
+                          </td>
+                          <td className="w-28 px-3 py-2">
+                            <input
+                              type="number"
+                              min={0}
+                              placeholder="0"
+                              className="w-24 rounded-sm border border-line px-2 py-1"
+                              {...register(`items.${index}.discount`)}
+                            />
                           </td>
                           <td className="px-3 py-2">
                             <button
@@ -631,11 +661,6 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                 Datos de la factura
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <TextField
-                  label="Referencia de orden (opcional)"
-                  error={errors.orderReference?.message}
-                  {...register('orderReference')}
-                />
                 <SelectField
                   label="Medio de pago"
                   error={errors.paymentMeans?.message}
@@ -689,7 +714,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                       )}
                     </span>
                     <span>
-                      ${(item.price * Number(item.quantity)).toLocaleString('es-CO')}
+                      ${computeItemTotal(item).toLocaleString('es-CO')}
                     </span>
                   </li>
                 ))}
@@ -740,6 +765,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
 export function InvoiceFormPage() {
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
 
   if (cashRegisterQuery.isPending) {
@@ -779,53 +805,122 @@ export function InvoiceFormPage() {
 
   const activeDraft = drafts.find((draft) => draft.id === activeDraftId) ?? drafts[0];
 
+  // A draft with products added but not yet sent is a sale left mid-way —
+  // closing the register would bury it. An untouched empty draft (there's
+  // always at least one) doesn't count.
+  const pendingDraftLabels = drafts
+    .map((draft, index) => (draft.values.items.length > 0 ? invoiceDraftLabel(draft, index) : null))
+    .filter((label): label is string => label !== null);
+
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-        Nueva factura electrónica
-      </h1>
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
+      <div className="flex flex-col gap-2">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
+          Venta
+        </h1>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-tint px-2.5 py-1 text-xs font-medium text-ok">
+            <span className="relative flex h-1.5 w-1.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-75" />
+              <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ok" />
+            </span>
+            Caja abierta desde{' '}
+            {new Date(cashRegisterQuery.data.register?.openedAt ?? '').toLocaleTimeString(
+              'es-CO',
+              { hour: '2-digit', minute: '2-digit' },
+            )}
+          </span>
+          <button
+            type="button"
+            disabled={pendingDraftLabels.length > 0}
+            onClick={() => setIsCloseDialogOpen(true)}
+            title={
+              pendingDraftLabels.length > 0
+                ? `Termina o cierra esta pestaña primero: ${pendingDraftLabels.join(', ')}`
+                : undefined
+            }
+            className="text-xs font-medium text-steel hover:text-ink hover:underline disabled:cursor-not-allowed disabled:text-fog disabled:no-underline"
+          >
+            Cerrar caja
+          </button>
+        </div>
+        {pendingDraftLabels.length > 0 && (
+          <p className="text-xs text-fog">
+            {pendingDraftLabels.length === 1
+              ? `Tienes una venta sin terminar (${pendingDraftLabels[0]}) — termínala o ciérrala para poder cerrar caja.`
+              : `Tienes ${pendingDraftLabels.length} ventas sin terminar (${pendingDraftLabels.join(', ')}) — termínalas o ciérralas para poder cerrar caja.`}
+          </p>
+        )}
+      </div>
+
+      {isCloseDialogOpen && (
+        <CloseCashRegisterDialog
+          totalSoFar={cashRegisterQuery.data.totalSoFar ?? 0}
+          onClose={() => setIsCloseDialogOpen(false)}
+          onClosed={() => setIsCloseDialogOpen(false)}
+        />
+      )}
 
       {/* Several customers can be mid-checkout at once — each tab is an
           independent draft, persisted so switching between them, or
-          navigating to Productos/Inventario and back, keeps everything. */}
-      <div className="flex flex-wrap items-center gap-2">
-        {drafts.map((draft, index) => {
-          const isActive = draft.id === activeDraft.id;
-          return (
-            <span
-              key={draft.id}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
-                isActive
-                  ? 'border-ink bg-ink text-white'
-                  : 'border-line bg-white text-steel hover:bg-mist'
-              }`}
-            >
-              <button type="button" onClick={() => setActiveDraftId(draft.id)}>
-                {invoiceDraftLabel(draft, index)}
-              </button>
-              {drafts.length > 1 && (
+          navigating to Productos/Inventario and back, keeps everything.
+          The tab strip and the form panel share one border, browser-tab
+          style: the active tab overlaps the seam and matches the panel's
+          background, so the whole thing reads as a single workspace. */}
+      <div className="flex flex-col">
+        <div
+          role="tablist"
+          className="flex items-end gap-1 overflow-x-auto border-b border-line px-1"
+        >
+          {drafts.map((draft, index) => {
+            const isActive = draft.id === activeDraft.id;
+            return (
+              <div
+                key={draft.id}
+                role="tab"
+                aria-selected={isActive}
+                className={`group relative flex shrink-0 items-center gap-2 rounded-t border border-b-0 px-3 py-2 text-sm ${
+                  isActive
+                    ? 'z-10 -mb-px border-line bg-white font-medium text-ink'
+                    : 'border-transparent bg-transparent text-steel hover:bg-mist'
+                }`}
+              >
                 <button
                   type="button"
-                  onClick={() => closeDraft(draft.id)}
-                  aria-label="Cerrar factura"
-                  className={isActive ? 'text-white/70 hover:text-white' : 'text-fog hover:text-ink'}
+                  onClick={() => setActiveDraftId(draft.id)}
+                  className="max-w-[9rem] truncate"
                 >
-                  ×
+                  {invoiceDraftLabel(draft, index)}
                 </button>
-              )}
-            </span>
-          );
-        })}
-        <button
-          type="button"
-          onClick={addDraft}
-          className="rounded-full border border-dashed border-line px-3 py-1.5 text-sm text-steel hover:bg-mist"
-        >
-          + Nueva factura
-        </button>
-      </div>
+                {drafts.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => closeDraft(draft.id)}
+                    aria-label="Cerrar venta"
+                    className={`leading-none ${
+                      isActive ? 'text-fog hover:text-ink' : 'text-fog/70 hover:text-ink'
+                    }`}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={addDraft}
+            aria-label="Nueva venta"
+            className="shrink-0 rounded-t px-3 py-2 text-sm text-steel hover:bg-mist"
+          >
+            +
+          </button>
+        </div>
 
-      <InvoiceDraftForm key={activeDraft.id} draft={activeDraft} />
+        <div className="rounded-b border border-t-0 border-line bg-white p-4 sm:p-6">
+          <InvoiceDraftForm key={activeDraft.id} draft={activeDraft} />
+        </div>
+      </div>
     </div>
   );
 }

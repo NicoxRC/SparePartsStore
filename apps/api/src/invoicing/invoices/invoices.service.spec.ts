@@ -200,17 +200,96 @@ describe('InvoicesService', () => {
               expect.objectContaining({
                 sku: 'REP-001',
                 description: 'Filtro de aceite',
-                price: 50000,
+                // salePrice (50000) is confirmed IVA-inclusive; Dataico
+                // wants the pre-tax price with tax broken out separately,
+                // so it's unwrapped first: 50000 / 1.19 = 42016.80..., ×2
+                // / 2 (no discount) rounds to 42017 per unit.
+                price: 42017,
                 quantity: 2,
                 taxes: [
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
-                    tax_base: 100000,
-                    tax_amount: 19000,
+                    tax_base: 84034,
+                    tax_amount: 15966,
                   },
                 ],
                 retentions: [],
+              }),
+            ],
+          }),
+        }),
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    });
+
+    it('subtracts a fixed per-line discount from the pre-tax subtotal before computing IVA', async () => {
+      await service.create(
+        {
+          ...baseDto,
+          items: [
+            { productId: 'prod-1', quantity: 2, taxRate: 19, discount: 20000 },
+          ],
+        },
+        'user-1',
+      );
+
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(dataicoClient.post).toHaveBeenCalledWith(
+        '/invoices',
+        expect.objectContaining({
+          invoice: expect.objectContaining({
+            items: [
+              expect.objectContaining({
+                // Unwrap salePrice first (50000 / 1.19 = 42016.80... per
+                // unit, ×2 = 84033.61... pre-tax subtotal), then subtract
+                // the discount: (84033.61... - 20000) / 2 = 32016.80...,
+                // rounds to 32017 — price itself reflects the discount, so
+                // price × quantity on the actual invoice already equals
+                // the discounted total; Dataico never sees a separate
+                // "discount" field.
+                price: 32017,
+                taxes: [
+                  {
+                    tax_category: 'IVA',
+                    tax_rate: 19,
+                    tax_base: 64034,
+                    tax_amount: 12166,
+                  },
+                ],
+              }),
+            ],
+          }),
+        }),
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    });
+
+    it('leaves price untouched at taxRate 0 — it only flags the "excluida" label, not a calculation', async () => {
+      await service.create(
+        {
+          ...baseDto,
+          items: [{ productId: 'prod-1', quantity: 2, taxRate: 0 }],
+        },
+        'user-1',
+      );
+
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(dataicoClient.post).toHaveBeenCalledWith(
+        '/invoices',
+        expect.objectContaining({
+          invoice: expect.objectContaining({
+            items: [
+              expect.objectContaining({
+                price: 50000,
+                taxes: [
+                  {
+                    tax_category: 'IVA',
+                    tax_rate: 0,
+                    tax_base: 100000,
+                    tax_amount: 0,
+                  },
+                ],
               }),
             ],
           }),
@@ -235,7 +314,9 @@ describe('InvoicesService', () => {
       expect(created.dianStatus).toBe('DIAN_ACEPTADO');
       expect(created.cufe).toBe('abc123');
       expect(created.dataicoUuid).toBe('dataico-uuid-1');
-      expect(created.totalAmount).toBe(119000);
+      // salePrice (50000) is IVA-inclusive, so the invoice total matches
+      // it exactly (×2 = 100000) — not 50000×2 plus tax on top.
+      expect(created.totalAmount).toBe(100000);
       expect(created.responsePayload).not.toHaveProperty('xml');
     });
 

@@ -41,11 +41,6 @@ export class CreateInvoiceDto {
   @IsNotEmpty()
   paymentMeansType: string;
 
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  orderReference?: string;
-
   @ApiProperty({ example: 'NIT' })
   @IsString()
   @IsNotEmpty()

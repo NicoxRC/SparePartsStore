@@ -8,6 +8,9 @@ export const invoiceItemFormSchema = z.object({
   stock: z.number(),
   quantity: z.coerce.number().int().min(1, 'Cantidad mínima 1.'),
   taxRate: z.coerce.number().min(0, 'Debe ser mayor o igual a 0.'),
+  // Fixed COP amount, not a percentage — taken off this line's pre-tax
+  // subtotal before IVA is calculated. Local-only, see create-invoice-item.dto.ts.
+  discount: z.coerce.number().min(0, 'Debe ser mayor o igual a 0.').optional(),
 });
 
 // Kept as a plain object schema, separate from the `.superRefine()`-wrapped
@@ -23,7 +26,6 @@ const invoiceFormObjectSchema = z.object({
   paymentDate: z.string().optional().or(z.literal('')),
   paymentMeans: z.string().min(1, 'El medio de pago es obligatorio.'),
   paymentMeansType: z.string().min(1, 'El tipo de pago es obligatorio.'),
-  orderReference: z.string().optional().or(z.literal('')),
 
   customerIdentificationType: z.string().min(1, 'Obligatorio.'),
   customerIdentification: z.string().min(1, 'Obligatorio.'),

@@ -26,6 +26,8 @@ The three required classification lookups every product belongs to (exactly one 
 ### Cost (Costo) vs. Sale price (Precio de venta)
 `salePrice` is what staff actually type in — the number the store sells at. `cost` is **derived from it**, not entered directly: `cost = salePrice / factor`, where the factor depends on `saleType`. This is a deliberate reverse-markup calculation, not a data-entry field — see `DATABASE.md` for the exact factors.
 
+**Confirmed: `salePrice` already includes IVA** — it's exactly what the customer pays, not a pre-tax base. A line's `taxRate: 0` is therefore only a flag for the "excluida"/exenta label on the invoice, not a separate calculation. Since Dataico reports `price`/`tax_base` as the pre-tax amount with `tax_amount` broken out, `InvoicesService.resolveItems()` unwraps `salePrice` back to its pre-tax equivalent (`grossPrice / (1 + taxRate / 100)`) before applying the per-line discount and computing tax — see that method's docstring. The client-side total preview in `InvoiceFormPage.tsx` (`computeItemTotal()`) mirrors the same math so the running total shown while building a sale matches what actually gets invoiced.
+
 ### Sale type (Tipo de venta) — Normal / Neto
 Selects which cost factor applies to a product's reverse markup calculation (see above). In code: `SaleType.NORMAL` / `SaleType.NETO`, column `products.sale_type`.
 

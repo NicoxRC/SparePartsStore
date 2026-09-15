@@ -2,6 +2,7 @@ import { NavLink, Outlet } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import {
   IconBox,
+  IconCart,
   IconLayers,
   IconReceipt,
   IconStamp,
@@ -17,7 +18,10 @@ export function AuthenticatedLayout() {
     { to: '/products', label: 'Productos', Icon: IconBox },
     { to: '/inventory', label: 'Inventario', Icon: IconLayers },
     ...(user?.role !== 'auditor'
-      ? [{ to: '/invoicing/invoices', label: 'Facturas', Icon: IconReceipt }]
+      ? [
+          { to: '/ventas', label: 'Venta', Icon: IconCart },
+          { to: '/invoicing/invoices', label: 'Facturas', Icon: IconReceipt },
+        ]
       : []),
     ...(user?.role === 'admin'
       ? [
