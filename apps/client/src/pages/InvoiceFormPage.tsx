@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { QuickCreateProductDialog } from '../components/QuickCreateProductDialog';
 import { SearchableSelect } from '../components/SearchableSelect';
@@ -757,6 +758,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
 export function InvoiceFormPage() {
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
 
   if (cashRegisterQuery.isPending) {
@@ -798,9 +800,35 @@ export function InvoiceFormPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-        Venta
-      </h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
+          Venta
+        </h1>
+        <div className="flex items-center gap-3 rounded-sm border border-line bg-white px-4 py-2 text-sm">
+          <span className="text-steel">
+            Caja abierta desde{' '}
+            {new Date(cashRegisterQuery.data.register?.openedAt ?? '').toLocaleTimeString(
+              'es-CO',
+              { hour: '2-digit', minute: '2-digit' },
+            )}
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsCloseDialogOpen(true)}
+            className="font-medium text-ink hover:underline"
+          >
+            Cerrar caja
+          </button>
+        </div>
+      </div>
+
+      {isCloseDialogOpen && (
+        <CloseCashRegisterDialog
+          totalSoFar={cashRegisterQuery.data.totalSoFar ?? 0}
+          onClose={() => setIsCloseDialogOpen(false)}
+          onClosed={() => setIsCloseDialogOpen(false)}
+        />
+      )}
 
       {/* Several customers can be mid-checkout at once — each tab is an
           independent draft, persisted so switching between them, or
