@@ -49,10 +49,6 @@ interface CustomerSectionProps {
   customerIdentificationType: string;
   onSelectCustomer: (customer: CustomerResponse) => void;
   onDianResult: (result: ThirdPartyResponse) => void;
-  onSaveCustomer: () => void;
-  canSaveCustomer: boolean;
-  isSavingCustomer: boolean;
-  saveCustomerError: unknown;
 }
 
 function CustomerSection({
@@ -65,30 +61,10 @@ function CustomerSection({
   customerIdentificationType,
   onSelectCustomer,
   onDianResult,
-  onSaveCustomer,
-  canSaveCustomer,
-  isSavingCustomer,
-  saveCustomerError,
 }: CustomerSectionProps) {
   return (
     <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
-        <Button
-          type="button"
-          variant="secondary"
-          className="w-auto px-3 py-2 text-xs sm:min-h-0 sm:px-3 sm:py-1.5"
-          disabled={!canSaveCustomer}
-          isLoading={isSavingCustomer}
-          onClick={onSaveCustomer}
-        >
-          Guardar cliente
-        </Button>
-      </div>
-
-      {saveCustomerError !== null && saveCustomerError !== undefined && (
-        <Alert variant="error">{getApiErrorMessage(saveCustomerError)}</Alert>
-      )}
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
 
       <CustomerPicker
         searchQuery={customerSearchQuery}
@@ -207,7 +183,7 @@ export function InvoiceFormPage() {
   const createMutation = useCreateInvoice();
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
-  const [step, setStep] = useState<'products' | 'details'>('products');
+  const [step, setStep] = useState<'products' | 'customer' | 'invoice'>('products');
   const [productQuery, setProductQuery] = useState('');
   const [filterDepartmentId, setFilterDepartmentId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
@@ -220,7 +196,6 @@ export function InvoiceFormPage() {
     control,
     handleSubmit,
     setValue,
-    getValues,
     formState: { errors },
   } = useForm<InvoiceFormInput, unknown, InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
@@ -260,7 +235,6 @@ export function InvoiceFormPage() {
   const customerPartyType = useWatch({ control, name: 'customerPartyType' });
   const customerIdentification = useWatch({ control, name: 'customerIdentification' });
   const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
-  const customerEmail = useWatch({ control, name: 'customerEmail' });
   const watchedItems = useWatch({ control, name: 'items' });
 
   const hasActiveProductSearch =
@@ -273,7 +247,6 @@ export function InvoiceFormPage() {
   });
   const createCustomerMutation = useCreateCustomer();
   const updateCustomerMutation = useUpdateCustomer(selectedCustomerId ?? '');
-  const saveCustomerMutation = selectedCustomerId ? updateCustomerMutation : createCustomerMutation;
 
   const handleSelectCustomer = (customer: CustomerResponse) => {
     setSelectedCustomerId(customer.id);
@@ -302,35 +275,6 @@ export function InvoiceFormPage() {
     if (result.email) setValue('customerEmail', result.email);
   };
 
-  const handleSaveCustomer = async () => {
-    const values = getValues();
-    const payload: CustomerInput = {
-      identificationType: values.customerIdentificationType,
-      identification: values.customerIdentification,
-      identificationDv: values.customerIdentificationDv || undefined,
-      partyType: values.customerPartyType as CustomerPartyType,
-      companyName: values.customerCompanyName || undefined,
-      firstName: values.customerFirstName || undefined,
-      familyName: values.customerFamilyName || undefined,
-      taxLevelCode: values.customerTaxLevelCode || undefined,
-      regimen: values.customerRegimen || undefined,
-      countryCode: values.customerCountryCode || undefined,
-      department: values.customerDepartment || undefined,
-      city: values.customerCity || undefined,
-      addressLine: values.customerAddressLine || undefined,
-      email: values.customerEmail,
-      phone: values.customerPhone || undefined,
-    };
-    try {
-      const saved = selectedCustomerId
-        ? await updateCustomerMutation.mutateAsync(payload)
-        : await createCustomerMutation.mutateAsync(payload);
-      setSelectedCustomerId(saved.id);
-    } catch {
-      // surfaced via saveCustomerMutation.isError / .error below
-    }
-  };
-
   const handleAddProduct = (product: ProductResponse, quantity = 1) => {
     appendItem({
       productId: product.id,
@@ -352,6 +296,36 @@ export function InvoiceFormPage() {
   };
 
   const onSubmit = async (values: InvoiceFormValues) => {
+    // The customer is always saved to the local address book — best
+    // effort: a failure here (e.g. a stale conflict) never blocks the
+    // actual sale, since the customer record is a convenience, not the
+    // point of the transaction.
+    try {
+      const customerPayload: CustomerInput = {
+        identificationType: values.customerIdentificationType,
+        identification: values.customerIdentification,
+        identificationDv: values.customerIdentificationDv || undefined,
+        partyType: values.customerPartyType as CustomerPartyType,
+        companyName: values.customerCompanyName || undefined,
+        firstName: values.customerFirstName || undefined,
+        familyName: values.customerFamilyName || undefined,
+        taxLevelCode: values.customerTaxLevelCode || undefined,
+        regimen: values.customerRegimen || undefined,
+        countryCode: values.customerCountryCode || undefined,
+        department: values.customerDepartment || undefined,
+        city: values.customerCity || undefined,
+        addressLine: values.customerAddressLine || undefined,
+        email: values.customerEmail,
+        phone: values.customerPhone || undefined,
+      };
+      const savedCustomer = selectedCustomerId
+        ? await updateCustomerMutation.mutateAsync(customerPayload)
+        : await createCustomerMutation.mutateAsync(customerPayload);
+      setSelectedCustomerId(savedCustomer.id);
+    } catch {
+      // best-effort, see comment above
+    }
+
     await createMutation.mutateAsync({
       number: values.number,
       issueDate: values.issueDate,
@@ -430,7 +404,9 @@ export function InvoiceFormPage() {
         Nueva factura electrónica
       </h1>
       <p className="text-sm text-fog">
-        {step === 'products' ? 'Paso 1 de 2 · Productos' : 'Paso 2 de 2 · Datos y cliente'}
+        {step === 'products' && 'Paso 1 de 3 · Productos'}
+        {step === 'customer' && 'Paso 2 de 3 · Cliente'}
+        {step === 'invoice' && 'Paso 3 de 3 · Datos de la factura'}
       </p>
 
       {createMutation.isError && (
@@ -581,9 +557,58 @@ export function InvoiceFormPage() {
                 type="button"
                 className="sm:w-auto sm:px-6"
                 disabled={itemFields.length === 0}
-                onClick={() => setStep('details')}
+                onClick={() => setStep('customer')}
               >
                 Siguiente
+              </Button>
+            </div>
+          </>
+        ) : step === 'customer' ? (
+          <>
+            <CustomerSection
+              register={register}
+              errors={errors}
+              customerPartyType={customerPartyType}
+              customerSearchQuery={customerSearchQuery}
+              onCustomerSearchQueryChange={setCustomerSearchQuery}
+              customerIdentification={customerIdentification}
+              customerIdentificationType={customerIdentificationType}
+              onSelectCustomer={handleSelectCustomer}
+              onDianResult={handleDianResult}
+            />
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="sm:w-auto sm:px-6"
+                onClick={() => navigate('/invoicing/invoices')}
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="sm:w-auto sm:px-6"
+                onClick={() => setStep('products')}
+              >
+                Atrás
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="sm:w-auto sm:px-6"
+                disabled
+                title="Próximamente"
+              >
+                Cotizar
+              </Button>
+              <Button
+                type="button"
+                className="sm:w-auto sm:px-6"
+                onClick={() => setStep('invoice')}
+              >
+                Facturar
               </Button>
             </div>
           </>
@@ -637,22 +662,6 @@ export function InvoiceFormPage() {
               </div>
             </section>
 
-            <CustomerSection
-              register={register}
-              errors={errors}
-              customerPartyType={customerPartyType}
-              customerSearchQuery={customerSearchQuery}
-              onCustomerSearchQueryChange={setCustomerSearchQuery}
-              customerIdentification={customerIdentification}
-              customerIdentificationType={customerIdentificationType}
-              onSelectCustomer={handleSelectCustomer}
-              onDianResult={handleDianResult}
-              onSaveCustomer={() => void handleSaveCustomer()}
-              canSaveCustomer={Boolean(customerIdentification) && Boolean(customerEmail)}
-              isSavingCustomer={saveCustomerMutation.isPending}
-              saveCustomerError={saveCustomerMutation.isError ? saveCustomerMutation.error : null}
-            />
-
             <section className="flex flex-col gap-3 rounded border border-line bg-white p-4 sm:p-6">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
@@ -696,6 +705,14 @@ export function InvoiceFormPage() {
                 onClick={() => navigate('/invoicing/invoices')}
               >
                 Cancelar
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                className="sm:w-auto sm:px-6"
+                onClick={() => setStep('customer')}
+              >
+                Atrás
               </Button>
               <Button type="submit" className="sm:w-auto sm:px-6" isLoading={createMutation.isPending}>
                 Enviar factura
