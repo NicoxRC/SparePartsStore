@@ -16,8 +16,6 @@ import { InvoiceFormPage } from './pages/InvoiceFormPage';
 import { InvoicesListPage } from './pages/InvoicesListPage';
 import { PayrollFormPage } from './pages/PayrollFormPage';
 import { PayrollListPage } from './pages/PayrollListPage';
-import { PosInvoiceFormPage } from './pages/PosInvoiceFormPage';
-import { PosInvoicesListPage } from './pages/PosInvoicesListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsListPage } from './pages/ProductsListPage';
 import { ResolutionFormPage } from './pages/ResolutionFormPage';
@@ -54,14 +52,6 @@ function App() {
                 <Route element={<EmployeeRoute />}>
                   <Route path="/invoicing/invoices" element={<InvoicesListPage />} />
                   <Route path="/invoicing/invoices/new" element={<InvoiceFormPage />} />
-                  <Route
-                    path="/invoicing/pos-invoices"
-                    element={<PosInvoicesListPage />}
-                  />
-                  <Route
-                    path="/invoicing/pos-invoices/new"
-                    element={<PosInvoiceFormPage />}
-                  />
                   <Route path="/products/new" element={<ProductFormPage />} />
                   <Route path="/products/:id/edit" element={<ProductFormPage />} />
                 </Route>
