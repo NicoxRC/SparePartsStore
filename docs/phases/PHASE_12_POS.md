@@ -1,6 +1,8 @@
 # Phase 12 — POS Electrónico (Backend)
 
-**Status: Done** (send + query). Confirmed high priority — most of this store's sales are counter sales. Reference confirmed **only against Dataico's staging/gamma test environments** — no production URL yet, and no confirmed response shape.
+**Status: Removed (2026-09-15).** Was done (send + query) and confirmed as this store's primary sale flow, then removed entirely per direct instruction from the human — POS is no longer this store's sale channel, standard invoicing (Phase 10) is. Kept below as a historical record only, same convention as `PHASE_6_SISCO_EXPORT.md` — nothing on this page describes the current system. See `PROJECT_ROADMAP.md`'s Phase 12 entry and `docs/DATABASE.md`/`docs/ARCHITECTURE.md` for what's actually live now.
+
+Original status line: **Done** (send + query). Confirmed high priority — most of this store's sales are counter sales. Reference confirmed **only against Dataico's staging/gamma test environments** — no production URL yet, and no confirmed response shape.
 
 ## Confirmed reference — "Enviar factura - BASE"
 
