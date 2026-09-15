@@ -43,15 +43,26 @@ import type { ThirdPartyResponse } from '../services/thirdParties';
 const DEFAULT_TAX_RATE = 19;
 
 /**
- * Pre-tax subtotal for one line, net of its fixed discount (a flat COP
- * amount, not a percentage) — confirmed directly: the discount comes off
- * the base, IVA is calculated on what's left. Mirrors
+ * Final line amount (what the customer pays for that line). `price` —
+ * pulled from the product's `salePrice` — is confirmed to already include
+ * IVA; a line's `taxRate: 0` is just the flag that shows the "excluida"
+ * label, not a separate calculation. The fixed discount (a flat COP
+ * amount, not a percentage) comes off the pre-tax base before IVA is
+ * re-applied — confirmed directly. Mirrors
  * InvoicesService.resolveItems() on the backend.
  */
-function computeItemBase(item: { price: number; quantity: unknown; discount?: unknown }): number {
+function computeItemTotal(item: {
+  price: number;
+  quantity: unknown;
+  taxRate: unknown;
+  discount?: unknown;
+}): number {
   const quantity = Number(item.quantity) || 0;
+  const taxRate = Number(item.taxRate) || 0;
   const discount = Number(item.discount) || 0;
-  return Math.max(0, item.price * quantity - discount);
+  const exclusivePrice = taxRate > 0 ? item.price / (1 + taxRate / 100) : item.price;
+  const discountedBase = Math.max(0, exclusivePrice * quantity - discount);
+  return Math.round(discountedBase * (1 + taxRate / 100));
 }
 
 interface CustomerSectionProps {
@@ -418,11 +429,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
     navigate('/invoicing/invoices');
   };
 
-  const total = watchedItems.reduce((sum, item) => {
-    const taxRate = Number(item.taxRate) || 0;
-    const base = computeItemBase(item);
-    return sum + base + Math.round(base * (taxRate / 100));
-  }, 0);
+  const total = watchedItems.reduce((sum, item) => sum + computeItemTotal(item), 0);
 
   return (
     <>
@@ -707,7 +714,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                       )}
                     </span>
                     <span>
-                      ${computeItemBase(item).toLocaleString('es-CO')}
+                      ${computeItemTotal(item).toLocaleString('es-CO')}
                     </span>
                   </li>
                 ))}

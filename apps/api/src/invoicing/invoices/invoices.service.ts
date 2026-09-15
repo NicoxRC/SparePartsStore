@@ -300,14 +300,21 @@ export class InvoicesService {
    * un-sent, so it's better to fail here than after DIAN has accepted a
    * sale this store can't actually fulfill.
    *
+   * `product.salePrice` is confirmed to already include IVA (it's the
+   * price the store actually sells at) — `taxRate: 0` on a line is only
+   * the flag for the "excluida"/exenta label, not a separate calculation.
+   * DIAN invoices report price/tax_base as the pre-tax amount with
+   * tax_amount broken out separately, so salePrice is first "unwrapped"
+   * back to its pre-tax equivalent before anything else happens.
+   *
    * A fixed per-line discount (a flat COP amount, not a percentage) is
-   * subtracted from the line's pre-tax subtotal here, before IVA is
-   * computed — confirmed directly: the discount comes off the base, IVA
-   * is then calculated on the already-discounted amount. The discounted
-   * amount is folded back into a per-unit `unitPrice` (rather than kept
-   * as a separate figure) so `price × quantity` on the actual invoice
-   * always equals the discounted total — Dataico never sees a "discount"
-   * field, only the already-final numbers, per direct instruction.
+   * then subtracted from that pre-tax subtotal, before IVA is computed —
+   * confirmed directly: the discount comes off the base, IVA is then
+   * calculated on the already-discounted amount. The discounted amount is
+   * folded back into a per-unit `unitPrice` (rather than kept as a
+   * separate figure) so `price × quantity` on the actual invoice always
+   * equals the discounted total — Dataico never sees a "discount" field,
+   * only the already-final numbers, per direct instruction.
    */
   private async resolveItems(dto: CreateInvoiceDto): Promise<ResolvedItem[]> {
     return Promise.all(
@@ -319,7 +326,12 @@ export class InvoicesService {
           );
         }
 
-        const rawSubtotal = Number(product.salePrice) * itemDto.quantity;
+        const grossUnitPrice = Number(product.salePrice);
+        const exclusiveUnitPrice =
+          itemDto.taxRate > 0
+            ? grossUnitPrice / (1 + itemDto.taxRate / 100)
+            : grossUnitPrice;
+        const rawSubtotal = exclusiveUnitPrice * itemDto.quantity;
         const discountedSubtotal = Math.max(
           0,
           rawSubtotal - (itemDto.discount ?? 0),
