@@ -233,25 +233,9 @@ Added Phase 10 — a local record of every invoice sent to Dataico. See `docs/GL
 
 **Business logic (`InvoicesService.resend` / `.refreshStatus`):** both call Dataico (`PUT /invoices/{dataico_uuid}` for resend, `GET /invoices?number=` for refresh) and update the SAME row's status/CUFE/urls via a shared `mapDataicoResponse()` helper — also used by `create` — rather than inserting a new row. See `docs/phases/PHASE_10_INVOICING_STANDARD.md`.
 
-### `pos_invoices`
+### `pos_invoices` — **removed**
 
-Added Phase 12 — a local record of every POS Electrónico document sent to Dataico. Deliberately a **separate table from `invoices`**, not a shared one with a discriminator column — the two document types' confirmed request shapes differ enough (nested item `product` object, array `payment-means`, no `dataico_account_id`/`env`/`operation`, different tax shape) that forcing them into one schema now would mean guessing which parts generalize. See `docs/phases/PHASE_12_POS.md`.
-
-| Column | Type | Notes |
-|---|---|---|
-| `id` | UUID | PK |
-| `number` | INT | What this app sent. |
-| `prefix`, `resolution_number` | VARCHAR | From the active resolution with `subtype = 'POS'` (see `dian_resolutions` above — same `documentType: invoice`, distinguished by `subtype`). |
-| `customer_type` | VARCHAR | `NATURAL` / `JURIDICA`, confirmed values. |
-| `customer_identification_type`, `customer_identification` | VARCHAR | |
-| `customer_company_name`, `customer_first_name`, `customer_family_name`, `customer_phone` | VARCHAR, nullable | |
-| `customer_email` | VARCHAR | |
-| `issue_date` | DATE | |
-| `dataico_number`, `dian_status`, `cufe`, `dataico_uuid`, `xml_url`, `pdf_url`, `dian_messages` | nullable | **Not confirmed** — no POS response example was ever shared; these mirror the confirmed standard-invoice response's field names as an assumption, see the phase doc. |
-| `total_amount` | NUMERIC(12,2) | Computed client-side from price×quantity plus the same-rate tax this app also sends to Dataico (Dataico is expected to compute its own copy — POS's tax shape only sends the rate, not a base/amount, unlike standard invoicing). |
-| `request_payload`, `response_payload` | JSONB | Same convention as `invoices` — `response_payload` strips `xml` if present. |
-| `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
-| `created_at`, `updated_at` | TIMESTAMPTZ | Mutable like `invoices` (a future resend/refresh updates in place), not append-only. |
+Added Phase 12, **dropped** by the `DropPosInvoices` migration once POS Electrónico stopped being this store's sale flow (see `PROJECT_ROADMAP.md`). It held a local record of every POS Electrónico document sent to Dataico, as its own table separate from `invoices` (the two document types' confirmed request shapes differed too much — nested item `product` object, array `payment-means`, no `dataico_account_id`/`env`/`operation`, different tax shape — to share a schema). Historical shape and rationale stay in `docs/phases/PHASE_12_POS.md`.
 
 ### `customers`
 
@@ -324,6 +308,7 @@ Added Phase 15 — a local record of every Nómina Electrónica period submitted
 | 13 | `CreatePosInvoices` | Phase 12. `pos_invoices` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
 | 14 | `CreatePayrollEntries` | Phase 15. `payroll_entries` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
 | 15 | `CreateCustomers` | Small enhancement (not a numbered phase). `customers` table (FKs to `users` for both audit columns, partial unique index on `(identification_type, identification)`, indexes on `created_at DESC` and `identification`). Hand-written — no live database was reachable to generate/verify it against, see the note in this migration's PR/commit. |
+| 16 | `DropPosInvoices` | POS Electrónico removal (see `PROJECT_ROADMAP.md`). Drops the `pos_invoices` table. Hand-written, same reason as `CreateCustomers` — no live database reachable to generate against. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

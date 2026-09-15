@@ -128,19 +128,21 @@ apps/api/src/invoicing/
 ├── invoicing.module.ts
 ├── dataico/                             # built in Phase 7 — see docs/phases/PHASE_7_DATAICO_FOUNDATION.md
 │   ├── dataico.module.ts               # exports DataicoClientService — sub-domain modules import THIS, not InvoicingModule (avoids a circular dependency)
-│   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this. Auth is a custom `Auth-token` header, not Bearer/OAuth. `get`/`post`/`put` accept an optional per-call base URL override (added for Phase 12/POS, which lives on a different host).
+│   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this. Auth is a custom `Auth-token` header, not Bearer/OAuth. `get`/`post`/`put` accept an optional per-call base URL override (used by payroll, which lives on a different path).
 │   ├── dataico.config.ts               # typed config (DATAICO_BASE_URL, DATAICO_AUTH_TOKEN) via ConfigService
 │   └── dataico-api.exception.ts        # maps a non-2xx Dataico response to a clear NestJS exception
 ├── resolutions/                        # built in Phase 8 — "8. Actualizar o vincular resoluciones"
 ├── third-parties/                      # built in Phase 9 — "7. Consulta DIAN Terceros"
 ├── invoices/                           # built in Phase 10 (send/resend/query) — "1. Factura electrónica estándar" (notas crédito/débito blocked/deferred, see that phase doc)
-├── pos/                                # built in Phase 12 (send/query) — "3. POS Electrónico". Uses DataicoConfig.posBaseUrl (staging only — no production URL yet), a separate host from the rest of this integration.
 ├── support-documents/                  # "4. Documento soporte" — Phase 13, priority still unconfirmed
-└── payroll/                            # built in Phase 15 (send/query) — "5. Nómina Electrónica". Uses DataicoConfig.payrollBaseUrl (same host as standard invoicing, different API path). Pass-through only — not this app's source of truth for payroll, see docs/phases/PHASE_15_PAYROLL.md.
+└── payroll/                            # built in Phase 15 (send/query) — "5. Nómina Electrónica". Uses DataicoConfig.payrollBaseUrl (same host as standard invoicing, different API path). Pass-through only — not this app's source of truth for payroll, see docs/phases/PHASE_15_PAYROLL.md. Backend fully intact but currently hidden from the client nav — see PROJECT_ROADMAP.md.
 
 # Not planned — confirmed out of scope, see PROJECT_ROADMAP.md:
 #   "6. Eventos de recepción"        — acknowledging invoices FROM suppliers, not relevant to an issuer
 #   "2. Factura electrónica sector salud" — not a healthcare business
+
+# Removed — see PROJECT_ROADMAP.md:
+#   "3. POS Electrónico" (pos/)      — built in Phase 12, removed: no longer this store's sale flow
 ```
 
 Only build the sub-folders for the phase actually in progress — this tree is the target shape, not something to scaffold all at once. **Never guess a sub-domain's endpoint paths or payload shape before its Dataico reference has been shared** — see `CLAUDE.md`.
