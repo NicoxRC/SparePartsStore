@@ -23,6 +23,12 @@ import {
 import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
 import { useProducts } from '../hooks/useProducts';
+import {
+  DANE_CITIES,
+  DANE_DEPARTMENTS,
+  DEFAULT_DANE_CITY_CODE,
+  DEFAULT_DANE_DEPARTMENT_CODE,
+} from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
 import {
   invoiceFormSchema,
@@ -43,6 +49,8 @@ interface CustomerSectionProps {
   onCustomerSearchQueryChange: (value: string) => void;
   customerIdentification: string;
   customerIdentificationType: string;
+  customerDepartment: string;
+  onDepartmentChange: (departmentCode: string) => void;
   onSelectCustomer: (customer: CustomerResponse) => void;
   onDianResult: (result: ThirdPartyResponse) => void;
 }
@@ -55,9 +63,15 @@ function CustomerSection({
   onCustomerSearchQueryChange,
   customerIdentification,
   customerIdentificationType,
+  customerDepartment,
+  onDepartmentChange,
   onSelectCustomer,
   onDianResult,
 }: CustomerSectionProps) {
+  const departmentField = register('customerDepartment');
+  const citiesForDepartment = DANE_CITIES.filter(
+    (city) => city.departmentCode === customerDepartment,
+  );
   return (
     <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
@@ -137,18 +151,37 @@ function CustomerSection({
           </>
         )}
 
-        <TextField
-          label="Código DANE de departamento"
-          placeholder="11"
+        <SelectField
+          label="Departamento"
           error={errors.customerDepartment?.message}
-          {...register('customerDepartment')}
-        />
-        <TextField
-          label="Código DANE de ciudad"
-          placeholder="001"
+          {...departmentField}
+          onChange={(e) => {
+            void departmentField.onChange(e);
+            onDepartmentChange(e.target.value);
+          }}
+        >
+          {DANE_DEPARTMENTS.map((department) => (
+            <option key={department.code} value={department.code}>
+              {department.name}
+            </option>
+          ))}
+        </SelectField>
+        <SelectField
+          label="Ciudad"
           error={errors.customerCity?.message}
+          disabled={citiesForDepartment.length === 0}
           {...register('customerCity')}
-        />
+        >
+          {citiesForDepartment.length === 0 ? (
+            <option value="">Sin ciudades cargadas para este departamento</option>
+          ) : (
+            citiesForDepartment.map((city) => (
+              <option key={city.code} value={city.code}>
+                {city.name}
+              </option>
+            ))
+          )}
+        </SelectField>
         <div className="sm:col-span-2">
           <TextField
             label="Dirección"
@@ -213,8 +246,8 @@ export function InvoiceFormPage() {
       customerFirstName: '',
       customerFamilyName: '',
       customerCountryCode: 'CO',
-      customerDepartment: '',
-      customerCity: '',
+      customerDepartment: DEFAULT_DANE_DEPARTMENT_CODE,
+      customerCity: DEFAULT_DANE_CITY_CODE,
       customerAddressLine: '',
       customerEmail: '',
       items: [],
@@ -231,6 +264,7 @@ export function InvoiceFormPage() {
   const customerPartyType = useWatch({ control, name: 'customerPartyType' });
   const customerIdentification = useWatch({ control, name: 'customerIdentification' });
   const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
+  const customerDepartment = useWatch({ control, name: 'customerDepartment' });
   const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
   const watchedItems = useWatch({ control, name: 'items' });
 
@@ -263,6 +297,13 @@ export function InvoiceFormPage() {
     setValue('customerAddressLine', customer.addressLine ?? '');
     setValue('customerEmail', customer.email);
     setCustomerSearchQuery('');
+  };
+
+  const handleDepartmentChange = (departmentCode: string) => {
+    const cities = DANE_CITIES.filter(
+      (city) => city.departmentCode === departmentCode,
+    );
+    setValue('customerCity', cities[0]?.code ?? '');
   };
 
   const handleDianResult = (result: ThirdPartyResponse) => {
@@ -568,6 +609,8 @@ export function InvoiceFormPage() {
               onCustomerSearchQueryChange={setCustomerSearchQuery}
               customerIdentification={customerIdentification}
               customerIdentificationType={customerIdentificationType}
+              customerDepartment={customerDepartment}
+              onDepartmentChange={handleDepartmentChange}
               onSelectCustomer={handleSelectCustomer}
               onDianResult={handleDianResult}
             />
