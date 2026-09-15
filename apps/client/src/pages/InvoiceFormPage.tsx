@@ -35,10 +35,6 @@ import type { ThirdPartyResponse } from '../services/thirdParties';
 
 const DEFAULT_TAX_RATE = 19;
 
-function todayIsoDate(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
 interface CustomerSectionProps {
   register: UseFormRegister<InvoiceFormInput>;
   errors: FieldErrors<InvoiceFormInput>;
@@ -200,10 +196,10 @@ export function InvoiceFormPage() {
   } = useForm<InvoiceFormInput, unknown, InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: {
-      number: undefined,
-      issueDate: todayIsoDate(),
-      paymentDate: todayIsoDate(),
-      paymentMeans: 'BANK_TRANSFER',
+      // Pre-filled in case paymentMeansType switches to CREDITO — the
+      // field itself is only shown/required then, see the render below.
+      paymentDate: new Date().toISOString().slice(0, 10),
+      paymentMeans: 'CASH',
       paymentMeansType: 'DEBITO',
       orderReference: '',
       customerIdentificationType: 'NIT',
@@ -235,6 +231,7 @@ export function InvoiceFormPage() {
   const customerPartyType = useWatch({ control, name: 'customerPartyType' });
   const customerIdentification = useWatch({ control, name: 'customerIdentification' });
   const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
+  const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
   const watchedItems = useWatch({ control, name: 'items' });
 
   const hasActiveProductSearch =
@@ -327,9 +324,7 @@ export function InvoiceFormPage() {
     }
 
     await createMutation.mutateAsync({
-      number: values.number,
-      issueDate: values.issueDate,
-      paymentDate: values.paymentDate,
+      paymentDate: values.paymentMeansType === 'CREDITO' ? values.paymentDate : undefined,
       paymentMeans: values.paymentMeans,
       paymentMeansType: values.paymentMeansType,
       orderReference: values.orderReference || undefined,
@@ -620,36 +615,18 @@ export function InvoiceFormPage() {
               </h2>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <TextField
-                  label="Número"
-                  type="number"
-                  placeholder="1225"
-                  error={errors.number?.message}
-                  {...register('number')}
-                />
-                <TextField
                   label="Referencia de orden (opcional)"
                   error={errors.orderReference?.message}
                   {...register('orderReference')}
-                />
-                <TextField
-                  label="Fecha de emisión"
-                  type="date"
-                  error={errors.issueDate?.message}
-                  {...register('issueDate')}
-                />
-                <TextField
-                  label="Fecha de pago"
-                  type="date"
-                  error={errors.paymentDate?.message}
-                  {...register('paymentDate')}
                 />
                 <SelectField
                   label="Medio de pago"
                   error={errors.paymentMeans?.message}
                   {...register('paymentMeans')}
                 >
-                  <option value="BANK_TRANSFER">Transferencia bancaria</option>
-                  <option value="CREDIT_TRANSFER">Transferencia de crédito</option>
+                  <option value="CASH">Efectivo</option>
+                  <option value="BANK_TRANSFER">Transferencia</option>
+                  <option value="CARD">Tarjeta</option>
                 </SelectField>
                 <SelectField
                   label="Tipo de pago"
@@ -659,6 +636,14 @@ export function InvoiceFormPage() {
                   <option value="DEBITO">Débito</option>
                   <option value="CREDITO">Crédito</option>
                 </SelectField>
+                {paymentMeansType === 'CREDITO' && (
+                  <TextField
+                    label="Fecha de pago"
+                    type="date"
+                    error={errors.paymentDate?.message}
+                    {...register('paymentDate')}
+                  />
+                )}
               </div>
             </section>
 

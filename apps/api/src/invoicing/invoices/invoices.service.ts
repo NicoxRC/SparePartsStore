@@ -3,10 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-document-type.enum';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { getStoreToday } from '../../common/utils/store-date.util';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
 import { InventoryService } from '../../inventory/inventory.service';
@@ -56,6 +58,7 @@ export class InvoicesService {
     private readonly productsService: ProductsService,
     private readonly inventoryService: InventoryService,
     private readonly cashRegisterService: CashRegisterService,
+    private readonly configService: ConfigService,
   ) {}
 
   async create(
@@ -75,6 +78,14 @@ export class InvoicesService {
 
     const items = await this.resolveItems(dto);
 
+    // "Todos son para el mismo día" — issueDate is never client-supplied,
+    // it's always the store's current local (Bogotá) day, the same day
+    // gated by the open cash register (see assertOpenToday() above).
+    const issueDate = getStoreToday();
+    // Only relevant when paying on credit — otherwise it's the same day.
+    const paymentDate = dto.paymentDate ?? issueDate;
+    const number = await this.resolveNextNumber(resolution.prefix);
+
     const requestPayload = {
       actions: { send_dian: true, send_email: false },
       invoice: {
@@ -82,12 +93,12 @@ export class InvoicesService {
         dataico_account_id: this.dataicoConfig.accountId,
         operation: 'ESTANDAR',
         invoice_type_code: 'FACTURA_VENTA',
-        issue_date: this.toDataicoDate(dto.issueDate),
+        issue_date: this.toDataicoDate(issueDate),
         order_reference: dto.orderReference ?? '',
-        number: dto.number,
+        number,
         payment_means: dto.paymentMeans,
         payment_means_type: dto.paymentMeansType,
-        payment_date: this.toDataicoDate(dto.paymentDate),
+        payment_date: this.toDataicoDate(paymentDate),
         numbering: {
           resolution_number: resolution.resolutionNumber,
           prefix: resolution.prefix,
@@ -140,13 +151,13 @@ export class InvoicesService {
       const movementDto: CreateMovementDto = {
         productId: item.product.id,
         quantity: -item.quantity,
-        notes: `Venta - Factura ${resolution.prefix}${dto.number}`,
+        notes: `Venta - Factura ${resolution.prefix}${number}`,
       };
       await this.inventoryService.createMovement(movementDto, createdById);
     }
 
     const invoice = this.invoicesRepository.create({
-      number: dto.number,
+      number,
       prefix: resolution.prefix,
       resolutionNumber: resolution.resolutionNumber,
       customerIdentificationType: dto.customerIdentificationType,
@@ -155,8 +166,8 @@ export class InvoicesService {
       customerFirstName: dto.customerFirstName ?? null,
       customerFamilyName: dto.customerFamilyName ?? null,
       customerEmail: dto.customerEmail,
-      issueDate: dto.issueDate,
-      paymentDate: dto.paymentDate,
+      issueDate,
+      paymentDate,
       totalAmount: items.reduce(
         (sum, item) => sum + item.taxBase + item.taxAmount,
         0,
@@ -317,5 +328,30 @@ export class InvoicesService {
   private toDataicoDate(isoDate: string): string {
     const [year, month, day] = isoDate.slice(0, 10).split('-');
     return `${day}/${month}/${year}`;
+  }
+
+  /**
+   * Auto-increments the invoice number, scoped to the resolution's prefix
+   * (a DIAN resolution's numbering range is per-prefix). Not client-supplied
+   * anymore — continues from the highest number already recorded locally
+   * for this prefix, or from `INVOICE_NUMBER_START` if nothing has been
+   * recorded yet (the store already has invoices issued before this app's
+   * local history starts, so the real sequence can't be inferred from an
+   * empty table). No dedicated counter table — this app is the only writer
+   * of `invoices.number`, and at this store's scale a simple `MAX()` read
+   * is an acceptable simplification over a fully race-proof counter.
+   */
+  private async resolveNextNumber(prefix: string): Promise<number> {
+    const result = await this.invoicesRepository
+      .createQueryBuilder('invoice')
+      .select('MAX(invoice.number)', 'max')
+      .where('invoice.prefix = :prefix', { prefix })
+      .getRawOne<{ max: string | null }>();
+
+    if (result?.max) {
+      return Number(result.max) + 1;
+    }
+
+    return Number(this.configService.get<string>('INVOICE_NUMBER_START', '1'));
   }
 }
