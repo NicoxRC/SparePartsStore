@@ -804,45 +804,64 @@ export function InvoiceFormPage() {
 
       {/* Several customers can be mid-checkout at once — each tab is an
           independent draft, persisted so switching between them, or
-          navigating to Productos/Inventario and back, keeps everything. */}
-      <div className="flex flex-wrap items-center gap-2">
-        {drafts.map((draft, index) => {
-          const isActive = draft.id === activeDraft.id;
-          return (
-            <span
-              key={draft.id}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
-                isActive
-                  ? 'border-ink bg-ink text-white'
-                  : 'border-line bg-white text-steel hover:bg-mist'
-              }`}
-            >
-              <button type="button" onClick={() => setActiveDraftId(draft.id)}>
-                {invoiceDraftLabel(draft, index)}
-              </button>
-              {drafts.length > 1 && (
+          navigating to Productos/Inventario and back, keeps everything.
+          The tab strip and the form panel share one border, browser-tab
+          style: the active tab overlaps the seam and matches the panel's
+          background, so the whole thing reads as a single workspace. */}
+      <div className="flex flex-col">
+        <div
+          role="tablist"
+          className="flex items-end gap-1 overflow-x-auto border-b border-line px-1"
+        >
+          {drafts.map((draft, index) => {
+            const isActive = draft.id === activeDraft.id;
+            return (
+              <div
+                key={draft.id}
+                role="tab"
+                aria-selected={isActive}
+                className={`group relative flex shrink-0 items-center gap-2 rounded-t border border-b-0 px-3 py-2 text-sm ${
+                  isActive
+                    ? 'z-10 -mb-px border-line bg-white font-medium text-ink'
+                    : 'border-transparent bg-transparent text-steel hover:bg-mist'
+                }`}
+              >
                 <button
                   type="button"
-                  onClick={() => closeDraft(draft.id)}
-                  aria-label="Cerrar factura"
-                  className={isActive ? 'text-white/70 hover:text-white' : 'text-fog hover:text-ink'}
+                  onClick={() => setActiveDraftId(draft.id)}
+                  className="max-w-[9rem] truncate"
                 >
-                  ×
+                  {invoiceDraftLabel(draft, index)}
                 </button>
-              )}
-            </span>
-          );
-        })}
-        <button
-          type="button"
-          onClick={addDraft}
-          className="rounded-full border border-dashed border-line px-3 py-1.5 text-sm text-steel hover:bg-mist"
-        >
-          + Nueva factura
-        </button>
-      </div>
+                {drafts.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => closeDraft(draft.id)}
+                    aria-label="Cerrar factura"
+                    className={`leading-none ${
+                      isActive ? 'text-fog hover:text-ink' : 'text-fog/70 hover:text-ink'
+                    }`}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          <button
+            type="button"
+            onClick={addDraft}
+            aria-label="Nueva factura"
+            className="shrink-0 rounded-t px-3 py-2 text-sm text-steel hover:bg-mist"
+          >
+            +
+          </button>
+        </div>
 
-      <InvoiceDraftForm key={activeDraft.id} draft={activeDraft} />
+        <div className="rounded-b border border-t-0 border-line bg-white p-4 sm:p-6">
+          <InvoiceDraftForm key={activeDraft.id} draft={activeDraft} />
+        </div>
+      </div>
     </div>
   );
 }
