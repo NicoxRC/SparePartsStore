@@ -27,6 +27,7 @@ describe('CustomersService', () => {
     id: 'cust-1',
     identificationType: 'NIT',
     identification: '830033494',
+    identificationDv: null,
     partyType: 'PERSONA_JURIDICA',
     companyName: 'ACME SAS',
     firstName: null,

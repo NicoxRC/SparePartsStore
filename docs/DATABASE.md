@@ -246,6 +246,7 @@ Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap
 | `id` | UUID | PK |
 | `identification_type` | VARCHAR(20) | Free string (not a TS enum, same reasoning as `dian_resolutions.subtype`), uppercased at the DTO layer. |
 | `identification` | VARCHAR(50) | |
+| `identification_dv` | VARCHAR(5), nullable | NIT check digit ("dígito de verificación") — only meaningful when `identification_type = 'NIT'`, free text (not computed/validated server-side). **Local-only**: not part of the confirmed Dataico standard-invoice `customer` payload (see `docs/phases/PHASE_10_INVOICING_STANDARD.md`), so it is never sent to Dataico — stored here purely for this store's own record-keeping/display. |
 | `party_type` | VARCHAR(20) | Canonical values `PERSONA_JURIDICA` / `PERSONA_NATURAL` (the standard-invoice vocabulary), validated with `@IsIn` at the DTO layer — not a DB enum. The POS flow's `NATURAL`/`JURIDICA` values are mapped to/from this only in the frontend; this entity is flow-agnostic. |
 | `company_name` | VARCHAR(255), nullable | |
 | `first_name`, `family_name` | VARCHAR(150), nullable | |
@@ -328,6 +329,7 @@ Local bookkeeping, **not a Dataico integration** — one row per calendar day th
 | 15 | `CreateCustomers` | Small enhancement (not a numbered phase). `customers` table (FKs to `users` for both audit columns, partial unique index on `(identification_type, identification)`, indexes on `created_at DESC` and `identification`). Hand-written — no live database was reachable to generate/verify it against, see the note in this migration's PR/commit. |
 | 16 | `DropPosInvoices` | POS Electrónico removal (see `PROJECT_ROADMAP.md`). Drops the `pos_invoices` table. Hand-written, same reason as `CreateCustomers` — no live database reachable to generate against. |
 | 17 | `CreateCashRegisters` | Local enhancement (not a numbered phase). `cash_registers` table (FKs to `users` for `opened_by`/`closed_by`, plain unique index on `register_date`). Generated against a live local DB and reviewed before committing — see `DATABASE.md`'s migration workflow. |
+| 18 | `AddIdentificationDvToCustomers` | Local enhancement (not a numbered phase). Adds `customers.identification_dv VARCHAR(5)`, nullable — NIT check digit, local-only (see `customers` above). Hand-written, same reason as `CreateCashRegisters`/`DropPosInvoices` — the raw `migration:generate` diff against the live local DB included unrelated drift across every other table (stale `created_at`/`updated_at` column types, FK constraint churn), discarded in favor of a minimal hand-written `ALTER TABLE`. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

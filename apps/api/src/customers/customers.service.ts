@@ -38,6 +38,7 @@ export class CustomersService {
     const customer = this.customersRepository.create({
       identificationType: dto.identificationType,
       identification: dto.identification,
+      identificationDv: dto.identificationDv ?? null,
       partyType: dto.partyType,
       companyName: dto.companyName ?? null,
       firstName: dto.firstName ?? null,
@@ -137,6 +138,9 @@ export class CustomersService {
     }
     if (dto.identification !== undefined) {
       customer.identification = dto.identification;
+    }
+    if (dto.identificationDv !== undefined) {
+      customer.identificationDv = dto.identificationDv;
     }
     if (dto.partyType !== undefined) customer.partyType = dto.partyType;
     if (dto.companyName !== undefined) customer.companyName = dto.companyName;
