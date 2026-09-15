@@ -114,6 +114,14 @@ function CustomerSection({
           error={errors.customerIdentification?.message}
           {...register('customerIdentification')}
         />
+        {customerIdentificationType === 'NIT' && (
+          <TextField
+            label="Dígito de verificación"
+            placeholder="7"
+            error={errors.customerIdentificationDv?.message}
+            {...register('customerIdentificationDv')}
+          />
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -182,6 +190,13 @@ function CustomerSection({
           error={errors.customerEmail?.message}
           {...register('customerEmail')}
         />
+        <TextField
+          label="Celular (opcional)"
+          type="tel"
+          placeholder="3001234567"
+          error={errors.customerPhone?.message}
+          {...register('customerPhone')}
+        />
       </div>
     </section>
   );
@@ -218,6 +233,8 @@ export function InvoiceFormPage() {
       orderReference: '',
       customerIdentificationType: 'NIT',
       customerIdentification: '',
+      customerIdentificationDv: '',
+      customerPhone: '',
       customerPartyType: 'PERSONA_JURIDICA',
       customerTaxLevelCode: 'COMUN',
       customerRegimen: '',
@@ -262,6 +279,8 @@ export function InvoiceFormPage() {
     setSelectedCustomerId(customer.id);
     setValue('customerIdentificationType', customer.identificationType);
     setValue('customerIdentification', customer.identification);
+    setValue('customerIdentificationDv', customer.identificationDv ?? '');
+    setValue('customerPhone', customer.phone ?? '');
     setValue('customerPartyType', customer.partyType);
     setValue('customerTaxLevelCode', customer.taxLevelCode || 'COMUN');
     setValue('customerRegimen', customer.regimen ?? '');
@@ -288,6 +307,7 @@ export function InvoiceFormPage() {
     const payload: CustomerInput = {
       identificationType: values.customerIdentificationType,
       identification: values.customerIdentification,
+      identificationDv: values.customerIdentificationDv || undefined,
       partyType: values.customerPartyType as CustomerPartyType,
       companyName: values.customerCompanyName || undefined,
       firstName: values.customerFirstName || undefined,
@@ -299,6 +319,7 @@ export function InvoiceFormPage() {
       city: values.customerCity || undefined,
       addressLine: values.customerAddressLine || undefined,
       email: values.customerEmail,
+      phone: values.customerPhone || undefined,
     };
     try {
       const saved = selectedCustomerId
@@ -520,6 +541,11 @@ export function InvoiceFormPage() {
                               className="w-20 rounded-sm border border-line px-2 py-1"
                               {...register(`items.${index}.taxRate`)}
                             />
+                            {Number(watchedItems[index]?.taxRate) === 0 && (
+                              <span className="mt-1 block text-xs font-medium text-fog">
+                                Excluida
+                              </span>
+                            )}
                           </td>
                           <td className="px-3 py-2">
                             <button
@@ -641,12 +667,17 @@ export function InvoiceFormPage() {
                 </button>
               </div>
               <ul className="flex flex-col gap-1 text-sm text-steel">
-                {itemFields.map((field) => (
-                  <li key={field.id} className="flex justify-between gap-2">
+                {watchedItems.map((item, index) => (
+                  <li key={itemFields[index]?.id ?? index} className="flex justify-between gap-2">
                     <span>
-                      {field.reference} — {field.description} × {field.quantity}
+                      {item.reference} — {item.description} × {item.quantity}
+                      {Number(item.taxRate) === 0 && (
+                        <span className="ml-2 text-xs font-medium text-fog">
+                          (venta excluida sin IVA)
+                        </span>
+                      )}
                     </span>
-                    <span>${(field.price * field.quantity).toLocaleString('es-CO')}</span>
+                    <span>${(item.price * item.quantity).toLocaleString('es-CO')}</span>
                   </li>
                 ))}
               </ul>

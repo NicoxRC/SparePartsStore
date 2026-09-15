@@ -20,6 +20,8 @@ export const invoiceFormSchema = z.object({
 
   customerIdentificationType: z.string().min(1, 'Obligatorio.'),
   customerIdentification: z.string().min(1, 'Obligatorio.'),
+  customerIdentificationDv: z.string().optional().or(z.literal('')),
+  customerPhone: z.string().optional().or(z.literal('')),
   customerPartyType: z.string().min(1, 'Obligatorio.'),
   customerTaxLevelCode: z.string().min(1, 'Obligatorio.'),
   customerRegimen: z.string().optional().or(z.literal('')),
