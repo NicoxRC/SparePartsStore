@@ -681,14 +681,16 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                 {watchedItems.map((item, index) => (
                   <li key={itemFields[index]?.id ?? index} className="flex justify-between gap-2">
                     <span>
-                      {item.reference} — {item.description} × {item.quantity}
+                      {item.reference} — {item.description} × {Number(item.quantity)}
                       {Number(item.taxRate) === 0 && (
                         <span className="ml-2 text-xs font-medium text-fog">
                           (venta excluida sin IVA)
                         </span>
                       )}
                     </span>
-                    <span>${(item.price * item.quantity).toLocaleString('es-CO')}</span>
+                    <span>
+                      ${(item.price * Number(item.quantity)).toLocaleString('es-CO')}
+                    </span>
                   </li>
                 ))}
               </ul>
