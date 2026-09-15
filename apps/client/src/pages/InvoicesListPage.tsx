@@ -2,8 +2,13 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
+import {
+  useOpenCashRegister,
+  useTodayCashRegister,
+} from '../hooks/useCashRegister';
 import {
   useInvoices,
   useRefreshInvoiceStatus,
@@ -22,9 +27,12 @@ export function InvoicesListPage() {
   const [page, setPage] = useState(1);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const invoicesQuery = useInvoices({ page, limit: PAGE_SIZE });
   const resendMutation = useResendInvoice();
   const refreshMutation = useRefreshInvoiceStatus();
+  const cashRegisterQuery = useTodayCashRegister();
+  const openCashRegisterMutation = useOpenCashRegister();
 
   const handleResend = async (id: string) => {
     setActionError(null);
@@ -60,6 +68,53 @@ export function InvoicesListPage() {
           <Button className="sm:w-auto sm:px-6">+ Nueva factura</Button>
         </Link>
       </div>
+
+      {cashRegisterQuery.data && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm border border-line bg-white px-4 py-3 text-sm">
+          {cashRegisterQuery.data.isOpen ? (
+            <>
+              <span className="text-steel">
+                Caja abierta desde{' '}
+                {new Date(
+                  cashRegisterQuery.data.register?.openedAt ?? '',
+                ).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsCloseDialogOpen(true)}
+                className="font-medium text-ink hover:underline"
+              >
+                Cerrar caja
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-steel">Caja cerrada hoy</span>
+              <button
+                type="button"
+                disabled={openCashRegisterMutation.isPending}
+                onClick={() => void openCashRegisterMutation.mutateAsync()}
+                className="font-medium text-ink hover:underline disabled:opacity-40"
+              >
+                Abrir caja
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {openCashRegisterMutation.isError && (
+        <Alert variant="error">
+          {getApiErrorMessage(openCashRegisterMutation.error)}
+        </Alert>
+      )}
+
+      {isCloseDialogOpen && (
+        <CloseCashRegisterDialog
+          totalSoFar={cashRegisterQuery.data?.totalSoFar ?? 0}
+          onClose={() => setIsCloseDialogOpen(false)}
+          onClosed={() => setIsCloseDialogOpen(false)}
+        />
+      )}
 
       {actionError && <Alert variant="error">{actionError}</Alert>}
 

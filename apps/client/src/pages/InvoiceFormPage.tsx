@@ -13,7 +13,12 @@ import { Button } from '../components/Button';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { QuickCreateProductDialog } from '../components/QuickCreateProductDialog';
 import { SelectField } from '../components/SelectField';
+import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import {
+  useOpenCashRegister,
+  useTodayCashRegister,
+} from '../hooks/useCashRegister';
 import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
 import { useProducts } from '../hooks/useProducts';
@@ -184,6 +189,8 @@ function CustomerSection({
 export function InvoiceFormPage() {
   const navigate = useNavigate();
   const createMutation = useCreateInvoice();
+  const cashRegisterQuery = useTodayCashRegister();
+  const openCashRegisterMutation = useOpenCashRegister();
   const [productQuery, setProductQuery] = useState('');
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
@@ -347,6 +354,41 @@ export function InvoiceFormPage() {
     const base = item.price * quantity;
     return sum + base + Math.round(base * (taxRate / 100));
   }, 0);
+
+  if (cashRegisterQuery.isPending) {
+    return <Spinner label="Cargando…" />;
+  }
+
+  if (cashRegisterQuery.isError) {
+    return (
+      <Alert variant="error">
+        No se pudo verificar el estado de la caja: {getApiErrorMessage(cashRegisterQuery.error)}
+      </Alert>
+    );
+  }
+
+  if (!cashRegisterQuery.data.isOpen) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
+        <h1 className="text-xl font-bold tracking-tight text-ink">Caja cerrada</h1>
+        <p className="text-sm text-steel">
+          La caja no está abierta hoy. Ábrela para poder facturar.
+        </p>
+        {openCashRegisterMutation.isError && (
+          <Alert variant="error">
+            {getApiErrorMessage(openCashRegisterMutation.error)}
+          </Alert>
+        )}
+        <Button
+          className="sm:w-auto sm:px-6"
+          isLoading={openCashRegisterMutation.isPending}
+          onClick={() => void openCashRegisterMutation.mutateAsync()}
+        >
+          Abrir caja
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
