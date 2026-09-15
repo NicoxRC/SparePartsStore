@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { CashRegisterModule } from '../../cash-register/cash-register.module';
 import { InventoryModule } from '../../inventory/inventory.module';
 import { ProductsModule } from '../../products/products.module';
 import { DataicoModule } from '../dataico/dataico.module';
@@ -15,6 +16,7 @@ import { InvoicesService } from './invoices.service';
     ResolutionsModule,
     ProductsModule,
     InventoryModule,
+    CashRegisterModule,
   ],
   controllers: [InvoicesController],
   providers: [InvoicesService],

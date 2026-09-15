@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-document-type.enum';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
 import { InventoryService } from '../../inventory/inventory.service';
 import { Product } from '../../products/entities/product.entity';
@@ -54,12 +55,15 @@ export class InvoicesService {
     private readonly resolutionsService: ResolutionsService,
     private readonly productsService: ProductsService,
     private readonly inventoryService: InventoryService,
+    private readonly cashRegisterService: CashRegisterService,
   ) {}
 
   async create(
     dto: CreateInvoiceDto,
     createdById: string,
   ): Promise<InvoiceResponseDto> {
+    await this.cashRegisterService.assertOpenToday();
+
     const resolution = await this.resolutionsService.findActiveForDocumentType(
       DianResolutionDocumentType.INVOICE,
     );

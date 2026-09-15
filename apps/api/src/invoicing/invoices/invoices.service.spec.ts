@@ -1,5 +1,6 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
+import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { InventoryService } from '../../inventory/inventory.service';
 import { Product } from '../../products/entities/product.entity';
 import { ProductsService } from '../../products/products.service';
@@ -27,6 +28,7 @@ describe('InvoicesService', () => {
   let resolutionsService: { findActiveForDocumentType: jest.Mock };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
+  let cashRegisterService: { assertOpenToday: jest.Mock };
 
   const product = {
     id: 'prod-1',
@@ -79,6 +81,9 @@ describe('InvoicesService', () => {
     inventoryService = {
       createMovement: jest.fn().mockResolvedValue(undefined),
     };
+    cashRegisterService = {
+      assertOpenToday: jest.fn().mockResolvedValue(undefined),
+    };
 
     service = new InvoicesService(
       invoicesRepository as unknown as Repository<Invoice>,
@@ -87,7 +92,19 @@ describe('InvoicesService', () => {
       resolutionsService as unknown as ResolutionsService,
       productsService as unknown as ProductsService,
       inventoryService as unknown as InventoryService,
+      cashRegisterService as unknown as CashRegisterService,
     );
+  });
+
+  it('rejects when there is no open cash register for today, without calling Dataico', async () => {
+    cashRegisterService.assertOpenToday.mockRejectedValue(
+      new BadRequestException('No hay una caja abierta para hoy.'),
+    );
+
+    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(dataicoClient.post).not.toHaveBeenCalled();
   });
 
   it('rejects when no active INVOICE resolution exists, without calling Dataico', async () => {

@@ -57,6 +57,8 @@ apps/api/src/
 │
 ├── customers/                           # local customer address book (not Dataico — no HTTP calls), reusable across sales
 │
+├── cash-register/                       # daily "apertura/cierre de caja" (not Dataico — no HTTP calls). Gates InvoicesService.create via assertOpenToday(); reads Invoice's repository directly (not InvoicesModule) to avoid a circular module dependency — see DATABASE.md ("cash_registers") and GLOSSARY.md ("Caja")
+│
 ├── inventory/
 │   ├── inventory.controller.ts
 │   ├── inventory.service.ts
