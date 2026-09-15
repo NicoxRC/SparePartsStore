@@ -72,13 +72,6 @@ export class CashRegisterService {
       throw new ConflictException('La caja de hoy ya fue cerrada.');
     }
 
-    const pendingCount = await this.countPendingInvoices(today);
-    if (pendingCount > 0) {
-      throw new ConflictException(
-        `No se puede cerrar la caja: hay ${pendingCount} factura(s) sin confirmar por la DIAN. Usa "Consultar" o "Reenviar" en Facturas antes de cerrar.`,
-      );
-    }
-
     register.totalAmount = await this.computeTotal(today);
     register.closedAt = new Date();
     register.closedBy = { id: userId } as CashRegister['closedBy'];
@@ -139,26 +132,6 @@ export class CashRegisterService {
         'No hay una caja abierta para hoy. Abre la caja antes de facturar.',
       );
     }
-  }
-
-  /** Invoices created during the given store day that DIAN hasn't accepted
-   * yet — `dianStatus` is still null (never confirmed) or a rejection.
-   * Closing the register with these open invites the day's paperwork
-   * getting forgotten; staff must resolve them ("Consultar"/"Reenviar")
-   * first. */
-  private async countPendingInvoices(storeDate: string): Promise<number> {
-    const { start, end } = getStoreDayRangeUtc(storeDate);
-    return this.invoicesRepository
-      .createQueryBuilder('invoice')
-      .where('invoice.createdAt >= :start AND invoice.createdAt < :end', {
-        start,
-        end,
-      })
-      .andWhere(
-        '(invoice.dianStatus IS NULL OR invoice.dianStatus != :accepted)',
-        { accepted: 'DIAN_ACEPTADO' },
-      )
-      .getCount();
   }
 
   /** Sum of `invoices.total_amount` created during the given store day. */

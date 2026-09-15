@@ -20,9 +20,7 @@ describe('CashRegisterService', () => {
   let queryBuilder: {
     select: jest.Mock;
     where: jest.Mock;
-    andWhere: jest.Mock;
     getRawOne: jest.Mock;
-    getCount: jest.Mock;
   };
 
   const openRegister: CashRegister = {
@@ -39,9 +37,7 @@ describe('CashRegisterService', () => {
     queryBuilder = {
       select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
       getRawOne: jest.fn().mockResolvedValue({ sum: '150000' }),
-      getCount: jest.fn().mockResolvedValue(0),
     };
     cashRegisterRepository = {
       findOne: jest.fn(),
@@ -118,14 +114,6 @@ describe('CashRegisterService', () => {
       await expect(service.close('user-1')).rejects.toThrow(ConflictException);
     });
 
-    it('rejects with ConflictException when an invoice from today has no confirmed DIAN status', async () => {
-      cashRegisterRepository.findOne.mockResolvedValueOnce({ ...openRegister });
-      queryBuilder.getCount.mockResolvedValueOnce(2);
-
-      await expect(service.close('user-1')).rejects.toThrow(ConflictException);
-      expect(cashRegisterRepository.save).not.toHaveBeenCalled();
-    });
-
     it("auto-computes the total from that day's invoices and closes the register", async () => {
       cashRegisterRepository.findOne
         .mockResolvedValueOnce({ ...openRegister })
@@ -142,19 +130,6 @@ describe('CashRegisterService', () => {
       expect(saved.totalAmount).toBe(150000);
       expect(saved.closedAt).not.toBeNull();
       expect(saved.closedBy).toEqual({ id: 'user-1' });
-    });
-
-    it('checks for invoices not yet DIAN_ACEPTADO before closing', async () => {
-      cashRegisterRepository.findOne
-        .mockResolvedValueOnce({ ...openRegister })
-        .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
-
-      await service.close('user-1');
-
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('dianStatus'),
-        { accepted: 'DIAN_ACEPTADO' },
-      );
     });
 
     it('queries invoices within the Bogotá-local day, not the UTC day', async () => {
