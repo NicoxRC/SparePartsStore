@@ -797,7 +797,7 @@ export function InvoiceFormPage() {
   const activeDraft = drafts.find((draft) => draft.id === activeDraftId) ?? drafts[0];
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-5xl flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
         Nueva factura electrónica
       </h1>
