@@ -308,6 +308,48 @@ Local bookkeeping, **not a Dataico integration** — one row per calendar day th
 
 **Business logic (`CashRegisterService`):** `open()` rejects with 409 if today's register already exists (open or closed) — one open/close cycle per day, no reopen flow. `close()` rejects with 404 if nothing was opened today, 409 if already closed; otherwise sums that day's invoices and persists the total. **`assertOpenToday()` gates `InvoicesService.create`** — a new invoice can't be created without an open register for today (400 if none). "Today" and the daily total are both computed against the **store's local calendar day (`America/Bogotá`, fixed UTC-5)**, not server time — see `common/utils/store-date.util.ts` — since Railway runs UTC and a naive UTC "today" would roll the day boundary at 7pm local time. Per-seller detail isn't tracked here; each invoice already records its own `created_by_id`.
 
+### `quotations` / `quotation_items`
+
+Local enhancement (not a numbered roadmap phase, and not a Dataico integration — a "cotización" is store credit: merchandise handed over before the customer pays, never sent to DIAN itself). See `docs/GLOSSARY.md`.
+
+`quotations`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `number` | INT | Local sequence (`MAX(number)+1`, no DIAN resolution/prefix involved — same simplification as `invoices.number`'s fallback path), displayed client-side as `COT-0001`. |
+| `customer_identification_type`, `customer_identification`, `customer_identification_dv`, `customer_party_type`, `customer_tax_level_code`, `customer_regimen`, `customer_company_name`, `customer_first_name`, `customer_family_name`, `customer_country_code`, `customer_department`, `customer_city`, `customer_address_line`, `customer_email`, `customer_phone` | VARCHAR, mostly nullable | Same shape as `invoices`' own `customer_*` columns, denormalized the same way — plus `customer_identification_dv`/`customer_phone`, which `invoices` doesn't persist (Dataico doesn't need them) but a quotation, never sent to Dataico directly, keeps for its own record. |
+| `notes` | TEXT, nullable | |
+| `total_amount` | NUMERIC(12,2) | Cached — recomputed by `QuotationsService` whenever items change. |
+| `invoiced_at` | TIMESTAMPTZ, nullable | |
+| `invoice_id` | UUID, nullable, FK → `invoices.id`, `SET NULL` | |
+| `cancelled_at` | TIMESTAMPTZ, nullable | |
+| `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard, see Conventions |
+
+**No stored status column** — derived from `invoiced_at`/`cancelled_at` (`cancelled_at` set → cancelled; else `invoiced_at` set → invoiced; else open), same reasoning as `cash_registers.closed_at`.
+
+`quotation_items`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `quotation_id` | UUID, FK → `quotations.id`, `CASCADE` | |
+| `product_id` | UUID, FK → `products.id`, `RESTRICT` | |
+| `quantity` | INT | |
+| `tax_rate` | NUMERIC(5,2) | |
+| `discount` | NUMERIC(12,2), nullable | Same "flat COP amount, not a percentage" semantics as `CreateInvoiceItemDto.discount`. |
+| `unit_price` | NUMERIC(12,2) | **The locked price** — a snapshot of `products.sale_price` (gross, IVA-inclusive) taken when this row is created or last touched by an edit, confirmed with the human: the customer keeps the price they were quoted, even if the product's price changes before they come back to pay. |
+| `created_at`, `updated_at` | TIMESTAMPTZ | No soft delete — a row removed by an edit has no further use once the inventory movement it triggered (the real audit trail) is recorded. |
+
+**Business logic (`QuotationsService`):**
+- `create()` — gated on `CashRegisterService.assertOpenToday()` (stock is leaving today, same as a real sale), validates stock for every line up front, decrements it via `InventoryService.createMovement` (one negative movement per line, same helper `InvoicesService` uses), *then* persists the `quotations`/`quotation_items` rows — same fail-before-persisting ordering `InvoicesService.create` uses, and the same accepted partial-failure risk if a movement fails mid-loop.
+- `updateItems()` — only while open. Full-replace: diffs old vs. new items by `product_id`, computes one signed inventory movement per product whose net quantity changed (a lower quantity, or a removed line, returns the difference), validates stock for every net increase up front, then re-snapshots `unit_price` for every line in the new list (an edit is a fresh pricing checkpoint, not just the changed lines).
+- `invoice()` — only while open. Converts to a real `Invoice` via `InvoicesService.create()`, passing each item's locked `unit_price` through `CreateInvoiceItemDto.unitPriceOverride` (an internal-only field, never set by the normal Venta form) and telling `create()` to skip its own stock check/decrement via an internal-only 3rd parameter — required for correctness, not just to avoid double-counting: by invoice time, `products.stock` no longer includes these reserved units at all, so re-running the normal sufficiency check would fail a legitimate sale. Bills either to the quotation's own customer columns or to a caller-supplied override (`InvoiceQuotationDto.customer`, required when `useSameCustomer` is false).
+- `cancel()` — only while open. One positive (return) movement per line, sets `cancelled_at`.
+
+The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" math (`InvoicesService.resolveItems()` and `QuotationsService` both need it) lives in `common/utils/invoice-math.util.ts`'s `computeLineAmounts()`.
+
 ## Migrations (chronological)
 
 | # | Migration | What it did |
@@ -330,6 +372,7 @@ Local bookkeeping, **not a Dataico integration** — one row per calendar day th
 | 16 | `DropPosInvoices` | POS Electrónico removal (see `PROJECT_ROADMAP.md`). Drops the `pos_invoices` table. Hand-written, same reason as `CreateCustomers` — no live database reachable to generate against. |
 | 17 | `CreateCashRegisters` | Local enhancement (not a numbered phase). `cash_registers` table (FKs to `users` for `opened_by`/`closed_by`, plain unique index on `register_date`). Generated against a live local DB and reviewed before committing — see `DATABASE.md`'s migration workflow. |
 | 18 | `AddIdentificationDvToCustomers` | Local enhancement (not a numbered phase). Adds `customers.identification_dv VARCHAR(5)`, nullable — NIT check digit, local-only (see `customers` above). Hand-written, same reason as `CreateCashRegisters`/`DropPosInvoices` — the raw `migration:generate` diff against the live local DB included unrelated drift across every other table (stale `created_at`/`updated_at` column types, FK constraint churn), discarded in favor of a minimal hand-written `ALTER TABLE`. |
+| 19 | `CreateQuotations` | Local enhancement (not a numbered phase). `quotations` and `quotation_items` tables (FKs to `invoices`/`users`/`products`, index on `quotations.created_at DESC` and `quotation_items.quotation_id`). Hand-written, same reason as the two migrations above — the raw `migration:generate` diff against the live local DB included the same unrelated drift across every other table. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 
