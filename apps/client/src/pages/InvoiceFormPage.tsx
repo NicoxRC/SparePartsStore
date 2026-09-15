@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   useFieldArray,
   useForm,
@@ -22,14 +22,14 @@ import {
 } from '../hooks/useCashRegister';
 import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
+import { useInvoiceDrafts } from '../hooks/useInvoiceDrafts';
 import { useProducts } from '../hooks/useProducts';
 import {
   DANE_CITIES,
   DANE_DEPARTMENTS,
-  DEFAULT_DANE_CITY_CODE,
-  DEFAULT_DANE_DEPARTMENT_CODE,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
+import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
 import {
   invoiceFormSchema,
   type InvoiceFormInput,
@@ -207,53 +207,62 @@ function CustomerSection({
   );
 }
 
-export function InvoiceFormPage() {
+interface InvoiceDraftFormProps {
+  draft: InvoiceDraft;
+}
+
+/**
+ * The actual multi-step invoice form for ONE draft. Remounted (via `key`
+ * on the caller) whenever the active draft changes, so react-hook-form
+ * re-seeds from that draft's own saved values — see InvoiceFormPage below.
+ * Every change is synced back into the shared drafts store so switching
+ * tabs, or navigating away to Productos/Inventario and back, never loses
+ * progress.
+ */
+function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
   const navigate = useNavigate();
   const createMutation = useCreateInvoice();
-  const cashRegisterQuery = useTodayCashRegister();
-  const openCashRegisterMutation = useOpenCashRegister();
-  const [step, setStep] = useState<'products' | 'customer' | 'invoice'>('products');
+  const { updateDraft, closeDraft } = useInvoiceDrafts();
+  const [step, setStepState] = useState<InvoiceStep>(draft.step);
   const [productQuery, setProductQuery] = useState('');
   const [filterDepartmentId, setFilterDepartmentId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
   const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
+  const [selectedCustomerId, setSelectedCustomerIdState] = useState<string | null>(
+    draft.selectedCustomerId,
+  );
+
+  const setStep = (next: InvoiceStep) => {
+    setStepState(next);
+    updateDraft(draft.id, { step: next });
+  };
+
+  const setSelectedCustomerId = (id: string | null) => {
+    setSelectedCustomerIdState(id);
+    updateDraft(draft.id, { selectedCustomerId: id });
+  };
 
   const {
     register,
     control,
     handleSubmit,
     setValue,
+    watch,
     formState: { errors },
   } = useForm<InvoiceFormInput, unknown, InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
-    defaultValues: {
-      // Pre-filled in case paymentMeansType switches to CREDITO — the
-      // field itself is only shown/required then, see the render below.
-      paymentDate: new Date().toISOString().slice(0, 10),
-      paymentMeans: 'CASH',
-      paymentMeansType: 'DEBITO',
-      orderReference: '',
-      customerIdentificationType: 'NIT',
-      customerIdentification: '',
-      customerIdentificationDv: '',
-      customerPhone: '',
-      customerPartyType: 'PERSONA_JURIDICA',
-      customerTaxLevelCode: 'COMUN',
-      customerRegimen: '',
-      customerCompanyName: '',
-      customerFirstName: '',
-      customerFamilyName: '',
-      customerCountryCode: 'CO',
-      customerDepartment: DEFAULT_DANE_DEPARTMENT_CODE,
-      customerCity: DEFAULT_DANE_CITY_CODE,
-      customerAddressLine: '',
-      customerEmail: '',
-      items: [],
-      notes: '',
-    },
+    defaultValues: draft.values,
   });
+
+  // Every keystroke updates this draft's saved values — so it survives
+  // switching to another tab or navigating away to a different page.
+  useEffect(() => {
+    const subscription = watch((values) => {
+      updateDraft(draft.id, { values: values as InvoiceFormInput });
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, draft.id, updateDraft]);
 
   const {
     fields: itemFields,
@@ -389,6 +398,9 @@ export function InvoiceFormPage() {
       })),
       notes: values.notes ? [values.notes] : undefined,
     });
+    // This draft's sale is done — close it (auto-replaced by a fresh
+    // empty one if it was the only draft open) and leave the rest as-is.
+    closeDraft(draft.id);
     navigate('/invoicing/invoices');
   };
 
@@ -399,46 +411,8 @@ export function InvoiceFormPage() {
     return sum + base + Math.round(base * (taxRate / 100));
   }, 0);
 
-  if (cashRegisterQuery.isPending) {
-    return <Spinner label="Cargando…" />;
-  }
-
-  if (cashRegisterQuery.isError) {
-    return (
-      <Alert variant="error">
-        No se pudo verificar el estado de la caja: {getApiErrorMessage(cashRegisterQuery.error)}
-      </Alert>
-    );
-  }
-
-  if (!cashRegisterQuery.data.isOpen) {
-    return (
-      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
-        <h1 className="text-xl font-bold tracking-tight text-ink">Caja cerrada</h1>
-        <p className="text-sm text-steel">
-          La caja no está abierta hoy. Ábrela para poder facturar.
-        </p>
-        {openCashRegisterMutation.isError && (
-          <Alert variant="error">
-            {getApiErrorMessage(openCashRegisterMutation.error)}
-          </Alert>
-        )}
-        <Button
-          className="sm:w-auto sm:px-6"
-          isLoading={openCashRegisterMutation.isPending}
-          onClick={() => void openCashRegisterMutation.mutateAsync()}
-        >
-          Abrir caja
-        </Button>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-        Nueva factura electrónica
-      </h1>
+    <>
       <p className="text-sm text-fog">
         {step === 'products' && 'Paso 1 de 3 · Productos'}
         {step === 'customer' && 'Paso 2 de 3 · Cliente'}
@@ -757,6 +731,99 @@ export function InvoiceFormPage() {
           onCreated={handleProductCreated}
         />
       )}
+    </>
+  );
+}
+
+export function InvoiceFormPage() {
+  const cashRegisterQuery = useTodayCashRegister();
+  const openCashRegisterMutation = useOpenCashRegister();
+  const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
+
+  if (cashRegisterQuery.isPending) {
+    return <Spinner label="Cargando…" />;
+  }
+
+  if (cashRegisterQuery.isError) {
+    return (
+      <Alert variant="error">
+        No se pudo verificar el estado de la caja: {getApiErrorMessage(cashRegisterQuery.error)}
+      </Alert>
+    );
+  }
+
+  if (!cashRegisterQuery.data.isOpen) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
+        <h1 className="text-xl font-bold tracking-tight text-ink">Caja cerrada</h1>
+        <p className="text-sm text-steel">
+          La caja no está abierta hoy. Ábrela para poder facturar.
+        </p>
+        {openCashRegisterMutation.isError && (
+          <Alert variant="error">
+            {getApiErrorMessage(openCashRegisterMutation.error)}
+          </Alert>
+        )}
+        <Button
+          className="sm:w-auto sm:px-6"
+          isLoading={openCashRegisterMutation.isPending}
+          onClick={() => void openCashRegisterMutation.mutateAsync()}
+        >
+          Abrir caja
+        </Button>
+      </div>
+    );
+  }
+
+  const activeDraft = drafts.find((draft) => draft.id === activeDraftId) ?? drafts[0];
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
+        Nueva factura electrónica
+      </h1>
+
+      {/* Several customers can be mid-checkout at once — each tab is an
+          independent draft, persisted so switching between them, or
+          navigating to Productos/Inventario and back, keeps everything. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {drafts.map((draft, index) => {
+          const isActive = draft.id === activeDraft.id;
+          return (
+            <span
+              key={draft.id}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm ${
+                isActive
+                  ? 'border-ink bg-ink text-white'
+                  : 'border-line bg-white text-steel hover:bg-mist'
+              }`}
+            >
+              <button type="button" onClick={() => setActiveDraftId(draft.id)}>
+                {invoiceDraftLabel(draft, index)}
+              </button>
+              {drafts.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => closeDraft(draft.id)}
+                  aria-label="Cerrar factura"
+                  className={isActive ? 'text-white/70 hover:text-white' : 'text-fog hover:text-ink'}
+                >
+                  ×
+                </button>
+              )}
+            </span>
+          );
+        })}
+        <button
+          type="button"
+          onClick={addDraft}
+          className="rounded-full border border-dashed border-line px-3 py-1.5 text-sm text-steel hover:bg-mist"
+        >
+          + Nueva factura
+        </button>
+      </div>
+
+      <InvoiceDraftForm key={activeDraft.id} draft={activeDraft} />
     </div>
   );
 }
