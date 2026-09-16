@@ -10,7 +10,10 @@ export interface CashRegisterResponse {
   closedAt: string | null;
   closedById: string | null;
   closedByName: string | null;
+  /** Recaudado — sum of invoices sent that day. */
   totalAmount: number | null;
+  /** Adeudado — sum of that day's quotations still open (not invoiced/cancelled) at close time. */
+  totalOwed: number | null;
   isOpen: boolean;
 }
 
@@ -18,6 +21,7 @@ export interface CashRegisterStatus {
   isOpen: boolean;
   register: CashRegisterResponse | null;
   totalSoFar: number | null;
+  totalOwedSoFar: number | null;
 }
 
 export interface CashRegisterQuery {

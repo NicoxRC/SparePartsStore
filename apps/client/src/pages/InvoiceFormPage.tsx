@@ -916,6 +916,7 @@ export function InvoiceFormPage() {
       {isCloseDialogOpen && (
         <CloseCashRegisterDialog
           totalSoFar={cashRegisterQuery.data.totalSoFar ?? 0}
+          totalOwedSoFar={cashRegisterQuery.data.totalOwedSoFar ?? 0}
           onClose={() => setIsCloseDialogOpen(false)}
           onClosed={() => setIsCloseDialogOpen(false)}
         />

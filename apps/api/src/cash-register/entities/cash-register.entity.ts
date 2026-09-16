@@ -54,4 +54,17 @@ export class CashRegister {
     transformer: decimalTransformer,
   })
   totalAmount: number | null;
+
+  // Sum of that day's quotations still open (not invoiced/cancelled) at
+  // close time — what was handed out on credit and not yet collected.
+  // `NULL` until closed, same as totalAmount. See CashRegisterService.
+  @Column({
+    name: 'total_owed',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  totalOwed: number | null;
 }
