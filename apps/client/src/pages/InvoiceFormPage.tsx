@@ -23,6 +23,7 @@ import {
 } from '../hooks/useCashRegister';
 import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
+import { useCreateQuotation } from '../hooks/useQuotations';
 import { useInvoiceDrafts } from '../hooks/useInvoiceDrafts';
 import { useProducts } from '../hooks/useProducts';
 import {
@@ -31,6 +32,7 @@ import {
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
 import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
+import { computeItemTotal } from '../lib/invoiceMath';
 import {
   invoiceFormSchema,
   type InvoiceFormInput,
@@ -41,29 +43,6 @@ import type { ProductResponse } from '../services/products';
 import type { ThirdPartyResponse } from '../services/thirdParties';
 
 const DEFAULT_TAX_RATE = 19;
-
-/**
- * Final line amount (what the customer pays for that line). `price` —
- * pulled from the product's `salePrice` — is confirmed to already include
- * IVA; a line's `taxRate: 0` is just the flag that shows the "excluida"
- * label, not a separate calculation. The fixed discount (a flat COP
- * amount, not a percentage) comes off the pre-tax base before IVA is
- * re-applied — confirmed directly. Mirrors
- * InvoicesService.resolveItems() on the backend.
- */
-function computeItemTotal(item: {
-  price: number;
-  quantity: unknown;
-  taxRate: unknown;
-  discount?: unknown;
-}): number {
-  const quantity = Number(item.quantity) || 0;
-  const taxRate = Number(item.taxRate) || 0;
-  const discount = Number(item.discount) || 0;
-  const exclusivePrice = taxRate > 0 ? item.price / (1 + taxRate / 100) : item.price;
-  const discountedBase = Math.max(0, exclusivePrice * quantity - discount);
-  return Math.round(discountedBase * (1 + taxRate / 100));
-}
 
 interface CustomerSectionProps {
   register: UseFormRegister<InvoiceFormInput>;
@@ -246,6 +225,7 @@ interface InvoiceDraftFormProps {
 function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
   const navigate = useNavigate();
   const createMutation = useCreateInvoice();
+  const createQuotationMutation = useCreateQuotation();
   const { updateDraft, closeDraft } = useInvoiceDrafts();
   const [step, setStepState] = useState<InvoiceStep>(draft.step);
   const [productQuery, setProductQuery] = useState('');
@@ -273,6 +253,8 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
     handleSubmit,
     setValue,
     watch,
+    trigger,
+    getValues,
     formState: { errors },
   } = useForm<InvoiceFormInput, unknown, InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
@@ -367,11 +349,31 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
     setIsCreateProductOpen(false);
   };
 
-  const onSubmit = async (values: InvoiceFormValues) => {
-    // The customer is always saved to the local address book — best
-    // effort: a failure here (e.g. a stale conflict) never blocks the
-    // actual sale, since the customer record is a convenience, not the
-    // point of the transaction.
+  // The customer is always saved to the local address book — best effort:
+  // a failure here (e.g. a stale conflict) never blocks the actual sale
+  // or quotation, since the customer record is a convenience, not the
+  // point of the transaction. Shared by both onSubmit (Facturar) and
+  // handleCotizar below.
+  const saveCustomerBestEffort = async (
+    values: Pick<
+      InvoiceFormValues,
+      | 'customerIdentificationType'
+      | 'customerIdentification'
+      | 'customerIdentificationDv'
+      | 'customerPartyType'
+      | 'customerCompanyName'
+      | 'customerFirstName'
+      | 'customerFamilyName'
+      | 'customerTaxLevelCode'
+      | 'customerRegimen'
+      | 'customerCountryCode'
+      | 'customerDepartment'
+      | 'customerCity'
+      | 'customerAddressLine'
+      | 'customerEmail'
+      | 'customerPhone'
+    >,
+  ) => {
     try {
       const customerPayload: CustomerInput = {
         identificationType: values.customerIdentificationType,
@@ -397,6 +399,61 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
     } catch {
       // best-effort, see comment above
     }
+  };
+
+  const handleCotizar = async () => {
+    const valid = await trigger([
+      'customerIdentificationType',
+      'customerIdentification',
+      'customerPartyType',
+      'customerTaxLevelCode',
+      'customerCompanyName',
+      'customerFirstName',
+      'customerFamilyName',
+      'customerCountryCode',
+      'customerDepartment',
+      'customerCity',
+      'customerAddressLine',
+      'customerEmail',
+    ]);
+    if (!valid) return;
+
+    const values = getValues();
+    await saveCustomerBestEffort(values);
+
+    const quotation = await createQuotationMutation.mutateAsync({
+      customerIdentificationType: values.customerIdentificationType,
+      customerIdentification: values.customerIdentification,
+      customerIdentificationDv: values.customerIdentificationDv || undefined,
+      customerPartyType: values.customerPartyType,
+      customerTaxLevelCode: values.customerTaxLevelCode,
+      customerRegimen: values.customerRegimen || undefined,
+      customerCompanyName: values.customerCompanyName || undefined,
+      customerFirstName: values.customerFirstName || undefined,
+      customerFamilyName: values.customerFamilyName || undefined,
+      customerCountryCode: values.customerCountryCode,
+      customerDepartment: values.customerDepartment,
+      customerCity: values.customerCity,
+      customerAddressLine: values.customerAddressLine,
+      customerEmail: values.customerEmail,
+      customerPhone: values.customerPhone || undefined,
+      items: values.items.map(({ productId, quantity, taxRate, discount }) => ({
+        productId,
+        quantity: Number(quantity),
+        taxRate: Number(taxRate),
+        discount: Number(discount) || undefined,
+      })),
+      notes: values.notes || undefined,
+    });
+    // This draft's sale became a quotation instead — close it (auto-
+    // replaced by a fresh empty one if it was the only draft open) and
+    // go straight to the new quotation.
+    closeDraft(draft.id);
+    navigate(`/cotizaciones/${quotation.id}`);
+  };
+
+  const onSubmit = async (values: InvoiceFormValues) => {
+    await saveCustomerBestEffort(values);
 
     await createMutation.mutateAsync({
       paymentDate: values.paymentMeansType === 'CREDITO' ? values.paymentDate : undefined,
@@ -441,6 +498,9 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
 
       {createMutation.isError && (
         <Alert variant="error">{getApiErrorMessage(createMutation.error)}</Alert>
+      )}
+      {createQuotationMutation.isError && (
+        <Alert variant="error">{getApiErrorMessage(createQuotationMutation.error)}</Alert>
       )}
 
       <form
@@ -640,8 +700,8 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                 type="button"
                 variant="secondary"
                 className="sm:w-auto sm:px-6"
-                disabled
-                title="Próximamente"
+                isLoading={createQuotationMutation.isPending}
+                onClick={() => void handleCotizar()}
               >
                 Cotizar
               </Button>
@@ -856,6 +916,7 @@ export function InvoiceFormPage() {
       {isCloseDialogOpen && (
         <CloseCashRegisterDialog
           totalSoFar={cashRegisterQuery.data.totalSoFar ?? 0}
+          totalOwedSoFar={cashRegisterQuery.data.totalOwedSoFar ?? 0}
           onClose={() => setIsCloseDialogOpen(false)}
           onClosed={() => setIsCloseDialogOpen(false)}
         />

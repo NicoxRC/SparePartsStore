@@ -70,6 +70,8 @@ apps/api/src/
 │
 ├── invoicing/                           # NEW — Dataico integration, see "Invoicing module" below
 │
+├── quotations/                          # "cotizaciones" — store credit handed over before payment (not Dataico — no HTTP calls of its own). Decrements inventory on create/edit like a real sale; converts into a real Invoice via InvoicesModule (imported here) with an internal-only skip-stock-effects flag — see DATABASE.md ("quotations") and GLOSSARY.md ("Cotización")
+│
 ├── common/
 │   ├── decorators/                      # @Roles(), @Public(), @SkipPasswordCheck(), @CurrentUser()
 │   ├── dto/                             # PaginatedResponseDto, PaginationMetaDto

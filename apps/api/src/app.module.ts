@@ -12,6 +12,7 @@ import { GroupsModule } from './groups/groups.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { InvoicingModule } from './invoicing/invoicing.module';
 import { ProductsModule } from './products/products.module';
+import { QuotationsModule } from './quotations/quotations.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -44,6 +45,7 @@ import { UsersModule } from './users/users.module';
     InventoryModule,
     CashRegisterModule,
     InvoicingModule,
+    QuotationsModule,
   ],
 })
 export class AppModule {}

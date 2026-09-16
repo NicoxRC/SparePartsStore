@@ -26,8 +26,18 @@ export class CashRegisterResponseDto {
   @ApiProperty({ nullable: true })
   closedByName: string | null;
 
-  @ApiProperty({ nullable: true })
+  @ApiProperty({
+    nullable: true,
+    description: 'Recaudado — sum of invoices sent that day.',
+  })
   totalAmount: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      "Adeudado — sum of that day's quotations still open (not invoiced/cancelled) at close time.",
+  })
+  totalOwed: number | null;
 
   @ApiProperty()
   isOpen: boolean;
@@ -47,6 +57,7 @@ export class CashRegisterResponseDto {
       ? `${register.closedBy.firstName} ${register.closedBy.lastName}`
       : null;
     dto.totalAmount = register.totalAmount;
+    dto.totalOwed = register.totalOwed;
     dto.isOpen = register.closedAt === null;
     return dto;
   }

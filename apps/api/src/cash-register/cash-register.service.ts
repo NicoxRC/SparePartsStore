@@ -13,6 +13,7 @@ import {
   getStoreToday,
 } from '../common/utils/store-date.util';
 import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
+import { Quotation } from '../quotations/entities/quotation.entity';
 import { CashRegisterResponseDto } from './dto/cash-register-response.dto';
 import { CashRegisterStatusDto } from './dto/cash-register-status.dto';
 import { QueryCashRegisterDto } from './dto/query-cash-register.dto';
@@ -23,13 +24,16 @@ export class CashRegisterService {
   constructor(
     @InjectRepository(CashRegister)
     private readonly cashRegisterRepository: Repository<CashRegister>,
-    // Reads Invoice directly (not via InvoicesService) for the read-only
-    // daily-total aggregate below — InvoicesService itself depends on this
-    // service for the open-register gate, so going through it here would
-    // create a circular module dependency. A deliberate, narrow exception
-    // to "reach another domain through its service" for a single SUM query.
+    // Reads Invoice/Quotation directly (not via InvoicesService/
+    // QuotationsService) for the read-only daily-total aggregates below —
+    // both of those services depend on this one for the open-register
+    // gate, so going through them here would create a circular module
+    // dependency. A deliberate, narrow exception to "reach another domain
+    // through its service" for a couple of SUM queries.
     @InjectRepository(Invoice)
     private readonly invoicesRepository: Repository<Invoice>,
+    @InjectRepository(Quotation)
+    private readonly quotationsRepository: Repository<Quotation>,
   ) {}
 
   async open(userId: string): Promise<CashRegisterResponseDto> {
@@ -73,6 +77,7 @@ export class CashRegisterService {
     }
 
     register.totalAmount = await this.computeTotal(today);
+    register.totalOwed = await this.computeOwedTotal(today);
     register.closedAt = new Date();
     register.closedBy = { id: userId } as CashRegister['closedBy'];
 
@@ -90,7 +95,12 @@ export class CashRegisterService {
     });
 
     if (!register) {
-      return { isOpen: false, register: null, totalSoFar: null };
+      return {
+        isOpen: false,
+        register: null,
+        totalSoFar: null,
+        totalOwedSoFar: null,
+      };
     }
 
     const isOpen = register.closedAt === null;
@@ -98,6 +108,7 @@ export class CashRegisterService {
       isOpen,
       register: CashRegisterResponseDto.fromEntity(register),
       totalSoFar: isOpen ? await this.computeTotal(today) : null,
+      totalOwedSoFar: isOpen ? await this.computeOwedTotal(today) : null,
     };
   }
 
@@ -134,7 +145,8 @@ export class CashRegisterService {
     }
   }
 
-  /** Sum of `invoices.total_amount` created during the given store day. */
+  /** Sum of `invoices.total_amount` created during the given store day —
+   * what was actually collected ("lo recaudado"). */
   private async computeTotal(storeDate: string): Promise<number> {
     const { start, end } = getStoreDayRangeUtc(storeDate);
     const result = await this.invoicesRepository
@@ -144,6 +156,27 @@ export class CashRegisterService {
         start,
         end,
       })
+      .getRawOne<{ sum: string }>();
+    return Number(result?.sum ?? 0);
+  }
+
+  /** Sum of `quotations.total_amount` created during the given store day
+   * that are still open (not yet invoiced or cancelled) — what was handed
+   * out on credit and not yet collected ("lo adeudado"). Deliberately
+   * scoped to quotations *created that day*: a quotation opened yesterday
+   * and still unpaid is yesterday's debt, not today's — it was already
+   * counted in yesterday's close and doesn't roll forward. */
+  private async computeOwedTotal(storeDate: string): Promise<number> {
+    const { start, end } = getStoreDayRangeUtc(storeDate);
+    const result = await this.quotationsRepository
+      .createQueryBuilder('quotation')
+      .select('COALESCE(SUM(quotation.totalAmount), 0)', 'sum')
+      .where('quotation.createdAt >= :start AND quotation.createdAt < :end', {
+        start,
+        end,
+      })
+      .andWhere('quotation.invoicedAt IS NULL')
+      .andWhere('quotation.cancelledAt IS NULL')
       .getRawOne<{ sum: string }>();
     return Number(result?.sum ?? 0);
   }

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { QueryFailedError, Repository } from 'typeorm';
 import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
+import { Quotation } from '../quotations/entities/quotation.entity';
 import { CashRegisterService } from './cash-register.service';
 import { CashRegister } from './entities/cash-register.entity';
 
@@ -17,9 +18,16 @@ describe('CashRegisterService', () => {
     findAndCount: jest.Mock;
   };
   let invoicesRepository: { createQueryBuilder: jest.Mock };
-  let queryBuilder: {
+  let quotationsRepository: { createQueryBuilder: jest.Mock };
+  let invoiceQueryBuilder: {
     select: jest.Mock;
     where: jest.Mock;
+    getRawOne: jest.Mock;
+  };
+  let quotationQueryBuilder: {
+    select: jest.Mock;
+    where: jest.Mock;
+    andWhere: jest.Mock;
     getRawOne: jest.Mock;
   };
 
@@ -31,13 +39,20 @@ describe('CashRegisterService', () => {
     closedAt: null,
     closedBy: null,
     totalAmount: null,
+    totalOwed: null,
   };
 
   beforeEach(() => {
-    queryBuilder = {
+    invoiceQueryBuilder = {
       select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       getRawOne: jest.fn().mockResolvedValue({ sum: '150000' }),
+    };
+    quotationQueryBuilder = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({ sum: '40000' }),
     };
     cashRegisterRepository = {
       findOne: jest.fn(),
@@ -50,12 +65,16 @@ describe('CashRegisterService', () => {
       findAndCount: jest.fn(),
     };
     invoicesRepository = {
-      createQueryBuilder: jest.fn(() => queryBuilder),
+      createQueryBuilder: jest.fn(() => invoiceQueryBuilder),
+    };
+    quotationsRepository = {
+      createQueryBuilder: jest.fn(() => quotationQueryBuilder),
     };
 
     service = new CashRegisterService(
       cashRegisterRepository as unknown as Repository<CashRegister>,
       invoicesRepository as unknown as Repository<Invoice>,
+      quotationsRepository as unknown as Repository<Quotation>,
     );
 
     jest.useFakeTimers().setSystemTime(new Date('2026-09-16T18:00:00.000Z')); // 1pm Bogotá
@@ -114,13 +133,14 @@ describe('CashRegisterService', () => {
       await expect(service.close('user-1')).rejects.toThrow(ConflictException);
     });
 
-    it("auto-computes the total from that day's invoices and closes the register", async () => {
+    it("auto-computes the collected total from that day's invoices and the owed total from that day's still-open quotations", async () => {
       cashRegisterRepository.findOne
         .mockResolvedValueOnce({ ...openRegister })
         .mockResolvedValueOnce({
           ...openRegister,
           closedAt: new Date(),
           totalAmount: 150000,
+          totalOwed: 40000,
         });
 
       await service.close('user-1');
@@ -128,11 +148,12 @@ describe('CashRegisterService', () => {
       const saved = cashRegisterRepository.save.mock
         .calls[0][0] as CashRegister;
       expect(saved.totalAmount).toBe(150000);
+      expect(saved.totalOwed).toBe(40000);
       expect(saved.closedAt).not.toBeNull();
       expect(saved.closedBy).toEqual({ id: 'user-1' });
     });
 
-    it('queries invoices within the Bogotá-local day, not the UTC day', async () => {
+    it('queries invoices and quotations within the Bogotá-local day, not the UTC day', async () => {
       cashRegisterRepository.findOne
         .mockResolvedValueOnce({ ...openRegister })
         .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
@@ -141,10 +162,33 @@ describe('CashRegisterService', () => {
 
       // 2026-09-16 in America/Bogota (UTC-5) is
       // [2026-09-16T05:00:00.000Z, 2026-09-17T05:00:00.000Z) in UTC.
-      expect(queryBuilder.where).toHaveBeenCalledWith(expect.any(String), {
+      const expectedRange = {
         start: new Date('2026-09-16T05:00:00.000Z'),
         end: new Date('2026-09-17T05:00:00.000Z'),
-      });
+      };
+      expect(invoiceQueryBuilder.where).toHaveBeenCalledWith(
+        expect.any(String),
+        expectedRange,
+      );
+      expect(quotationQueryBuilder.where).toHaveBeenCalledWith(
+        expect.any(String),
+        expectedRange,
+      );
+    });
+
+    it('only counts quotations still open — excludes ones already invoiced or cancelled that day', async () => {
+      cashRegisterRepository.findOne
+        .mockResolvedValueOnce({ ...openRegister })
+        .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
+
+      await service.close('user-1');
+
+      expect(quotationQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.invoicedAt IS NULL',
+      );
+      expect(quotationQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.cancelledAt IS NULL',
+      );
     });
   });
 
@@ -198,30 +242,34 @@ describe('CashRegisterService', () => {
         isOpen: false,
         register: null,
         totalSoFar: null,
+        totalOwedSoFar: null,
       });
     });
 
-    it('returns a live totalSoFar preview while open, without persisting it', async () => {
+    it('returns live totalSoFar/totalOwedSoFar previews while open, without persisting them', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(openRegister);
 
       const status = await service.getTodayStatus();
 
       expect(status.isOpen).toBe(true);
       expect(status.totalSoFar).toBe(150000);
+      expect(status.totalOwedSoFar).toBe(40000);
       expect(cashRegisterRepository.save).not.toHaveBeenCalled();
     });
 
-    it('returns totalSoFar: null once closed', async () => {
+    it('returns totalSoFar/totalOwedSoFar: null once closed', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce({
         ...openRegister,
         closedAt: new Date(),
         totalAmount: 150000,
+        totalOwed: 40000,
       });
 
       const status = await service.getTodayStatus();
 
       expect(status.isOpen).toBe(false);
       expect(status.totalSoFar).toBeNull();
+      expect(status.totalOwedSoFar).toBeNull();
     });
   });
 });

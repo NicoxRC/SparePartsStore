@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-document-type.enum';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { computeLineAmounts } from '../../common/utils/invoice-math.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
@@ -63,9 +64,20 @@ export class InvoicesService {
     private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * `skipInventoryEffects` is internal-only — never set by the public
+   * controller. QuotationsService.invoice() sets it when converting an
+   * already-decremented quotation into an invoice: the stock for those
+   * items left the store when the quotation itself was created/edited,
+   * so both the sufficiency check AND the decrement below would be wrong
+   * to run a second time here (by now `product.stock` no longer includes
+   * those reserved units at all, so a plain sufficiency check would fail
+   * a perfectly legitimate sale).
+   */
   async create(
     dto: CreateInvoiceDto,
     createdById: string,
+    options: { skipInventoryEffects?: boolean } = {},
   ): Promise<InvoiceResponseDto> {
     await this.cashRegisterService.assertOpenToday();
 
@@ -78,7 +90,7 @@ export class InvoicesService {
       );
     }
 
-    const items = await this.resolveItems(dto);
+    const items = await this.resolveItems(dto, options.skipInventoryEffects);
 
     // "Todos son para el mismo día" — issueDate is never client-supplied,
     // it's always the store's current local (Bogotá) day, the same day
@@ -148,14 +160,17 @@ export class InvoicesService {
 
     // Only decrement stock once Dataico has actually accepted the invoice —
     // see the module-level note on known limitations if this step or the
-    // save below fails after Dataico already succeeded.
-    for (const item of items) {
-      const movementDto: CreateMovementDto = {
-        productId: item.product.id,
-        quantity: -item.quantity,
-        notes: `Venta - Factura ${resolution.prefix}${number}`,
-      };
-      await this.inventoryService.createMovement(movementDto, createdById);
+    // save below fails after Dataico already succeeded. Skipped entirely
+    // when converting a quotation — see create()'s docstring.
+    if (!options.skipInventoryEffects) {
+      for (const item of items) {
+        const movementDto: CreateMovementDto = {
+          productId: item.product.id,
+          quantity: -item.quantity,
+          notes: `Venta - Factura ${resolution.prefix}${number}`,
+        };
+        await this.inventoryService.createMovement(movementDto, createdById);
+      }
     }
 
     const invoice = this.invoicesRepository.create({
@@ -315,30 +330,34 @@ export class InvoicesService {
    * separate figure) so `price × quantity` on the actual invoice always
    * equals the discounted total — Dataico never sees a "discount" field,
    * only the already-final numbers, per direct instruction.
+   *
+   * `itemDto.unitPriceOverride`, when present, replaces `product.salePrice`
+   * as the gross (IVA-inclusive) starting price — used by
+   * QuotationsService.invoice() to honor a quotation's locked-in price
+   * instead of the product's current one. `skipStockCheck` is set by the
+   * same caller for the same reason — see create()'s docstring.
    */
-  private async resolveItems(dto: CreateInvoiceDto): Promise<ResolvedItem[]> {
+  private async resolveItems(
+    dto: CreateInvoiceDto,
+    skipStockCheck = false,
+  ): Promise<ResolvedItem[]> {
     return Promise.all(
       dto.items.map(async (itemDto) => {
         const product = await this.productsService.findOne(itemDto.productId);
-        if (product.stock < itemDto.quantity) {
+        if (!skipStockCheck && product.stock < itemDto.quantity) {
           throw new BadRequestException(
             `Stock insuficiente para ${product.reference}. Stock actual: ${product.stock}, solicitado: ${itemDto.quantity}.`,
           );
         }
 
-        const grossUnitPrice = Number(product.salePrice);
-        const exclusiveUnitPrice =
-          itemDto.taxRate > 0
-            ? grossUnitPrice / (1 + itemDto.taxRate / 100)
-            : grossUnitPrice;
-        const rawSubtotal = exclusiveUnitPrice * itemDto.quantity;
-        const discountedSubtotal = Math.max(
-          0,
-          rawSubtotal - (itemDto.discount ?? 0),
+        const grossUnitPrice =
+          itemDto.unitPriceOverride ?? Number(product.salePrice);
+        const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
+          grossUnitPrice,
+          itemDto.quantity,
+          itemDto.taxRate,
+          itemDto.discount ?? 0,
         );
-        const unitPrice = Math.round(discountedSubtotal / itemDto.quantity);
-        const taxBase = unitPrice * itemDto.quantity;
-        const taxAmount = Math.round(taxBase * (itemDto.taxRate / 100));
 
         return {
           product,

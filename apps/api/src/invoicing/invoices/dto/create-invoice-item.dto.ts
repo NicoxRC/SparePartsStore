@@ -36,4 +36,14 @@ export class CreateInvoiceItemDto {
   @IsNumber()
   @Min(0)
   discount?: number;
+
+  @ApiPropertyOptional({
+    description:
+      "Internal only — never sent by the Venta form. Set by QuotationsService.invoice() to lock the price a quotation was created/edited at, instead of using the product's current salePrice.",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  unitPriceOverride?: number;
 }
