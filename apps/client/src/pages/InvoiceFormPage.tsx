@@ -247,6 +247,13 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
     updateDraft(draft.id, { selectedCustomerId: id });
   };
 
+  // Abandons this draft (auto-replaced by a fresh empty one if it was the
+  // only one open) and stays on Venta — this is not "go look at Facturas",
+  // it's "never mind this sale".
+  const handleCancel = () => {
+    closeDraft(draft.id);
+  };
+
   const {
     register,
     control,
@@ -649,7 +656,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                 type="button"
                 variant="secondary"
                 className="sm:w-auto sm:px-6"
-                onClick={() => navigate('/invoicing/invoices')}
+                onClick={handleCancel}
               >
                 Cancelar
               </Button>
@@ -684,7 +691,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                 type="button"
                 variant="secondary"
                 className="sm:w-auto sm:px-6"
-                onClick={() => navigate('/invoicing/invoices')}
+                onClick={handleCancel}
               >
                 Cancelar
               </Button>
@@ -791,7 +798,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                 type="button"
                 variant="secondary"
                 className="sm:w-auto sm:px-6"
-                onClick={() => navigate('/invoicing/invoices')}
+                onClick={handleCancel}
               >
                 Cancelar
               </Button>
