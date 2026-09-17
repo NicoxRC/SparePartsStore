@@ -84,11 +84,30 @@ const IMPLIES: Partial<Record<Permission, Permission[]>> = {
   'inventory.create': ['inventory.view', 'products.view'],
   'customers.create': ['customers.view'],
   'customers.update': ['customers.view'],
-  'quotations.create': ['quotations.view', 'products.view'],
+  // Verified against the actual client code (CustomerPicker,
+  // InvoiceFormPage) rather than assumed: the sale/quotation customer
+  // step unconditionally renders the saved-customer search, the DIAN
+  // tercero lookup, and silently creates/updates the local customer
+  // record as part of a normal submit — not optional side actions.
+  'quotations.create': [
+    'quotations.view',
+    'products.view',
+    'customers.view',
+    'customers.create',
+    'customers.update',
+    'third_parties.view',
+  ],
   'quotations.update': ['quotations.view', 'products.view'],
   'quotations.invoice': ['quotations.view'],
   'quotations.cancel': ['quotations.view'],
-  'invoices.create': ['invoices.view', 'products.view'],
+  'invoices.create': [
+    'invoices.view',
+    'products.view',
+    'customers.view',
+    'customers.create',
+    'customers.update',
+    'third_parties.view',
+  ],
   'invoices.resend': ['invoices.view'],
   'invoices.refresh': ['invoices.view'],
   'debit_notes.view': ['invoices.view'],

@@ -4,7 +4,7 @@ import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
-import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 import { useCreateMovement, useMovements } from '../hooks/useInventory';
 import { useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
@@ -131,8 +131,8 @@ function AdjustModal({ product, onClose }: AdjustModalProps) {
 }
 
 export function InventoryPage() {
-  const { user } = useAuth();
-  const canAdjust = user?.role === 'admin' || user?.role === 'employee';
+  const { has } = usePermissions();
+  const canAdjust = has('inventory.create');
 
   const [filters, setFilters] = useState<ProductsQuery>({
     page: 1,

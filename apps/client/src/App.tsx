@@ -93,7 +93,9 @@ function App() {
                   <Route element={<PermissionRoute permission="credit_notes.view" />}>
                     <Route path="/invoicing/credit-notes" element={<CreditNotesListPage />} />
                   </Route>
-                  <Route element={<PermissionRoute permission="invoices.create" />}>
+                  <Route
+                    element={<PermissionRoute permission={['invoices.create', 'quotations.create']} />}
+                  >
                     <Route path="/ventas" element={<InvoiceFormPage />} />
                   </Route>
                   <Route element={<PermissionRoute permission="quotations.view" />}>

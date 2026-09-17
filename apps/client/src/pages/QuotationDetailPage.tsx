@@ -8,6 +8,7 @@ import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { usePermissions } from '../hooks/usePermissions';
 import { useProducts } from '../hooks/useProducts';
 import {
   useInvoiceQuotation,
@@ -98,6 +99,10 @@ export function QuotationDetailPage() {
 
 function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   const navigate = useNavigate();
+  const { has } = usePermissions();
+  const canUpdate = has('quotations.update');
+  const canInvoice = has('quotations.invoice');
+  const canCancel = has('quotations.cancel');
   const isOpen = quotation.status === 'open';
 
   const [items, setItems] = useState<EditableItem[]>(() =>
@@ -235,7 +240,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           >
             {STATUS_LABEL[quotation.status]}
           </span>
-          {isOpen && (
+          {isOpen && canCancel && (
             <button
               type="button"
               onClick={() => setIsCancelDialogOpen(true)}
@@ -438,7 +443,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           Total: ${total.toLocaleString('es-CO')}
         </p>
 
-        {isOpen && (
+        {isOpen && canUpdate && (
           <div className="flex justify-end">
             <Button
               type="button"
@@ -453,7 +458,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
         )}
       </section>
 
-      {isOpen && (
+      {isOpen && canInvoice && (
         <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Facturar</h2>

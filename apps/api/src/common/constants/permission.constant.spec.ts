@@ -31,6 +31,30 @@ describe('permission.constant', () => {
       );
     });
 
+    it('grants invoices.create the customer-step dependencies the sale flow actually needs (CustomerPicker, quick-create/update)', () => {
+      const result = expandPermissions(['invoices.create']);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          'customers.view',
+          'customers.create',
+          'customers.update',
+          'third_parties.view',
+        ]),
+      );
+    });
+
+    it('grants quotations.create the same customer-step dependencies as invoices.create', () => {
+      const result = expandPermissions(['quotations.create']);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          'customers.view',
+          'customers.create',
+          'customers.update',
+          'third_parties.view',
+        ]),
+      );
+    });
+
     it('chains implications transitively (credit_notes.create -> credit_notes.view -> invoices.view)', () => {
       const result = expandPermissions(['credit_notes.create']);
       expect(result).toEqual(

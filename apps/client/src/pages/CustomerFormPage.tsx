@@ -9,6 +9,7 @@ import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useCustomer, useUpdateCustomer } from '../hooks/useCustomers';
+import { usePermissions } from '../hooks/usePermissions';
 import { DANE_CITIES, DANE_DEPARTMENTS } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
@@ -24,6 +25,8 @@ type Tab = 'data' | 'history';
 export function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { has } = usePermissions();
+  const canUpdate = has('customers.update');
   const [tab, setTab] = useState<Tab>('data');
 
   const customerQuery = useCustomer(id);
@@ -271,13 +274,15 @@ export function CustomerFormPage() {
           >
             Cancelar
           </Button>
-          <Button
-            type="submit"
-            className="sm:w-auto sm:px-6"
-            isLoading={updateMutation.isPending}
-          >
-            Guardar cambios
-          </Button>
+          {canUpdate && (
+            <Button
+              type="submit"
+              className="sm:w-auto sm:px-6"
+              isLoading={updateMutation.isPending}
+            >
+              Guardar cambios
+            </Button>
+          )}
         </div>
       </form>
         </>

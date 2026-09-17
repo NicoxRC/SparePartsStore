@@ -4,7 +4,11 @@ import { useAuth } from '../hooks/useAuth';
 import { Spinner } from './Spinner';
 
 interface PermissionRouteProps {
-  permission: PermissionCode;
+  /** A single required permission, or a list where having any one of them
+   * is enough — e.g. /ventas serves both "Facturar" (invoices.create) and
+   * "Cotizar" (quotations.create), so either grant should let someone in;
+   * which action buttons actually show is then decided inside the page. */
+  permission: PermissionCode | PermissionCode[];
 }
 
 /**
@@ -26,10 +30,11 @@ export function PermissionRoute({ permission }: PermissionRouteProps) {
     );
   }
 
+  const required = Array.isArray(permission) ? permission : [permission];
   const allowed =
     user?.role === 'admin' ||
     user?.role === 'auditor' ||
-    (user?.permissions.includes(permission) ?? false);
+    required.some((code) => user?.permissions.includes(code));
 
   if (!allowed) {
     return <Navigate to="/products" replace />;

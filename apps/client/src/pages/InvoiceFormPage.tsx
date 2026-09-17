@@ -27,6 +27,7 @@ import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
 import { useCreateQuotation } from '../hooks/useQuotations';
 import { useInvoiceDrafts } from '../hooks/useInvoiceDrafts';
+import { usePermissions } from '../hooks/usePermissions';
 import { useProducts } from '../hooks/useProducts';
 import {
   DANE_CITIES,
@@ -228,6 +229,9 @@ interface InvoiceDraftFormProps {
  */
 function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const navigate = useNavigate();
+  const { has } = usePermissions();
+  const canInvoice = has('invoices.create');
+  const canQuote = has('quotations.create');
   const createMutation = useCreateInvoice();
   const createQuotationMutation = useCreateQuotation();
   const { updateDraft, closeDraft } = useInvoiceDrafts();
@@ -711,22 +715,26 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
               >
                 Atrás
               </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                className="sm:w-auto sm:px-6"
-                isLoading={createQuotationMutation.isPending}
-                onClick={() => void handleCotizar()}
-              >
-                Cotizar
-              </Button>
-              <Button
-                type="button"
-                className="sm:w-auto sm:px-6"
-                onClick={() => setStep('invoice')}
-              >
-                Facturar
-              </Button>
+              {canQuote && (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="sm:w-auto sm:px-6"
+                  isLoading={createQuotationMutation.isPending}
+                  onClick={() => void handleCotizar()}
+                >
+                  Cotizar
+                </Button>
+              )}
+              {canInvoice && (
+                <Button
+                  type="button"
+                  className="sm:w-auto sm:px-6"
+                  onClick={() => setStep('invoice')}
+                >
+                  Facturar
+                </Button>
+              )}
             </div>
           </>
         ) : (
@@ -838,6 +846,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
 }
 
 export function InvoiceFormPage() {
+  const { has } = usePermissions();
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
@@ -866,41 +875,51 @@ export function InvoiceFormPage() {
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
         <h1 className="text-xl font-bold tracking-tight text-ink">Caja cerrada</h1>
-        <p className="text-sm text-steel">
-          La caja no está abierta hoy. Cuenta el efectivo en caja y ábrela para poder facturar.
-        </p>
-        <div className="flex w-full flex-col gap-1.5 text-left">
-          <label htmlFor="opening-amount" className="text-sm font-medium text-steel">
-            Efectivo en caja ahora (base)
-          </label>
-          <input
-            id="opening-amount"
-            type="number"
-            inputMode="decimal"
-            min={0}
-            placeholder={
-              previousClosingCash !== null
-                ? `Ayer quedaron $${previousClosingCash.toLocaleString('es-CO')}`
-                : 'Ej: 50000'
-            }
-            value={openingAmount}
-            onChange={(e) => setOpeningAmount(e.target.value)}
-            className="min-h-12 w-full rounded-sm border border-line bg-white px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
-          />
-        </div>
-        {openCashRegisterMutation.isError && (
-          <Alert variant="error">
-            {getApiErrorMessage(openCashRegisterMutation.error)}
-          </Alert>
+        {has('cash_register.open') ? (
+          <>
+            <p className="text-sm text-steel">
+              La caja no está abierta hoy. Cuenta el efectivo en caja y ábrela para poder
+              facturar.
+            </p>
+            <div className="flex w-full flex-col gap-1.5 text-left">
+              <label htmlFor="opening-amount" className="text-sm font-medium text-steel">
+                Efectivo en caja ahora (base)
+              </label>
+              <input
+                id="opening-amount"
+                type="number"
+                inputMode="decimal"
+                min={0}
+                placeholder={
+                  previousClosingCash !== null
+                    ? `Ayer quedaron $${previousClosingCash.toLocaleString('es-CO')}`
+                    : 'Ej: 50000'
+                }
+                value={openingAmount}
+                onChange={(e) => setOpeningAmount(e.target.value)}
+                className="min-h-12 w-full rounded-sm border border-line bg-white px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
+              />
+            </div>
+            {openCashRegisterMutation.isError && (
+              <Alert variant="error">
+                {getApiErrorMessage(openCashRegisterMutation.error)}
+              </Alert>
+            )}
+            <Button
+              className="sm:w-auto sm:px-6"
+              isLoading={openCashRegisterMutation.isPending}
+              disabled={!isValidOpeningAmount}
+              onClick={() => void openCashRegisterMutation.mutateAsync(parsedOpeningAmount)}
+            >
+              Abrir caja
+            </Button>
+          </>
+        ) : (
+          <p className="text-sm text-steel">
+            La caja no está abierta hoy. Pide a un administrador o a un compañero que la abra
+            para poder facturar.
+          </p>
         )}
-        <Button
-          className="sm:w-auto sm:px-6"
-          isLoading={openCashRegisterMutation.isPending}
-          disabled={!isValidOpeningAmount}
-          onClick={() => void openCashRegisterMutation.mutateAsync(parsedOpeningAmount)}
-        >
-          Abrir caja
-        </Button>
       </div>
     );
   }
@@ -932,26 +951,30 @@ export function InvoiceFormPage() {
               { hour: '2-digit', minute: '2-digit' },
             )}
           </span>
-          <button
-            type="button"
-            onClick={() => setIsMovementDialogOpen(true)}
-            className="text-xs font-medium text-steel hover:text-ink hover:underline"
-          >
-            Entrada/salida de efectivo
-          </button>
-          <button
-            type="button"
-            disabled={pendingDraftLabels.length > 0}
-            onClick={() => setIsCloseDialogOpen(true)}
-            title={
-              pendingDraftLabels.length > 0
-                ? `Termina o cierra esta pestaña primero: ${pendingDraftLabels.join(', ')}`
-                : undefined
-            }
-            className="text-xs font-medium text-steel hover:text-ink hover:underline disabled:cursor-not-allowed disabled:text-fog disabled:no-underline"
-          >
-            Cerrar caja
-          </button>
+          {has('cash_register.movements.create') && (
+            <button
+              type="button"
+              onClick={() => setIsMovementDialogOpen(true)}
+              className="text-xs font-medium text-steel hover:text-ink hover:underline"
+            >
+              Entrada/salida de efectivo
+            </button>
+          )}
+          {has('cash_register.close') && (
+            <button
+              type="button"
+              disabled={pendingDraftLabels.length > 0}
+              onClick={() => setIsCloseDialogOpen(true)}
+              title={
+                pendingDraftLabels.length > 0
+                  ? `Termina o cierra esta pestaña primero: ${pendingDraftLabels.join(', ')}`
+                  : undefined
+              }
+              className="text-xs font-medium text-steel hover:text-ink hover:underline disabled:cursor-not-allowed disabled:text-fog disabled:no-underline"
+            >
+              Cerrar caja
+            </button>
+          )}
         </div>
         {pendingDraftLabels.length > 0 && (
           <p className="text-xs text-fog">
