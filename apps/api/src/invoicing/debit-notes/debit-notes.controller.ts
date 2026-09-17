@@ -18,6 +18,7 @@ import {
   CurrentUser,
 } from '../../common/decorators/current-user.decorator';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateDebitNoteDto } from './dto/create-debit-note.dto';
@@ -43,6 +44,7 @@ export class DebitNotesController {
   })
   @ApiResponse({ status: 502, description: 'Dataico/DIAN rejected the note' })
   @Post()
+  @RequirePermission('debit_notes.create')
   create(
     @Body() dto: CreateDebitNoteDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -53,6 +55,7 @@ export class DebitNotesController {
   @ApiOperation({ summary: 'List debit notes, most recent first' })
   @ApiResponse({ status: 200, type: [DebitNoteResponseDto] })
   @Get()
+  @RequirePermission('debit_notes.view')
   findAll(
     @Query() query: QueryDebitNotesDto,
   ): Promise<PaginatedResponseDto<DebitNoteResponseDto>> {
@@ -62,6 +65,7 @@ export class DebitNotesController {
   @ApiOperation({ summary: 'Get one debit note by id' })
   @ApiResponse({ status: 200, type: DebitNoteResponseDto })
   @Get(':id')
+  @RequirePermission('debit_notes.view')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<DebitNoteResponseDto> {

@@ -1,3 +1,4 @@
+import { Permission } from '../../common/constants/permission.constant';
 import { UserRole } from '../../common/enums/user-role.enum';
 
 export interface JwtPayload {
@@ -5,4 +6,5 @@ export interface JwtPayload {
   email: string;
   role: UserRole;
   mustChangePassword: boolean;
+  permissions: Permission[];
 }

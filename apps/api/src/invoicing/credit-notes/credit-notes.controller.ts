@@ -18,6 +18,7 @@ import {
   CurrentUser,
 } from '../../common/decorators/current-user.decorator';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateCreditNoteDto } from './dto/create-credit-note.dto';
@@ -44,6 +45,7 @@ export class CreditNotesController {
   })
   @ApiResponse({ status: 502, description: 'Dataico/DIAN rejected the note' })
   @Post()
+  @RequirePermission('credit_notes.create')
   create(
     @Body() dto: CreateCreditNoteDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -54,6 +56,7 @@ export class CreditNotesController {
   @ApiOperation({ summary: 'List credit notes, most recent first' })
   @ApiResponse({ status: 200, type: [CreditNoteResponseDto] })
   @Get()
+  @RequirePermission('credit_notes.view')
   findAll(
     @Query() query: QueryCreditNotesDto,
   ): Promise<PaginatedResponseDto<CreditNoteResponseDto>> {
@@ -63,6 +66,7 @@ export class CreditNotesController {
   @ApiOperation({ summary: 'Get one credit note by id' })
   @ApiResponse({ status: 200, type: CreditNoteResponseDto })
   @Get(':id')
+  @RequirePermission('credit_notes.view')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CreditNoteResponseDto> {

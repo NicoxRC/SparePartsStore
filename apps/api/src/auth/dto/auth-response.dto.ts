@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Permission } from '../../common/constants/permission.constant';
 import { UserRole } from '../../common/enums/user-role.enum';
 
 export class AuthUserDto {
@@ -19,6 +20,9 @@ export class AuthUserDto {
 
   @ApiProperty()
   mustChangePassword: boolean;
+
+  @ApiProperty({ type: [String] })
+  permissions: Permission[];
 }
 
 export class TokenPairDto {

@@ -17,6 +17,7 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { CreateProductDto } from './dto/create-product.dto';
@@ -37,6 +38,7 @@ export class ProductsController {
 
   @Post()
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @RequirePermission('products.create')
   create(
     @Body() dto: CreateProductDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -45,6 +47,7 @@ export class ProductsController {
   }
 
   @Get()
+  @RequirePermission('products.view')
   findAll(
     @Query() query: QueryProductsDto,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
@@ -52,6 +55,7 @@ export class ProductsController {
   }
 
   @Get('check-reference')
+  @RequirePermission('products.view')
   checkReference(
     @Query() query: CheckReferenceQuery,
   ): Promise<{ exists: boolean }> {
@@ -59,6 +63,7 @@ export class ProductsController {
   }
 
   @Get(':id')
+  @RequirePermission('products.view')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<ProductResponseDto> {
@@ -68,6 +73,7 @@ export class ProductsController {
 
   @Patch(':id')
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @RequirePermission('products.update')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateProductDto,

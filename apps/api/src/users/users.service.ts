@@ -8,6 +8,10 @@ import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import * as bcrypt from 'bcrypt';
 import { Repository } from 'typeorm';
+import {
+  expandPermissions,
+  Permission,
+} from '../common/constants/permission.constant';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { UserRole } from '../common/enums/user-role.enum';
 import { isUniqueViolation } from '../common/utils/database-error.util';
@@ -42,6 +46,10 @@ export class UsersService {
       lastName: dto.lastName,
       role: dto.role,
       mustChangePassword: true,
+      permissions:
+        dto.role === UserRole.EMPLOYEE
+          ? expandPermissions(dto.permissions ?? [])
+          : [],
       createdBy: { id: createdById } as User,
       updatedBy: { id: createdById } as User,
     });
@@ -141,7 +149,16 @@ export class UsersService {
 
     if (dto.firstName !== undefined) user.firstName = dto.firstName;
     if (dto.lastName !== undefined) user.lastName = dto.lastName;
-    if (dto.role !== undefined) user.role = dto.role;
+    if (dto.role !== undefined) {
+      user.role = dto.role;
+      // Permissions are only meaningful for employee — clear them on any
+      // move away from that role rather than leaving a stale set that
+      // would silently resurface if the account is ever made an employee
+      // again. Re-granting is then an explicit, deliberate action.
+      if (dto.role !== UserRole.EMPLOYEE) {
+        user.permissions = [];
+      }
+    }
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
     if (dto.password) {
       user.passwordHash = await this.hashPassword(dto.password);
@@ -159,6 +176,30 @@ export class UsersService {
       }
       throw error;
     }
+  }
+
+  /** Full replace of an employee's granular permissions — see
+   * common/constants/permission.constant.ts. Only ever meaningful for
+   * `role: employee`; rejects outright for admin/auditor accounts rather
+   * than silently storing a value that's never consulted. */
+  async updatePermissions(
+    id: string,
+    permissions: Permission[],
+    updatedById: string,
+  ): Promise<UserResponseDto> {
+    const user = await this.findOne(id);
+
+    if (user.role !== UserRole.EMPLOYEE) {
+      throw new BadRequestException(
+        'Permissions only apply to employee users.',
+      );
+    }
+
+    user.permissions = expandPermissions(permissions);
+    user.updatedBy = { id: updatedById } as User;
+
+    const saved = await this.usersRepository.save(user);
+    return UserResponseDto.fromEntity(saved);
   }
 
   async remove(id: string, requestUserId: string): Promise<void> {

@@ -1,4 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
+import { Permission } from '../../common/constants/permission.constant';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { User } from '../entities/user.entity';
 
@@ -24,6 +25,12 @@ export class UserResponseDto {
   @ApiProperty()
   mustChangePassword: boolean;
 
+  @ApiProperty({
+    type: [String],
+    description: 'Only meaningful when role is employee — always [] otherwise.',
+  })
+  permissions: Permission[];
+
   @ApiProperty({ nullable: true })
   lastLoginAt: string | null;
 
@@ -42,6 +49,7 @@ export class UserResponseDto {
     dto.role = user.role;
     dto.isActive = user.isActive;
     dto.mustChangePassword = user.mustChangePassword;
+    dto.permissions = user.permissions;
     dto.lastLoginAt = user.lastLoginAt ? user.lastLoginAt.toISOString() : null;
     dto.createdAt = user.createdAt.toISOString();
     dto.updatedAt = user.updatedAt.toISOString();

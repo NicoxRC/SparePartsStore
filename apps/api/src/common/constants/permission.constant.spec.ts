@@ -1,0 +1,69 @@
+import {
+  expandPermissions,
+  isPermission,
+  PERMISSIONS,
+} from './permission.constant';
+
+describe('permission.constant', () => {
+  describe('isPermission', () => {
+    it('accepts every catalog code', () => {
+      for (const code of PERMISSIONS) {
+        expect(isPermission(code)).toBe(true);
+      }
+    });
+
+    it('rejects an unknown code', () => {
+      expect(isPermission('products.delete')).toBe(false);
+    });
+  });
+
+  describe('expandPermissions', () => {
+    it('adds same-scope view when a mutating action is granted', () => {
+      expect(expandPermissions(['products.create'])).toEqual(
+        expect.arrayContaining(['products.create', 'products.view']),
+      );
+    });
+
+    it('adds the cross-scope implication for a form dependency', () => {
+      // The product form's department/group/brand dropdowns need catalogs.view.
+      expect(expandPermissions(['products.create'])).toEqual(
+        expect.arrayContaining(['catalogs.view']),
+      );
+    });
+
+    it('chains implications transitively (credit_notes.create -> credit_notes.view -> invoices.view)', () => {
+      const result = expandPermissions(['credit_notes.create']);
+      expect(result).toEqual(
+        expect.arrayContaining([
+          'credit_notes.create',
+          'credit_notes.view',
+          'invoices.view',
+        ]),
+      );
+    });
+
+    it('does not imply invoices.create from quotations.invoice — a deliberate independence', () => {
+      const result = expandPermissions(['quotations.invoice']);
+      expect(result).not.toContain('invoices.create');
+      expect(result).toEqual(
+        expect.arrayContaining(['quotations.invoice', 'quotations.view']),
+      );
+    });
+
+    it('is idempotent — expanding an already-expanded set changes nothing', () => {
+      const once = expandPermissions(['invoices.create']);
+      const twice = expandPermissions(once);
+      expect(new Set(twice)).toEqual(new Set(once));
+    });
+
+    it('returns view-only permissions unchanged', () => {
+      expect(expandPermissions(['products.view'])).toEqual(['products.view']);
+    });
+
+    it('deduplicates when two granted codes imply the same permission', () => {
+      const result = expandPermissions(['products.create', 'products.update']);
+      expect(result.filter((code) => code === 'products.view')).toHaveLength(1);
+      expect(result.filter((code) => code === 'catalogs.view')).toHaveLength(1);
+    });
+  });
+});

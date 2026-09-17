@@ -21,6 +21,7 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { UserRole } from '../common/enums/user-role.enum';
@@ -46,6 +47,7 @@ export class CustomersController {
     description: 'A customer with this identification already exists',
   })
   @Post()
+  @RequirePermission('customers.create')
   create(
     @Body() dto: CreateCustomerDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -58,6 +60,7 @@ export class CustomersController {
   })
   @ApiResponse({ status: 200, type: [CustomerResponseDto] })
   @Get()
+  @RequirePermission('customers.view')
   findAll(
     @Query() query: QueryCustomersDto,
   ): Promise<PaginatedResponseDto<CustomerResponseDto>> {
@@ -68,6 +71,7 @@ export class CustomersController {
   @ApiResponse({ status: 200, type: CustomerResponseDto })
   @ApiResponse({ status: 404, description: 'Customer not found' })
   @Get(':id')
+  @RequirePermission('customers.view')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<CustomerResponseDto> {
@@ -82,6 +86,7 @@ export class CustomersController {
   @ApiResponse({ status: 200, type: CustomerHistoryResponseDto })
   @ApiResponse({ status: 404, description: 'Customer not found' })
   @Get(':id/history')
+  @RequirePermission('customers.view')
   getHistory(
     @Param('id', ParseUUIDPipe) id: string,
     @Query() query: QueryCustomerHistoryDto,
@@ -97,6 +102,7 @@ export class CustomersController {
     description: 'A customer with this identification already exists',
   })
   @Patch(':id')
+  @RequirePermission('customers.update')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCustomerDto,
