@@ -26,7 +26,9 @@ import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { UserRole } from '../common/enums/user-role.enum';
 import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
+import { CustomerHistoryResponseDto } from './dto/customer-history-response.dto';
 import { CustomerResponseDto } from './dto/customer-response.dto';
+import { QueryCustomerHistoryDto } from './dto/query-customer-history.dto';
 import { QueryCustomersDto } from './dto/query-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
@@ -71,6 +73,20 @@ export class CustomersController {
   ): Promise<CustomerResponseDto> {
     const customer = await this.customersService.findOne(id);
     return CustomerResponseDto.fromEntity(customer);
+  }
+
+  @ApiOperation({
+    summary:
+      "A customer's purchase history — invoices and quotations, optionally filtered by date range",
+  })
+  @ApiResponse({ status: 200, type: CustomerHistoryResponseDto })
+  @ApiResponse({ status: 404, description: 'Customer not found' })
+  @Get(':id/history')
+  getHistory(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Query() query: QueryCustomerHistoryDto,
+  ): Promise<CustomerHistoryResponseDto> {
+    return this.customersService.getHistory(id, query);
   }
 
   @ApiOperation({ summary: 'Update a customer' })
