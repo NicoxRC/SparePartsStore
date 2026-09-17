@@ -4,10 +4,17 @@ import { AdminRoute } from './components/AdminRoute';
 import { EmployeeRoute } from './components/EmployeeRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import { InvoiceDraftsProvider } from './context/InvoiceDraftsContext';
 import { AuthLayout } from './layouts/AuthLayout';
 import { AuthenticatedLayout } from './layouts/AuthenticatedLayout';
 import { CatalogsPage } from './pages/CatalogsPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { CustomerFormPage } from './pages/CustomerFormPage';
+import { CustomersListPage } from './pages/CustomersListPage';
+import { CreditNoteFormPage } from './pages/CreditNoteFormPage';
+import { CreditNotesListPage } from './pages/CreditNotesListPage';
+import { DebitNoteFormPage } from './pages/DebitNoteFormPage';
+import { DebitNotesListPage } from './pages/DebitNotesListPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { LoginPage } from './pages/LoginPage';
 import { LookupFormPage } from './pages/LookupFormPage';
@@ -16,10 +23,10 @@ import { InvoiceFormPage } from './pages/InvoiceFormPage';
 import { InvoicesListPage } from './pages/InvoicesListPage';
 import { PayrollFormPage } from './pages/PayrollFormPage';
 import { PayrollListPage } from './pages/PayrollListPage';
-import { PosInvoiceFormPage } from './pages/PosInvoiceFormPage';
-import { PosInvoicesListPage } from './pages/PosInvoicesListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsListPage } from './pages/ProductsListPage';
+import { QuotationDetailPage } from './pages/QuotationDetailPage';
+import { QuotationsListPage } from './pages/QuotationsListPage';
 import { ResolutionFormPage } from './pages/ResolutionFormPage';
 import { ResolutionsListPage } from './pages/ResolutionsListPage';
 import { UserFormPage } from './pages/UserFormPage';
@@ -39,6 +46,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <AuthProvider>
+        <InvoiceDraftsProvider>
           <Routes>
             <Route element={<AuthLayout />}>
               <Route path="/login" element={<LoginPage />} />
@@ -53,15 +61,21 @@ function App() {
 
                 <Route element={<EmployeeRoute />}>
                   <Route path="/invoicing/invoices" element={<InvoicesListPage />} />
-                  <Route path="/invoicing/invoices/new" element={<InvoiceFormPage />} />
                   <Route
-                    path="/invoicing/pos-invoices"
-                    element={<PosInvoicesListPage />}
+                    path="/invoicing/invoices/:invoiceId/debit-note"
+                    element={<DebitNoteFormPage />}
                   />
+                  <Route path="/invoicing/debit-notes" element={<DebitNotesListPage />} />
                   <Route
-                    path="/invoicing/pos-invoices/new"
-                    element={<PosInvoiceFormPage />}
+                    path="/invoicing/invoices/:invoiceId/credit-note"
+                    element={<CreditNoteFormPage />}
                   />
+                  <Route path="/invoicing/credit-notes" element={<CreditNotesListPage />} />
+                  <Route path="/ventas" element={<InvoiceFormPage />} />
+                  <Route path="/cotizaciones" element={<QuotationsListPage />} />
+                  <Route path="/cotizaciones/:id" element={<QuotationDetailPage />} />
+                  <Route path="/customers" element={<CustomersListPage />} />
+                  <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
                   <Route path="/products/new" element={<ProductFormPage />} />
                   <Route path="/products/:id/edit" element={<ProductFormPage />} />
                 </Route>
@@ -180,6 +194,7 @@ function App() {
             <Route path="/" element={<Navigate to="/products" replace />} />
             <Route path="*" element={<Navigate to="/products" replace />} />
           </Routes>
+        </InvoiceDraftsProvider>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

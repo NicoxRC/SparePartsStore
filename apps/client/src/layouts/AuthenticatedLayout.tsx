@@ -3,6 +3,7 @@ import logo from '../assets/logo.png';
 import {
   IconBox,
   IconCart,
+  IconContact,
   IconIdCard,
   IconLayers,
   IconReceipt,
@@ -20,11 +21,10 @@ export function AuthenticatedLayout() {
     { to: '/inventory', label: 'Inventario', Icon: IconLayers },
     ...(user?.role !== 'auditor'
       ? [
-          // POS first — confirmed with the human as this store's primary
-          // sale flow (most sales are counter sales), ahead of the full
-          // invoice form.
-          { to: '/invoicing/pos-invoices', label: 'Venta POS', Icon: IconCart },
+          { to: '/ventas', label: 'Venta', Icon: IconCart },
+          { to: '/cotizaciones', label: 'Cotizaciones', Icon: IconIdCard },
           { to: '/invoicing/invoices', label: 'Facturas', Icon: IconReceipt },
+          { to: '/customers', label: 'Clientes', Icon: IconContact },
         ]
       : []),
     ...(user?.role === 'admin'
@@ -32,7 +32,10 @@ export function AuthenticatedLayout() {
           { to: '/users', label: 'Usuarios', Icon: IconUsers },
           { to: '/catalogs', label: 'Catálogos', Icon: IconTag },
           { to: '/invoicing/resolutions', label: 'Resoluciones DIAN', Icon: IconStamp },
-          { to: '/invoicing/payroll-entries', label: 'Nómina electrónica', Icon: IconIdCard },
+          // Nómina electrónica: not removed, just off the nav — not in use
+          // for now but expected back later. Route/page/backend stay intact
+          // at /invoicing/payroll-entries; restoring access is just adding
+          // this entry back.
         ]
       : []),
   ];

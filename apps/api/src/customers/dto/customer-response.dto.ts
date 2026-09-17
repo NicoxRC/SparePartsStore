@@ -4,6 +4,7 @@ export class CustomerResponseDto {
   id: string;
   identificationType: string;
   identification: string;
+  identificationDv: string | null;
   partyType: string;
   companyName: string | null;
   firstName: string | null;
@@ -25,6 +26,7 @@ export class CustomerResponseDto {
     dto.id = customer.id;
     dto.identificationType = customer.identificationType;
     dto.identification = customer.identification;
+    dto.identificationDv = customer.identificationDv;
     dto.partyType = customer.partyType;
     dto.companyName = customer.companyName;
     dto.firstName = customer.firstName;

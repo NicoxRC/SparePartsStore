@@ -5,33 +5,28 @@ import {
   IsArray,
   IsDateString,
   IsEmail,
-  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
-  Min,
   ValidateNested,
 } from 'class-validator';
 import { CreateInvoiceItemDto } from './create-invoice-item.dto';
 
 export class CreateInvoiceDto {
-  @ApiProperty({ example: 1225 })
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  number: number;
-
-  @ApiProperty({ example: '2026-09-07' })
+  @ApiProperty({
+    example: '2026-09-07',
+    required: false,
+    description:
+      'Only meaningful when paymentMeansType is CREDITO — when it will actually be paid. Omitted otherwise, and defaults to the same day as issueDate.',
+  })
+  @IsOptional()
   @IsDateString()
-  issueDate: string;
-
-  @ApiProperty({ example: '2026-09-07' })
-  @IsDateString()
-  paymentDate: string;
+  paymentDate?: string;
 
   @ApiProperty({
-    example: 'BANK_TRANSFER',
-    description: 'Confirmed values so far: BANK_TRANSFER, CREDIT_TRANSFER.',
+    example: 'CASH',
+    description:
+      'Only BANK_TRANSFER is confirmed against a real Dataico standard-invoice example. CASH/CARD are a best-effort mapping (not yet confirmed against Dataico) — see docs/phases/PHASE_10_INVOICING_STANDARD.md.',
   })
   @IsString()
   @IsNotEmpty()
@@ -39,16 +34,12 @@ export class CreateInvoiceDto {
 
   @ApiProperty({
     example: 'DEBITO',
-    description: 'Confirmed values so far: DEBITO, CREDITO.',
+    description:
+      'Confirmed: DEBITO = Contado (immediate), CREDITO = venta a crédito (deferred — drives whether paymentDate is required).',
   })
   @IsString()
   @IsNotEmpty()
   paymentMeansType: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  orderReference?: string;
 
   @ApiProperty({ example: 'NIT' })
   @IsString()

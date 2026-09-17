@@ -62,7 +62,11 @@ SEED_ADMIN_LAST_NAME=User
 DATAICO_BASE_URL=https://api.dataico.com/direct/dataico_api/v2
 DATAICO_AUTH_TOKEN=replace-with-the-real-dataico-auth-token
 DATAICO_ACCOUNT_ID=replace-with-the-real-dataico-account-id
-DATAICO_POS_BASE_URL=https://staging.dataico.com/direct/dataico_api/v2
+INVOICE_NUMBER_START=1
+DATAICO_DEBIT_NOTE_PREFIX=replace-with-the-real-debit-note-prefix
+DEBIT_NOTE_NUMBER_START=1
+DATAICO_CREDIT_NOTE_PREFIX=replace-with-the-real-credit-note-prefix
+CREDIT_NOTE_NUMBER_START=1
 DATAICO_PAYROLL_BASE_URL=https://api.dataico.com/direct/payroll-api/v2
 ```
 
@@ -71,10 +75,16 @@ DATAICO_PAYROLL_BASE_URL=https://api.dataico.com/direct/payroll-api/v2
 | `DATAICO_BASE_URL` | ✅ | Confirmed against a real request. `DataicoClientService` prepends this to every call (e.g. `POST {DATAICO_BASE_URL}/invoices`). |
 | `DATAICO_AUTH_TOKEN` | ✅ | Sent as a **custom `Auth-token` header** on every request — not `Authorization: Bearer`, not OAuth. There is no token refresh flow. Get the real value from the Dataico account this store invoices under; never commit it. |
 | `DATAICO_ACCOUNT_ID` | ✅ | Added Phase 10 — the `dataico_account_id` every invoice payload requires, identifying which Dataico account this store invoices under. Stable per deployment, so it's configured once here instead of re-entered on every invoice. |
-| `DATAICO_POS_BASE_URL` | ✅ | Added Phase 12 (POS Electrónico). **Points at a staging/test host, not production** — no production POS URL has been provided yet (see `docs/phases/PHASE_12_POS.md`). Deliberately a separate variable from `DATAICO_BASE_URL` so swapping in the real production URL later needs no code change, and so it can never accidentally make the rest of the API (invoices, resolutions, terceros) point at staging too. |
-| `DATAICO_PAYROLL_BASE_URL` | ✅ | Added Phase 15 (Nómina Electrónica). Same host as `DATAICO_BASE_URL` but a different API path (`payroll-api` instead of `dataico_api`) — a separate variable so the payroll path can change independently. |
+| `INVOICE_NUMBER_START` | ✅ (default `1`) | `InvoicesService` auto-increments the invoice `number` from the highest one already recorded locally for the active resolution's prefix — this variable only seeds the **starting** value, for the one-time gap between the store's real, pre-existing DIAN numbering history and this app's empty local `invoices` table. Not read again once at least one invoice exists locally for that prefix. |
+| `DATAICO_DEBIT_NOTE_PREFIX` | ✅ | Nota débito (see `DebitNotesService`). Unlike invoices, credit/debit notes use Dataico's flexible numbering — no DIAN `resolution_number`, just this store's own prefix. No fallback default: a wrong or missing prefix would produce an invalid legal document. |
+| `DEBIT_NOTE_NUMBER_START` | ✅ (default `1`) | Same seeding role as `INVOICE_NUMBER_START`, scoped to `debit_notes` instead. |
+| `DATAICO_CREDIT_NOTE_PREFIX` | ✅ | Same role as `DATAICO_DEBIT_NOTE_PREFIX`, its own value — see `CreditNotesService`. |
+| `CREDIT_NOTE_NUMBER_START` | ✅ (default `1`) | Same seeding role as `INVOICE_NUMBER_START`, scoped to `credit_notes`. |
+| `DATAICO_PAYROLL_BASE_URL` | ✅ | Added Phase 15 (Nómina Electrónica). Same host as `DATAICO_BASE_URL` but a different API path (`payroll-api` instead of `dataico_api`) — a separate variable so the payroll path can change independently. Payroll is hidden from the client nav for now but its backend/config stay live — see `PROJECT_ROADMAP.md`. |
 
-Further invoicing phases reuse `DATAICO_BASE_URL`/`DATAICO_AUTH_TOKEN`/`DATAICO_ACCOUNT_ID` via the shared `DataicoClientService` unless, like POS and Payroll, they turn out to live on a different host or path — check each phase's own doc rather than assuming.
+Further invoicing phases reuse `DATAICO_BASE_URL`/`DATAICO_AUTH_TOKEN`/`DATAICO_ACCOUNT_ID` via the shared `DataicoClientService` unless, like Payroll, they turn out to live on a different host or path — check each phase's own doc rather than assuming.
+
+`DATAICO_POS_BASE_URL` **was removed** along with the POS Electrónico module (see `PROJECT_ROADMAP.md`) — drop it from any deployed `.env` file; it's no longer read anywhere.
 
 ---
 

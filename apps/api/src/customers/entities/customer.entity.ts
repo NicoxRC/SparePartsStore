@@ -10,6 +10,14 @@ export class Customer extends BaseEntity {
   @Column({ type: 'varchar', length: 50 })
   identification: string;
 
+  @Column({
+    name: 'identification_dv',
+    type: 'varchar',
+    length: 5,
+    nullable: true,
+  })
+  identificationDv: string | null;
+
   @Column({ type: 'varchar', length: 20 })
   partyType: string;
 

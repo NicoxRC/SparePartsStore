@@ -1,6 +1,8 @@
 # Phase 12 — POS Electrónico (Frontend)
 
-**Status: Done.** Confirmed with the human as this store's primary sale flow — most sales are counter sales.
+**Status: Removed (2026-09-15).** Was done and confirmed as this store's primary sale flow, then removed entirely per direct instruction from the human. Kept below as a historical record only — nothing on this page describes the current client. See `PROJECT_ROADMAP.md`'s Phase 12 entry.
+
+Original status line: **Done.** Confirmed with the human as this store's primary sale flow — most sales are counter sales.
 
 ## What shipped
 

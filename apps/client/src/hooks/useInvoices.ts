@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import {
   createInvoice,
+  getInvoice,
   getInvoices,
   refreshInvoiceStatus,
   resendInvoice,
@@ -19,6 +20,14 @@ export function useInvoices(query: InvoicesQuery = {}) {
     queryKey: ['invoices', query],
     queryFn: () => getInvoices(query),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useInvoice(id: string | undefined) {
+  return useQuery({
+    queryKey: ['invoices', id],
+    queryFn: () => getInvoice(id as string),
+    enabled: Boolean(id),
   });
 }
 

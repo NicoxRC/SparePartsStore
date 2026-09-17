@@ -233,25 +233,48 @@ Added Phase 10 — a local record of every invoice sent to Dataico. See `docs/GL
 
 **Business logic (`InvoicesService.resend` / `.refreshStatus`):** both call Dataico (`PUT /invoices/{dataico_uuid}` for resend, `GET /invoices?number=` for refresh) and update the SAME row's status/CUFE/urls via a shared `mapDataicoResponse()` helper — also used by `create` — rather than inserting a new row. See `docs/phases/PHASE_10_INVOICING_STANDARD.md`.
 
-### `pos_invoices`
+### `debit_notes`
 
-Added Phase 12 — a local record of every POS Electrónico document sent to Dataico. Deliberately a **separate table from `invoices`**, not a shared one with a discriminator column — the two document types' confirmed request shapes differ enough (nested item `product` object, array `payment-means`, no `dataico_account_id`/`env`/`operation`, different tax shape) that forcing them into one schema now would mean guessing which parts generalize. See `docs/phases/PHASE_12_POS.md`.
+Added as a follow-up to Phase 10 — a local record of every "nota débito" sent to Dataico: an additional charge against an already-sent invoice (most often a product the original sale missed). See `docs/GLOSSARY.md` ("Nota crédito / Nota débito") and `docs/phases/PHASE_10_INVOICING_STANDARD.md`.
 
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID | PK |
-| `number` | INT | What this app sent. |
-| `prefix`, `resolution_number` | VARCHAR | From the active resolution with `subtype = 'POS'` (see `dian_resolutions` above — same `documentType: invoice`, distinguished by `subtype`). |
-| `customer_type` | VARCHAR | `NATURAL` / `JURIDICA`, confirmed values. |
-| `customer_identification_type`, `customer_identification` | VARCHAR | |
-| `customer_company_name`, `customer_first_name`, `customer_family_name`, `customer_phone` | VARCHAR, nullable | |
-| `customer_email` | VARCHAR | |
-| `issue_date` | DATE | |
-| `dataico_number`, `dian_status`, `cufe`, `dataico_uuid`, `xml_url`, `pdf_url`, `dian_messages` | nullable | **Not confirmed** — no POS response example was ever shared; these mirror the confirmed standard-invoice response's field names as an assumption, see the phase doc. |
-| `total_amount` | NUMERIC(12,2) | Computed client-side from price×quantity plus the same-rate tax this app also sends to Dataico (Dataico is expected to compute its own copy — POS's tax shape only sends the rate, not a base/amount, unlike standard invoicing). |
-| `request_payload`, `response_payload` | JSONB | Same convention as `invoices` — `response_payload` strips `xml` if present. |
+| `number` | INT | What this app sent as the note's own number (caller-supplied, same `MAX()`-read simplification as `invoices.number`). |
+| `prefix` | VARCHAR | This store's own debit-note prefix (`DATAICO_DEBIT_NOTE_PREFIX`) — **not** a `dian_resolutions` prefix: notes use Dataico's flexible numbering, no DIAN `resolution_number` in the confirmed request. |
+| `dataico_number` | VARCHAR, nullable | Dataico's own echoed number, distinct from `number` above (same convention as `invoices.dataico_number`). |
+| `invoice_id` | UUID, FK → `invoices.id`, `RESTRICT` | The invoice this note corrects. Unlike `customers`/`quotations` linking to `invoices`, this table is brand new with no legacy rows to reconcile, so it's a clean, real FK. `RESTRICT` (not `SET NULL`) — a debit note orphaned from its invoice would be meaningless. |
+| `reason` | VARCHAR(30) | Hardcoded `'OTROS'` server-side — the only value confirmed against a real debit-note example; not exposed as a picker. |
+| `issue_date` | DATE | Store's current local day, same "never client-supplied" rule as `invoices.issue_date`. |
+| `dian_status`, `customer_status`, `email_status` | VARCHAR, nullable | **Assumed**, not confirmed — no debit-note response example was shared, only requests. Mirrors `invoices`' response field names since it's the same Dataico document-resource family; first thing to verify once a real note goes through. |
+| `cufe`, `dataico_uuid`, `xml_url`, `pdf_url`, `qr_code`, `dian_messages` | nullable | Same assumption as above. |
+| `total_amount` | NUMERIC(12,2) | Computed at send time from the items actually sent. |
+| `request_payload` | JSONB | The exact body sent to Dataico — same "no child items table" reasoning as `invoices` (see above). |
+| `response_payload` | JSONB, nullable | Minus `xml`, same convention as `invoices`. |
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
-| `created_at`, `updated_at` | TIMESTAMPTZ | Mutable like `invoices` (a future resend/refresh updates in place), not append-only. |
+| `created_at` | TIMESTAMPTZ | **No `updated_at`** — unlike `invoices`, there's no resend/refresh action for notes in this first pass, so nothing updates a row after insert. Add one via a follow-up migration if that changes, same as `AddUpdatedAtToInvoices` did. No `deleted_at` either — a sent note, like a sent invoice, is never soft-deleted. |
+
+**No `customer_*` columns** — unlike `invoices`, this table doesn't duplicate the customer block. `DebitNotesService.create()` reads it straight out of the linked invoice's own stored `request_payload.invoice.customer` instead, guaranteeing it matches what was legally on that invoice rather than risking a caller re-typing it differently.
+
+**Business logic (`DebitNotesService.create`):** loads the target invoice (must have a `dataico_uuid` on file), validates stock for every line item up front (same reasoning as invoices — an accepted note can't be un-sent), sends the confirmed request shape, and — only after Dataico accepts — decrements stock per item via `InventoryService.createMovement`, same connection between invoicing and inventory that `invoices` already has. Gated on `cash_registers` being open today, same as `invoices`/`quotations`.
+
+### `credit_notes`
+
+Added alongside `debit_notes` — a local record of every "nota crédito" sent to Dataico: a return/reduction against an already-sent invoice (a returned product, an overcharge, an error correction). Structurally identical to `debit_notes` (same columns, same reasoning for each), with these differences:
+
+| Column | Difference from `debit_notes` |
+|---|---|
+| `prefix` | This store's own credit-note prefix (`DATAICO_CREDIT_NOTE_PREFIX`), a separate value from the debit-note prefix — both are flexible numbering, no `dian_resolutions` row either way. |
+| `reason` | Hardcoded `'DEVOLUCION'` — the only value confirmed against a real, non-health-contaminated credit note example (the original shared example's `'ANULACION'` came from a health-sector test fixture, not trusted — see `docs/GLOSSARY.md`). |
+| `invoice_id` | Same FK, `RESTRICT` — but note the amount *returns*, not adds, so this is a credit against the invoice's total rather than a further charge. |
+
+**No `customer_*` columns, same as `debit_notes`** — but `CreditNotesService.create()` also reads `payment_means`/`payment_means_type` out of the linked invoice's stored `request_payload.invoice`, plus `payment_date` straight from `invoices.payment_date` (a real column already) — the confirmed credit-note request carries all three, unlike debit notes' confirmed examples, which never included them.
+
+**Business logic (`CreditNotesService.create`):** loads the target invoice (must have a `dataico_uuid` on file), sends the confirmed request shape (item `measuring-unit` is hyphenated here — confirmed from this note type's own example, distinct from `debit_notes`' underscored form), and — only after Dataico accepts — **returns** stock per item via `InventoryService.createMovement` (positive quantity, opposite direction from `debit_notes`). **No stock-sufficiency check** — a credit note only ever adds stock back, so there's nothing to run out of. Gated on `cash_registers` being open today, same as `invoices`/`quotations`/`debit_notes`.
+
+### `pos_invoices` — **removed**
+
+Added Phase 12, **dropped** by the `DropPosInvoices` migration once POS Electrónico stopped being this store's sale flow (see `PROJECT_ROADMAP.md`). It held a local record of every POS Electrónico document sent to Dataico, as its own table separate from `invoices` (the two document types' confirmed request shapes differed too much — nested item `product` object, array `payment-means`, no `dataico_account_id`/`env`/`operation`, different tax shape — to share a schema). Historical shape and rationale stay in `docs/phases/PHASE_12_POS.md`.
 
 ### `customers`
 
@@ -262,6 +285,7 @@ Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap
 | `id` | UUID | PK |
 | `identification_type` | VARCHAR(20) | Free string (not a TS enum, same reasoning as `dian_resolutions.subtype`), uppercased at the DTO layer. |
 | `identification` | VARCHAR(50) | |
+| `identification_dv` | VARCHAR(5), nullable | NIT check digit ("dígito de verificación") — only meaningful when `identification_type = 'NIT'`, free text (not computed/validated server-side). **Local-only**: not part of the confirmed Dataico standard-invoice `customer` payload (see `docs/phases/PHASE_10_INVOICING_STANDARD.md`), so it is never sent to Dataico — stored here purely for this store's own record-keeping/display. |
 | `party_type` | VARCHAR(20) | Canonical values `PERSONA_JURIDICA` / `PERSONA_NATURAL` (the standard-invoice vocabulary), validated with `@IsIn` at the DTO layer — not a DB enum. The POS flow's `NATURAL`/`JURIDICA` values are mapped to/from this only in the frontend; this entity is flow-agnostic. |
 | `company_name` | VARCHAR(255), nullable | |
 | `first_name`, `family_name` | VARCHAR(150), nullable | |
@@ -278,7 +302,9 @@ Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap
 
 **Uniqueness**: partial unique index on `(identification_type, identification) WHERE deleted_at IS NULL` — the same composite technique used elsewhere in this document, enforced at the DB level plus an app-level pre-check in `CustomersService` for a clean `ConflictException` message (see `CODING_STANDARDS.md`'s two-layer pattern).
 
-**Business logic**: this is a standalone local address book, not FK'd from `invoices`/`pos_invoices` — those tables keep their existing denormalized `customer_*` columns untouched (see those tables above; they predate this table and there was nothing to join against at the time). `customers` has no `remove()`/delete endpoint in v1 — nothing references it by FK, so a stale entry costs nothing.
+**Business logic**: this is a standalone local address book, not FK'd from `invoices`/`pos_invoices` — those tables keep their existing denormalized `customer_*` columns untouched (see those tables above; they predate this table and there was nothing to join against at the time). `DELETE /api/customers/:id` (admin-only, same as `products`' delete) soft-removes via `deleted_at` — safe by construction since nothing references this table by FK.
+
+**Purchase history**: `GET /api/customers/:id/history?from=&to=` returns that customer's invoices and quotations, most recent first. Since there's no FK linking either table to `customers` (see above), the match is on `(customer_identification_type, customer_identification)` instead — a customer record whose identification was edited after a sale won't surface that older sale under the new identification. `from`/`to` are inclusive `YYYY-MM-DD` store-calendar days; `invoices.issue_date` (a plain `DATE` column) is compared directly, while `quotations.created_at` (`TIMESTAMPTZ`) is widened to the full Bogotá-day range via `getStoreDayRangeUtc()`. `CustomersModule` imports the `Invoice`/`Quotation` entities directly for this (not `InvoicesModule`/`QuotationsModule`) — same reasoning as `CashRegisterModule`.
 
 ### `payroll_entries`
 
@@ -305,6 +331,67 @@ Added Phase 15 — a local record of every Nómina Electrónica period submitted
 
 **Business logic (`PayrollService.refreshStatus`):** `GET /payroll-entries/{prefix}/{number}` — **path segments, not a query string**, unlike every other confirmed Dataico resource.
 
+### `cash_registers`
+
+Local bookkeeping, **not a Dataico integration** — one row per calendar day the store opens/closes its cash register ("apertura y cierre de caja"). See `docs/GLOSSARY.md` ("Caja").
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `register_date` | DATE | Plain `UNIQUE` index (not the partial/soft-delete-aware kind used elsewhere) — this table has no soft delete and nothing else FKs to it. One row per day, store-wide — not per user/session. |
+| `opened_at` | TIMESTAMPTZ | `NOT NULL` |
+| `opened_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `closed_at` | TIMESTAMPTZ, nullable | `NULL` until closed. **State is derived from `closed_at IS NULL`** — no status enum, same reasoning as `dian_resolutions`/`invoices` not carrying a redundant status column when a timestamp already implies it. |
+| `closed_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `total_amount` | NUMERIC(12,2), nullable | `NULL` until closed. **Auto-computed at close time** as the sum of that day's `invoices.total_amount` — what was actually collected ("recaudado"), never manually entered. |
+| `total_owed` | NUMERIC(12,2), nullable | `NULL` until closed. **Auto-computed at close time** as the sum of that day's `quotations.total_amount` still open (not invoiced/cancelled) — what was handed out on credit and not yet collected ("adeudado"). Deliberately scoped to quotations *created that day*: a quotation opened on a prior day and still unpaid was already counted in that day's own close and never rolls forward — see `docs/GLOSSARY.md` ("Cotización"). |
+
+**No generic `created_at`/`updated_at`, no `deleted_at`** — `opened_at`/`closed_at` already timestamp the row's only two events, and there's no remove endpoint (nothing references this table, and per business rule a closed day is never reopened).
+
+**Business logic (`CashRegisterService`):** `open()` rejects with 409 if today's register already exists (open or closed) — one open/close cycle per day, no reopen flow. `close()` rejects with 404 if nothing was opened today, 409 if already closed; otherwise computes and persists both `total_amount` (collected) and `total_owed` (owed) — two separate figures, deliberately never summed into one "total" (owed isn't money actually in hand). **`assertOpenToday()` gates `InvoicesService.create`/`QuotationsService.create`** — a new invoice or quotation can't be created without an open register for today (400 if none). "Today" and both daily totals are computed against the **store's local calendar day (`America/Bogotá`, fixed UTC-5)**, not server time — see `common/utils/store-date.util.ts` — since Railway runs UTC and a naive UTC "today" would roll the day boundary at 7pm local time. Per-seller detail isn't tracked here; each invoice/quotation already records its own `created_by_id`. Reads `Invoice`/`Quotation` directly (not via `InvoicesService`/`QuotationsService`) for these two aggregates — both of those services depend on this one for the open-register gate, so going through them here would be circular.
+
+### `quotations` / `quotation_items`
+
+Local enhancement (not a numbered roadmap phase, and not a Dataico integration — a "cotización" is store credit: merchandise handed over before the customer pays, never sent to DIAN itself). See `docs/GLOSSARY.md`.
+
+`quotations`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `number` | INT | Local sequence (`MAX(number)+1`, no DIAN resolution/prefix involved — same simplification as `invoices.number`'s fallback path), displayed client-side as `COT-0001`. |
+| `customer_identification_type`, `customer_identification`, `customer_identification_dv`, `customer_party_type`, `customer_tax_level_code`, `customer_regimen`, `customer_company_name`, `customer_first_name`, `customer_family_name`, `customer_country_code`, `customer_department`, `customer_city`, `customer_address_line`, `customer_email`, `customer_phone` | VARCHAR, mostly nullable | Same shape as `invoices`' own `customer_*` columns, denormalized the same way — plus `customer_identification_dv`/`customer_phone`, which `invoices` doesn't persist (Dataico doesn't need them) but a quotation, never sent to Dataico directly, keeps for its own record. |
+| `notes` | TEXT, nullable | |
+| `total_amount` | NUMERIC(12,2) | Cached — recomputed by `QuotationsService` whenever items change. |
+| `invoiced_at` | TIMESTAMPTZ, nullable | |
+| `invoice_id` | UUID, nullable, FK → `invoices.id`, `SET NULL` | |
+| `cancelled_at` | TIMESTAMPTZ, nullable | |
+| `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard, see Conventions |
+
+**No stored status column** — derived from `invoiced_at`/`cancelled_at` (`cancelled_at` set → cancelled; else `invoiced_at` set → invoiced; else open), same reasoning as `cash_registers.closed_at`.
+
+`quotation_items`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `quotation_id` | UUID, FK → `quotations.id`, `CASCADE` | |
+| `product_id` | UUID, FK → `products.id`, `RESTRICT` | |
+| `quantity` | INT | |
+| `tax_rate` | NUMERIC(5,2) | |
+| `discount` | NUMERIC(12,2), nullable | Same "flat COP amount, not a percentage" semantics as `CreateInvoiceItemDto.discount`. |
+| `unit_price` | NUMERIC(12,2) | **The locked price** — a snapshot of `products.sale_price` (gross, IVA-inclusive) taken when this row is created or last touched by an edit, confirmed with the human: the customer keeps the price they were quoted, even if the product's price changes before they come back to pay. |
+| `created_at`, `updated_at` | TIMESTAMPTZ | No soft delete — a row removed by an edit has no further use once the inventory movement it triggered (the real audit trail) is recorded. |
+
+**Business logic (`QuotationsService`):**
+- `create()` — gated on `CashRegisterService.assertOpenToday()` (stock is leaving today, same as a real sale), validates stock for every line up front, decrements it via `InventoryService.createMovement` (one negative movement per line, same helper `InvoicesService` uses), *then* persists the `quotations`/`quotation_items` rows — same fail-before-persisting ordering `InvoicesService.create` uses, and the same accepted partial-failure risk if a movement fails mid-loop.
+- `updateItems()` — only while open. Full-replace: diffs old vs. new items by `product_id`, computes one signed inventory movement per product whose net quantity changed (a lower quantity, or a removed line, returns the difference), validates stock for every net increase up front, then re-snapshots `unit_price` for every line in the new list (an edit is a fresh pricing checkpoint, not just the changed lines).
+- `invoice()` — only while open. Converts to a real `Invoice` via `InvoicesService.create()`, passing each item's locked `unit_price` through `CreateInvoiceItemDto.unitPriceOverride` (an internal-only field, never set by the normal Venta form) and telling `create()` to skip its own stock check/decrement via an internal-only 3rd parameter — required for correctness, not just to avoid double-counting: by invoice time, `products.stock` no longer includes these reserved units at all, so re-running the normal sufficiency check would fail a legitimate sale. Bills either to the quotation's own customer columns or to a caller-supplied override (`InvoiceQuotationDto.customer`, required when `useSameCustomer` is false).
+- `cancel()` — only while open. One positive (return) movement per line, sets `cancelled_at`.
+
+The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" math (`InvoicesService.resolveItems()` and `QuotationsService` both need it) lives in `common/utils/invoice-math.util.ts`'s `computeLineAmounts()`.
+
 ## Migrations (chronological)
 
 | # | Migration | What it did |
@@ -324,26 +411,21 @@ Added Phase 15 — a local record of every Nómina Electrónica period submitted
 | 13 | `CreatePosInvoices` | Phase 12. `pos_invoices` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
 | 14 | `CreatePayrollEntries` | Phase 15. `payroll_entries` table (FK to `users`, index on `created_at DESC`), including `updated_at` from the start. |
 | 15 | `CreateCustomers` | Small enhancement (not a numbered phase). `customers` table (FKs to `users` for both audit columns, partial unique index on `(identification_type, identification)`, indexes on `created_at DESC` and `identification`). Hand-written — no live database was reachable to generate/verify it against, see the note in this migration's PR/commit. |
+| 16 | `DropPosInvoices` | POS Electrónico removal (see `PROJECT_ROADMAP.md`). Drops the `pos_invoices` table. Hand-written, same reason as `CreateCustomers` — no live database reachable to generate against. |
+| 17 | `CreateCashRegisters` | Local enhancement (not a numbered phase). `cash_registers` table (FKs to `users` for `opened_by`/`closed_by`, plain unique index on `register_date`). Generated against a live local DB and reviewed before committing — see `DATABASE.md`'s migration workflow. |
+| 18 | `AddIdentificationDvToCustomers` | Local enhancement (not a numbered phase). Adds `customers.identification_dv VARCHAR(5)`, nullable — NIT check digit, local-only (see `customers` above). Hand-written, same reason as `CreateCashRegisters`/`DropPosInvoices` — the raw `migration:generate` diff against the live local DB included unrelated drift across every other table (stale `created_at`/`updated_at` column types, FK constraint churn), discarded in favor of a minimal hand-written `ALTER TABLE`. |
+| 19 | `CreateQuotations` | Local enhancement (not a numbered phase). `quotations` and `quotation_items` tables (FKs to `invoices`/`users`/`products`, index on `quotations.created_at DESC` and `quotation_items.quotation_id`). Hand-written, same reason as the two migrations above — the raw `migration:generate` diff against the live local DB included the same unrelated drift across every other table. |
+| 20 | `AddTotalOwedToCashRegisters` | Local enhancement (not a numbered phase). Adds `cash_registers.total_owed NUMERIC(12,2)`, nullable — the day's still-open-quotations total, alongside the existing `total_amount` (collected). Hand-written, same reason as the migrations above. |
+| 21 | `CreateDebitNotes` | Phase 10 follow-up. `debit_notes` table (FK to `invoices` `RESTRICT`, FK to `users` for the audit column, indexes on `created_at DESC` and `invoice_id`). Hand-written, same reason as the migrations above — the raw `migration:generate` diff against the live local DB included the same unrelated drift across every other table. |
+| 22 | `CreateCreditNotes` | Phase 10 follow-up, alongside `debit_notes`. `credit_notes` table — identical shape (FK to `invoices` `RESTRICT`, FK to `users`, indexes on `created_at DESC` and `invoice_id`). Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 
 **Migration workflow:** `npm run migration:generate -- src/database/migrations/<Name>` after changing an entity, review the generated SQL before committing it, `npm run migration:run` locally to apply, `npm run migration:revert` to undo the last one. `synchronize: false` always — schema changes only ever happen through a migration, never TypeORM auto-sync.
 
-## Remaining invoicing tables (Dataico) — not implemented yet
+## Remaining invoicing tables (Dataico)
 
-`dian_resolutions` (Phase 8) and `invoices` (Phase 10, send-only) are done. Still missing: credit notes, debit notes, and any status-refresh/reception-event table (Phase 11) — their request/response shapes aren't confirmed yet.
-
-**Do not design this schema from guesswork.** The exact fields depend on what each Dataico endpoint actually requires/returns, confirmed per-module as its reference is shared (see `CLAUDE.md`). Run the Architect agent for each invoicing phase once that reference is available.
-
-**Partial exception — Phase 10's "Envío Factura" request is already confirmed** (recorded in full in `docs/phases/PHASE_10_INVOICING_STANDARD.md`), which is enough to sketch — **not implement** — a rough shape for an eventual `invoices` table:
-
-- `id`, `product`/audit columns following this document's usual conventions
-- `dataico_number`, `dataico_account_id`, `resolution_number`, `prefix` — mirroring the confirmed request's `invoice.number`/`dataico_account_id`/`numbering.*`
-- `customer_*` fields mirroring the confirmed `invoice.customer.*` block, or a FK to a `third_parties`/`customers` table once Phase 9 (Consulta DIAN Terceros) confirms whether lookups get persisted locally
-- `status`, `cufe`, `dian_response` — **not yet confirmed**, since only the request side of "Envío Factura" has been shared, not its response shape
-- Line items as a child table (`invoice_items`) mirroring `invoice.items[]` (`sku`, `quantity`, `description`, `price`, `discount_rate`, plus a nested taxes shape) — `sku` likely maps to `products.reference`
-
-This is a sketch to save re-deriving the same information later, not a migration to write now — Phase 10 hasn't started (it comes after Phases 8 and 9, per `PROJECT_ROADMAP.md`), and the response shape, resend/query/credit-note/debit-note requests, and full enum value lists are still unconfirmed (see that phase doc's "Still not confirmed" section).
+`dian_resolutions` (Phase 8), `invoices` (Phase 10), `debit_notes`, and `credit_notes` (both Phase 10 follow-ups) are all done — see their own sections above. The only remaining Dataico collection ("6. Eventos de recepción" — a status-refresh/reception-event table, Phase 11) is **confirmed out of scope**, not pending — see `PROJECT_ROADMAP.md`.
 
 ## Related documents
 

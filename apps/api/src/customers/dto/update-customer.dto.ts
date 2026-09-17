@@ -26,6 +26,15 @@ export class UpdateCustomerDto {
   identification?: string;
 
   @ApiPropertyOptional({
+    example: '7',
+    description:
+      'Dígito de verificación — solo aplica para identificationType NIT.',
+  })
+  @IsOptional()
+  @IsString()
+  identificationDv?: string;
+
+  @ApiPropertyOptional({
     example: 'PERSONA_JURIDICA',
     enum: ['PERSONA_JURIDICA', 'PERSONA_NATURAL'],
   })

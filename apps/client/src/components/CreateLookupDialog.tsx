@@ -6,6 +6,7 @@ import { Button } from './Button';
 import { TextField } from './TextField';
 import { useCreateLookup } from '../hooks/useLookups';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import {
   lookupFormSchema,
   type LookupFormInput,
@@ -58,6 +59,7 @@ export function CreateLookupDialog({
             e.stopPropagation();
             void handleSubmit(onSubmit)(e);
           }}
+          onKeyDown={handleEnterAsTab}
           className="mt-3 flex flex-col gap-3"
           noValidate
         >

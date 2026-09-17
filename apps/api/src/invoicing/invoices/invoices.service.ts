@@ -3,16 +3,21 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-document-type.enum';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { computeLineAmounts } from '../../common/utils/invoice-math.util';
+import { getStoreToday } from '../../common/utils/store-date.util';
+import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
 import { InventoryService } from '../../inventory/inventory.service';
 import { Product } from '../../products/entities/product.entity';
 import { ProductsService } from '../../products/products.service';
 import { DataicoClientService } from '../dataico/dataico-client.service';
 import { DataicoConfig } from '../dataico/dataico.config';
+import { toDataicoDate } from '../dataico/dataico-date.util';
 import { ResolutionsService } from '../resolutions/resolutions.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
@@ -40,6 +45,8 @@ interface ResolvedItem {
   product: Product;
   quantity: number;
   taxRate: number;
+  /** Already net of any per-line discount — see resolveItems(). */
+  unitPrice: number;
   taxBase: number;
   taxAmount: number;
 }
@@ -54,12 +61,27 @@ export class InvoicesService {
     private readonly resolutionsService: ResolutionsService,
     private readonly productsService: ProductsService,
     private readonly inventoryService: InventoryService,
+    private readonly cashRegisterService: CashRegisterService,
+    private readonly configService: ConfigService,
   ) {}
 
+  /**
+   * `skipInventoryEffects` is internal-only — never set by the public
+   * controller. QuotationsService.invoice() sets it when converting an
+   * already-decremented quotation into an invoice: the stock for those
+   * items left the store when the quotation itself was created/edited,
+   * so both the sufficiency check AND the decrement below would be wrong
+   * to run a second time here (by now `product.stock` no longer includes
+   * those reserved units at all, so a plain sufficiency check would fail
+   * a perfectly legitimate sale).
+   */
   async create(
     dto: CreateInvoiceDto,
     createdById: string,
+    options: { skipInventoryEffects?: boolean } = {},
   ): Promise<InvoiceResponseDto> {
+    await this.cashRegisterService.assertOpenToday();
+
     const resolution = await this.resolutionsService.findActiveForDocumentType(
       DianResolutionDocumentType.INVOICE,
     );
@@ -69,7 +91,15 @@ export class InvoicesService {
       );
     }
 
-    const items = await this.resolveItems(dto);
+    const items = await this.resolveItems(dto, options.skipInventoryEffects);
+
+    // "Todos son para el mismo día" — issueDate is never client-supplied,
+    // it's always the store's current local (Bogotá) day, the same day
+    // gated by the open cash register (see assertOpenToday() above).
+    const issueDate = getStoreToday();
+    // Only relevant when paying on credit — otherwise it's the same day.
+    const paymentDate = dto.paymentDate ?? issueDate;
+    const number = await this.resolveNextNumber(resolution.prefix);
 
     const requestPayload = {
       actions: { send_dian: true, send_email: false },
@@ -78,12 +108,12 @@ export class InvoicesService {
         dataico_account_id: this.dataicoConfig.accountId,
         operation: 'ESTANDAR',
         invoice_type_code: 'FACTURA_VENTA',
-        issue_date: this.toDataicoDate(dto.issueDate),
-        order_reference: dto.orderReference ?? '',
-        number: dto.number,
+        issue_date: toDataicoDate(issueDate),
+        order_reference: '',
+        number,
         payment_means: dto.paymentMeans,
         payment_means_type: dto.paymentMeansType,
-        payment_date: this.toDataicoDate(dto.paymentDate),
+        payment_date: toDataicoDate(paymentDate),
         numbering: {
           resolution_number: resolution.resolutionNumber,
           prefix: resolution.prefix,
@@ -109,7 +139,7 @@ export class InvoicesService {
           measuring_unit: '94',
           quantity: item.quantity,
           description: item.product.description,
-          price: Number(item.product.salePrice),
+          price: item.unitPrice,
           taxes: [
             {
               tax_category: 'IVA',
@@ -131,18 +161,21 @@ export class InvoicesService {
 
     // Only decrement stock once Dataico has actually accepted the invoice —
     // see the module-level note on known limitations if this step or the
-    // save below fails after Dataico already succeeded.
-    for (const item of items) {
-      const movementDto: CreateMovementDto = {
-        productId: item.product.id,
-        quantity: -item.quantity,
-        notes: `Venta - Factura ${resolution.prefix}${dto.number}`,
-      };
-      await this.inventoryService.createMovement(movementDto, createdById);
+    // save below fails after Dataico already succeeded. Skipped entirely
+    // when converting a quotation — see create()'s docstring.
+    if (!options.skipInventoryEffects) {
+      for (const item of items) {
+        const movementDto: CreateMovementDto = {
+          productId: item.product.id,
+          quantity: -item.quantity,
+          notes: `Venta - Factura ${resolution.prefix}${number}`,
+        };
+        await this.inventoryService.createMovement(movementDto, createdById);
+      }
     }
 
     const invoice = this.invoicesRepository.create({
-      number: dto.number,
+      number,
       prefix: resolution.prefix,
       resolutionNumber: resolution.resolutionNumber,
       customerIdentificationType: dto.customerIdentificationType,
@@ -151,8 +184,8 @@ export class InvoicesService {
       customerFirstName: dto.customerFirstName ?? null,
       customerFamilyName: dto.customerFamilyName ?? null,
       customerEmail: dto.customerEmail,
-      issueDate: dto.issueDate,
-      paymentDate: dto.paymentDate,
+      issueDate,
+      paymentDate,
       totalAmount: items.reduce(
         (sum, item) => sum + item.taxBase + item.taxAmount,
         0,
@@ -282,26 +315,56 @@ export class InvoicesService {
    * up front (before calling Dataico) — a legally-sent invoice can't be
    * un-sent, so it's better to fail here than after DIAN has accepted a
    * sale this store can't actually fulfill.
+   *
+   * `product.salePrice` is confirmed to already include IVA (it's the
+   * price the store actually sells at) — `taxRate: 0` on a line is only
+   * the flag for the "excluida"/exenta label, not a separate calculation.
+   * DIAN invoices report price/tax_base as the pre-tax amount with
+   * tax_amount broken out separately, so salePrice is first "unwrapped"
+   * back to its pre-tax equivalent before anything else happens.
+   *
+   * A fixed per-line discount (a flat COP amount, not a percentage) is
+   * then subtracted from that pre-tax subtotal, before IVA is computed —
+   * confirmed directly: the discount comes off the base, IVA is then
+   * calculated on the already-discounted amount. The discounted amount is
+   * folded back into a per-unit `unitPrice` (rather than kept as a
+   * separate figure) so `price × quantity` on the actual invoice always
+   * equals the discounted total — Dataico never sees a "discount" field,
+   * only the already-final numbers, per direct instruction.
+   *
+   * `itemDto.unitPriceOverride`, when present, replaces `product.salePrice`
+   * as the gross (IVA-inclusive) starting price — used by
+   * QuotationsService.invoice() to honor a quotation's locked-in price
+   * instead of the product's current one. `skipStockCheck` is set by the
+   * same caller for the same reason — see create()'s docstring.
    */
-  private async resolveItems(dto: CreateInvoiceDto): Promise<ResolvedItem[]> {
+  private async resolveItems(
+    dto: CreateInvoiceDto,
+    skipStockCheck = false,
+  ): Promise<ResolvedItem[]> {
     return Promise.all(
       dto.items.map(async (itemDto) => {
         const product = await this.productsService.findOne(itemDto.productId);
-        if (product.stock < itemDto.quantity) {
+        if (!skipStockCheck && product.stock < itemDto.quantity) {
           throw new BadRequestException(
             `Stock insuficiente para ${product.reference}. Stock actual: ${product.stock}, solicitado: ${itemDto.quantity}.`,
           );
         }
 
-        const taxBase = Math.round(
-          Number(product.salePrice) * itemDto.quantity,
+        const grossUnitPrice =
+          itemDto.unitPriceOverride ?? Number(product.salePrice);
+        const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
+          grossUnitPrice,
+          itemDto.quantity,
+          itemDto.taxRate,
+          itemDto.discount ?? 0,
         );
-        const taxAmount = Math.round(taxBase * (itemDto.taxRate / 100));
 
         return {
           product,
           quantity: itemDto.quantity,
           taxRate: itemDto.taxRate,
+          unitPrice,
           taxBase,
           taxAmount,
         };
@@ -309,9 +372,28 @@ export class InvoicesService {
     );
   }
 
-  /** ISO 'YYYY-MM-DD' -> Dataico's confirmed 'DD/MM/YYYY' format. */
-  private toDataicoDate(isoDate: string): string {
-    const [year, month, day] = isoDate.slice(0, 10).split('-');
-    return `${day}/${month}/${year}`;
+  /**
+   * Auto-increments the invoice number, scoped to the resolution's prefix
+   * (a DIAN resolution's numbering range is per-prefix). Not client-supplied
+   * anymore — continues from the highest number already recorded locally
+   * for this prefix, or from `INVOICE_NUMBER_START` if nothing has been
+   * recorded yet (the store already has invoices issued before this app's
+   * local history starts, so the real sequence can't be inferred from an
+   * empty table). No dedicated counter table — this app is the only writer
+   * of `invoices.number`, and at this store's scale a simple `MAX()` read
+   * is an acceptable simplification over a fully race-proof counter.
+   */
+  private async resolveNextNumber(prefix: string): Promise<number> {
+    const result = await this.invoicesRepository
+      .createQueryBuilder('invoice')
+      .select('MAX(invoice.number)', 'max')
+      .where('invoice.prefix = :prefix', { prefix })
+      .getRawOne<{ max: string | null }>();
+
+    if (result?.max) {
+      return Number(result.max) + 1;
+    }
+
+    return Number(this.configService.get<string>('INVOICE_NUMBER_START', '1'));
   }
 }

@@ -27,15 +27,14 @@ export interface CreateInvoiceItemInput {
   productId: string;
   quantity: number;
   taxRate: number;
+  /** Fixed COP amount, not a percentage — see CreateInvoiceItemDto. */
+  discount?: number;
 }
 
 export interface CreateInvoiceInput {
-  number: number;
-  issueDate: string;
-  paymentDate: string;
+  paymentDate?: string;
   paymentMeans: string;
   paymentMeansType: string;
-  orderReference?: string;
   customerIdentificationType: string;
   customerIdentification: string;
   customerPartyType: string;
@@ -60,6 +59,11 @@ export async function getInvoices(
     '/invoicing/invoices',
     { params: query },
   );
+  return data;
+}
+
+export async function getInvoice(id: string): Promise<InvoiceResponse> {
+  const { data } = await api.get<InvoiceResponse>(`/invoicing/invoices/${id}`);
   return data;
 }
 

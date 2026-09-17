@@ -57,6 +57,8 @@ apps/api/src/
 │
 ├── customers/                           # local customer address book (not Dataico — no HTTP calls), reusable across sales
 │
+├── cash-register/                       # daily "apertura/cierre de caja" (not Dataico — no HTTP calls). Gates InvoicesService.create via assertOpenToday(); reads Invoice's repository directly (not InvoicesModule) to avoid a circular module dependency — see DATABASE.md ("cash_registers") and GLOSSARY.md ("Caja")
+│
 ├── inventory/
 │   ├── inventory.controller.ts
 │   ├── inventory.service.ts
@@ -67,6 +69,8 @@ apps/api/src/
 │   └── export.service.ts               # legacy Sisco .xlsx export — being retired, see PROJECT_ROADMAP.md
 │
 ├── invoicing/                           # NEW — Dataico integration, see "Invoicing module" below
+│
+├── quotations/                          # "cotizaciones" — store credit handed over before payment (not Dataico — no HTTP calls of its own). Decrements inventory on create/edit like a real sale; converts into a real Invoice via InvoicesModule (imported here) with an internal-only skip-stock-effects flag — see DATABASE.md ("quotations") and GLOSSARY.md ("Cotización")
 │
 ├── common/
 │   ├── decorators/                      # @Roles(), @Public(), @SkipPasswordCheck(), @CurrentUser()
@@ -128,19 +132,21 @@ apps/api/src/invoicing/
 ├── invoicing.module.ts
 ├── dataico/                             # built in Phase 7 — see docs/phases/PHASE_7_DATAICO_FOUNDATION.md
 │   ├── dataico.module.ts               # exports DataicoClientService — sub-domain modules import THIS, not InvoicingModule (avoids a circular dependency)
-│   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this. Auth is a custom `Auth-token` header, not Bearer/OAuth. `get`/`post`/`put` accept an optional per-call base URL override (added for Phase 12/POS, which lives on a different host).
+│   ├── dataico-client.service.ts       # low-level authenticated HTTP client — every sub-domain injects this. Auth is a custom `Auth-token` header, not Bearer/OAuth. `get`/`post`/`put` accept an optional per-call base URL override (used by payroll, which lives on a different path).
 │   ├── dataico.config.ts               # typed config (DATAICO_BASE_URL, DATAICO_AUTH_TOKEN) via ConfigService
 │   └── dataico-api.exception.ts        # maps a non-2xx Dataico response to a clear NestJS exception
 ├── resolutions/                        # built in Phase 8 — "8. Actualizar o vincular resoluciones"
 ├── third-parties/                      # built in Phase 9 — "7. Consulta DIAN Terceros"
 ├── invoices/                           # built in Phase 10 (send/resend/query) — "1. Factura electrónica estándar" (notas crédito/débito blocked/deferred, see that phase doc)
-├── pos/                                # built in Phase 12 (send/query) — "3. POS Electrónico". Uses DataicoConfig.posBaseUrl (staging only — no production URL yet), a separate host from the rest of this integration.
 ├── support-documents/                  # "4. Documento soporte" — Phase 13, priority still unconfirmed
-└── payroll/                            # built in Phase 15 (send/query) — "5. Nómina Electrónica". Uses DataicoConfig.payrollBaseUrl (same host as standard invoicing, different API path). Pass-through only — not this app's source of truth for payroll, see docs/phases/PHASE_15_PAYROLL.md.
+└── payroll/                            # built in Phase 15 (send/query) — "5. Nómina Electrónica". Uses DataicoConfig.payrollBaseUrl (same host as standard invoicing, different API path). Pass-through only — not this app's source of truth for payroll, see docs/phases/PHASE_15_PAYROLL.md. Backend fully intact but currently hidden from the client nav — see PROJECT_ROADMAP.md.
 
 # Not planned — confirmed out of scope, see PROJECT_ROADMAP.md:
 #   "6. Eventos de recepción"        — acknowledging invoices FROM suppliers, not relevant to an issuer
 #   "2. Factura electrónica sector salud" — not a healthcare business
+
+# Removed — see PROJECT_ROADMAP.md:
+#   "3. POS Electrónico" (pos/)      — built in Phase 12, removed: no longer this store's sale flow
 ```
 
 Only build the sub-folders for the phase actually in progress — this tree is the target shape, not something to scaffold all at once. **Never guess a sub-domain's endpoint paths or payload shape before its Dataico reference has been shared** — see `CLAUDE.md`.
@@ -158,7 +164,7 @@ apps/client/src/
 ├── pages/            # route-level components (ProductsListPage, InventoryPage, LoginPage, ...)
 ├── components/        # reusable UI (BarcodeScannerModal, SearchableSelect, cards, modals)
 ├── layouts/           # AuthLayout, AuthenticatedLayout
-├── context/           # AuthContext (auth-context.ts + AuthContext.tsx), route guards
+├── context/           # AuthContext, InvoiceDraftsContext (each split into a plain -context.ts + a *Context.tsx provider, for Fast Refresh), route guards
 ├── hooks/             # TanStack Query hooks, one file per domain (useProducts, useInventory, ...)
 ├── services/          # axios wrappers per domain, calling `${VITE_API_URL}/api/...`
 ├── lib/
@@ -184,6 +190,10 @@ A mutation invalidates the relevant query key(s) on success — e.g. `useCreateM
 ### Routing and role guards
 
 `react-router-dom`. Everything except `/login` sits behind `ProtectedRoute` (must be authenticated; also enforces the forced-password-change redirect both ways). `AdminRoute` restricts to `role: 'admin'`; `EmployeeRoute` blocks only `auditor` (admin and employee both pass). See `GLOSSARY.md` for what each role can do.
+
+### Cross-route state that must survive navigation — Context above the router, not per-page state
+
+Most page state is local to that page's component and is fine to lose on navigation. `InvoiceDraftsProvider` (`context/InvoiceDraftsContext.tsx`) is the one exception so far: several invoice drafts can be in progress at once (more than one customer at the counter), and switching between them — or navigating away to Productos/Inventario/etc. and back — must not lose any of them. It's mounted above `<Routes>` in `App.tsx` (so it never unmounts on a route change) and also mirrors its state to `localStorage`, so an accidental refresh doesn't lose it either. `InvoiceFormPage` reads/writes into it via `useInvoiceDrafts()` instead of owning its own top-level form state; see that page for the pattern (a `key={activeDraft.id}` remount to re-seed `react-hook-form` when switching drafts, with a `watch()` subscription syncing changes back into the store). Reach for this pattern only when a page's state genuinely needs to survive leaving that page — most pages don't.
 
 ### Auth token handling
 

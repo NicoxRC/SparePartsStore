@@ -155,7 +155,7 @@ export function SearchableSelect({
           }}
           onKeyDown={handleKeyDown}
           className={`min-h-12 w-full rounded-sm border bg-white px-4 py-3 pr-9 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink disabled:bg-canvas disabled:text-fog sm:min-h-11 sm:py-2.5 sm:text-sm ${
-            error ? 'border-rust' : 'border-line'
+            error ? 'border-rust' : 'border-line-2'
           }`}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? `${fieldId}-error` : undefined}

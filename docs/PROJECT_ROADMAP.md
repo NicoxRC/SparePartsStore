@@ -66,11 +66,11 @@ Shared plumbing every invoicing phase depends on, so it's built once instead of 
 
 Corresponds to Dataico's "6. Eventos de recepción" collection. Turned out, once its real request list was seen (Acuse de recibido, Aceptación Tácita/Expresa, Rechazo, Recibido de prestación), to be entirely about acting as the **receiving** party of an invoice — acknowledging/accepting/rejecting a bill a *supplier* sends this store — not a status-callback mechanism for invoices this store issues. Confirmed with the human this isn't a current need (Phase 10's "Consulta Factura" already covers checking this store's own issued-invoice status). See `docs/phases/PHASE_11_RECEPTION_EVENTS.md`.
 
-## Phase 12 — POS Electrónico — **Done** (send + query)
+## Phase 12 — POS Electrónico — **Removed**
 
-Corresponds to Dataico's "3. POS Electrónico" collection. **Confirmed as this store's primary sale flow** — most sales are counter sales, so this is the document type staff use most, ahead of Phase 10's full invoice form in the nav. See `docs/phases/PHASE_12_POS.md` — reference confirmed only against staging/gamma test environments, no production URL yet; response shape unconfirmed (mapped as a documented assumption).
+Corresponds to Dataico's "3. POS Electrónico" collection. Was built and confirmed as this store's primary sale flow, then **removed entirely** on 2026-09-15 per direct instruction from the human — the store no longer uses POS as a sale channel; standard invoicing (Phase 10) is the only channel now. Removal was full, including historical data: `PosInvoicesService`, its routes, the `pos_invoices` table (dropped via the `DropPosInvoices` migration), and the client pages/nav entry are all gone. See `docs/phases/PHASE_12_POS.md` for the historical record of what was built (kept for reference, same as `PHASE_6_SISCO_EXPORT.md`), and `docs/DATABASE.md`/`docs/ARCHITECTURE.md` for what changed.
 
-**Exit criteria:** a counter sale can be issued as a POS Electrónico document, as fast or faster than the full-invoice flow *(met, pending confirmation against a real Dataico response once available)*.
+**Exit criteria:** n/a — superseded by removal.
 
 ## Phase 13 — Documento soporte
 
@@ -82,9 +82,11 @@ Once Phase 10 (or whichever invoicing phase first reaches production use) is liv
 
 **Exit criteria:** `export` module deleted, its route gone, `docs/ARCHITECTURE.md`/`DATABASE.md` updated to drop references to it as current, not just historical.
 
-## Phase 15 — Nómina Electrónica — **Done** (send + query)
+## Phase 15 — Nómina Electrónica — **Done, currently hidden from the client nav**
 
 Corresponds to Dataico's "5. Nómina Electrónica" collection. **Reclassified from "out of scope" after asking the human directly**: this store has formal employees, and DIAN requires electronic payroll reporting for any business with formal employees — this isn't a nice-to-have, it's a compliance obligation independent of the customer-facing invoicing pivot. Confirmed scope: this app is a pass-through only (submits already-calculated figures), not the source of truth for payroll. See `docs/phases/PHASE_15_PAYROLL.md`.
+
+As of 2026-09-15: **not currently in use, but expected back** — per the human, hidden from the client nav rather than removed. Backend (`PayrollService`, routes, `payroll_entries` table, `DATAICO_PAYROLL_BASE_URL`) and the client pages/routes are all untouched; only the `AuthenticatedLayout` nav entry was taken out. Re-enabling is just adding that nav entry back.
 
 **Exit criteria:** this store's payroll can be reported to DIAN electronically through Dataico, meeting the legal requirement. *(met — batch submission and resend deliberately deferred, see the phase doc)*
 

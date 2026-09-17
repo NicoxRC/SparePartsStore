@@ -85,13 +85,13 @@ describe('DataicoClientService', () => {
     });
 
     await service.post(
-      '/pos-invoices',
+      '/payroll-entries',
       { number: 1 },
-      'https://staging.dataico.com/direct/dataico_api/v2',
+      'https://api.dataico.com/direct/payroll-api/v2',
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://staging.dataico.com/direct/dataico_api/v2/pos-invoices',
+      'https://api.dataico.com/direct/payroll-api/v2/payroll-entries',
       expect.anything(),
     );
   });
