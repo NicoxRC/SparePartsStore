@@ -8,6 +8,7 @@
   --color-steel: #4b5160; /* secondary text */
   --color-fog: #8b92a0; /* tertiary/meta text, placeholders */
   --color-line: #dcdfe3; /* borders, dividers */
+  --color-line-2: #adb3bd; /* stronger border for interactive form controls — border-line is too close to canvas to read as an edge */
   --color-mist: #e8e7e3; /* hover background on light surfaces */
   --color-canvas: #f1f0ed; /* page background */
 

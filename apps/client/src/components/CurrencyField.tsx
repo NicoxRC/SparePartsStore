@@ -46,7 +46,7 @@ export function CurrencyField({
         onBlur={onBlur}
         placeholder={placeholder}
         className={`min-h-12 w-full rounded-sm border px-4 py-3 font-mono text-base text-gray-900 placeholder:text-gray-400 placeholder:font-sans focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:min-h-11 sm:py-2.5 sm:text-sm ${
-          error ? 'border-rust' : 'border-line'
+          error ? 'border-rust' : 'border-line-2'
         }`}
         aria-invalid={Boolean(error)}
         aria-describedby={error ? `${fieldId}-error` : undefined}
