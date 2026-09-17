@@ -168,6 +168,57 @@ describe('QuotationsService', () => {
     );
   });
 
+  describe('findAll', () => {
+    it('returns paginated results with meta built from the total count', async () => {
+      queryBuilder.getManyAndCount.mockResolvedValue([[openQuotation()], 1]);
+
+      const result = await service.findAll({ page: 1, limit: 20 });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.meta).toEqual({
+        total: 1,
+        page: 1,
+        limit: 20,
+        totalPages: 1,
+      });
+      expect(queryBuilder.andWhere).not.toHaveBeenCalled();
+    });
+
+    it('filters by status', async () => {
+      await service.findAll({ page: 1, limit: 20, status: 'open' });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.invoicedAt IS NULL AND quotation.cancelledAt IS NULL',
+      );
+    });
+
+    it('escapes and wraps the search term for ILIKE matching', async () => {
+      await service.findAll({ page: 1, limit: 20, search: '50%_off' });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE :search'),
+        { search: '%50\\%\\_off%' },
+      );
+    });
+
+    it('combines status and search filters', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 20,
+        status: 'invoiced',
+        search: 'ACME',
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.invoicedAt IS NOT NULL',
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE :search'),
+        { search: '%ACME%' },
+      );
+    });
+  });
+
   describe('create', () => {
     it('rejects when there is no open cash register for today, without touching stock', async () => {
       cashRegisterService.assertOpenToday.mockRejectedValue(

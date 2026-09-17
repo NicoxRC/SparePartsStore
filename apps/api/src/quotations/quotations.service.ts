@@ -7,6 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CashRegisterService } from '../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { escapeLike } from '../common/utils/escape-like.util';
 import { computeLineAmounts } from '../common/utils/invoice-math.util';
 import { InventoryService } from '../inventory/inventory.service';
 import { CreateInvoiceDto } from '../invoicing/invoices/dto/create-invoice.dto';
@@ -112,6 +113,17 @@ export class QuotationsService {
       qb.andWhere('quotation.invoicedAt IS NOT NULL');
     } else if (query.status === 'cancelled') {
       qb.andWhere('quotation.cancelledAt IS NOT NULL');
+    }
+
+    if (query.search) {
+      qb.andWhere(
+        `(CAST(quotation.number AS TEXT) ILIKE :search ESCAPE '\\' OR
+          quotation.customerCompanyName ILIKE :search ESCAPE '\\' OR
+          quotation.customerFirstName ILIKE :search ESCAPE '\\' OR
+          quotation.customerFamilyName ILIKE :search ESCAPE '\\' OR
+          quotation.customerIdentification ILIKE :search ESCAPE '\\')`,
+        { search: `%${escapeLike(query.search)}%` },
+      );
     }
 
     const [quotations, total] = await qb
