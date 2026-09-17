@@ -81,6 +81,16 @@ export function IconStamp(props: IconProps) {
   );
 }
 
+export function IconCashRegister(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3" y="6" width="18" height="13" rx="1.5" />
+      <circle cx="12" cy="12.5" r="2.5" />
+      <path d="M7 6V4.5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1V6" />
+    </svg>
+  );
+}
+
 export function IconIdCard(props: IconProps) {
   return (
     <svg {...base} {...props}>

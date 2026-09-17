@@ -3,6 +3,7 @@ import logo from '../assets/logo.png';
 import {
   IconBox,
   IconCart,
+  IconCashRegister,
   IconContact,
   IconIdCard,
   IconLayers,
@@ -32,6 +33,7 @@ export function AuthenticatedLayout() {
           { to: '/users', label: 'Usuarios', Icon: IconUsers },
           { to: '/catalogs', label: 'Catálogos', Icon: IconTag },
           { to: '/invoicing/resolutions', label: 'Resoluciones DIAN', Icon: IconStamp },
+          { to: '/cash-register/history', label: 'Caja', Icon: IconCashRegister },
           // Nómina electrónica: not removed, just off the nav — not in use
           // for now but expected back later. Route/page/backend stay intact
           // at /invoicing/payroll-entries; restoring access is just adding

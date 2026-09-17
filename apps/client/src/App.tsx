@@ -29,6 +29,7 @@ import { QuotationDetailPage } from './pages/QuotationDetailPage';
 import { QuotationsListPage } from './pages/QuotationsListPage';
 import { ResolutionFormPage } from './pages/ResolutionFormPage';
 import { ResolutionsListPage } from './pages/ResolutionsListPage';
+import { CashRegisterHistoryPage } from './pages/CashRegisterHistoryPage';
 import { UserFormPage } from './pages/UserFormPage';
 import { UsersListPage } from './pages/UsersListPage';
 
@@ -86,6 +87,11 @@ function App() {
                   <Route path="/users/:id/edit" element={<UserFormPage />} />
 
                   <Route path="/catalogs" element={<CatalogsPage />} />
+
+                  <Route
+                    path="/cash-register/history"
+                    element={<CashRegisterHistoryPage />}
+                  />
 
                   <Route
                     path="/invoicing/resolutions"

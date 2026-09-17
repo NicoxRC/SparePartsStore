@@ -10,6 +10,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CashMovementDialog } from '../components/CashMovementDialog';
 import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { QuickCreateProductDialog } from '../components/QuickCreateProductDialog';
@@ -840,6 +841,8 @@ export function InvoiceFormPage() {
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+  const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
+  const [openingAmount, setOpeningAmount] = useState('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
 
@@ -856,12 +859,35 @@ export function InvoiceFormPage() {
   }
 
   if (!cashRegisterQuery.data.isOpen) {
+    const parsedOpeningAmount = parseFloat(openingAmount);
+    const isValidOpeningAmount = !isNaN(parsedOpeningAmount) && parsedOpeningAmount >= 0;
+    const previousClosingCash = cashRegisterQuery.data.previousClosingCash;
+
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
         <h1 className="text-xl font-bold tracking-tight text-ink">Caja cerrada</h1>
         <p className="text-sm text-steel">
-          La caja no está abierta hoy. Ábrela para poder facturar.
+          La caja no está abierta hoy. Cuenta el efectivo en caja y ábrela para poder facturar.
         </p>
+        <div className="flex w-full flex-col gap-1.5 text-left">
+          <label htmlFor="opening-amount" className="text-sm font-medium text-steel">
+            Efectivo en caja ahora (base)
+          </label>
+          <input
+            id="opening-amount"
+            type="number"
+            inputMode="decimal"
+            min={0}
+            placeholder={
+              previousClosingCash !== null
+                ? `Ayer quedaron $${previousClosingCash.toLocaleString('es-CO')}`
+                : 'Ej: 50000'
+            }
+            value={openingAmount}
+            onChange={(e) => setOpeningAmount(e.target.value)}
+            className="min-h-12 w-full rounded-sm border border-line bg-white px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
+          />
+        </div>
         {openCashRegisterMutation.isError && (
           <Alert variant="error">
             {getApiErrorMessage(openCashRegisterMutation.error)}
@@ -870,7 +896,8 @@ export function InvoiceFormPage() {
         <Button
           className="sm:w-auto sm:px-6"
           isLoading={openCashRegisterMutation.isPending}
-          onClick={() => void openCashRegisterMutation.mutateAsync()}
+          disabled={!isValidOpeningAmount}
+          onClick={() => void openCashRegisterMutation.mutateAsync(parsedOpeningAmount)}
         >
           Abrir caja
         </Button>
@@ -907,6 +934,13 @@ export function InvoiceFormPage() {
           </span>
           <button
             type="button"
+            onClick={() => setIsMovementDialogOpen(true)}
+            className="text-xs font-medium text-steel hover:text-ink hover:underline"
+          >
+            Entrada/salida de efectivo
+          </button>
+          <button
+            type="button"
             disabled={pendingDraftLabels.length > 0}
             onClick={() => setIsCloseDialogOpen(true)}
             title={
@@ -932,8 +966,16 @@ export function InvoiceFormPage() {
         <CloseCashRegisterDialog
           totalSoFar={cashRegisterQuery.data.totalSoFar ?? 0}
           totalOwedSoFar={cashRegisterQuery.data.totalOwedSoFar ?? 0}
+          expectedCashSoFar={cashRegisterQuery.data.expectedCashSoFar ?? 0}
           onClose={() => setIsCloseDialogOpen(false)}
           onClosed={() => setIsCloseDialogOpen(false)}
+        />
+      )}
+
+      {isMovementDialogOpen && (
+        <CashMovementDialog
+          onClose={() => setIsMovementDialogOpen(false)}
+          onCreated={() => setIsMovementDialogOpen(false)}
         />
       )}
 
