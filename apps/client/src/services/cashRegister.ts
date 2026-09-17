@@ -1,12 +1,35 @@
 import { api } from '../lib/api';
 import type { PaginatedResponse } from './products';
 
+export interface CashMovement {
+  id: string;
+  /** Positivo = entrada, negativo = salida. */
+  amount: number;
+  reason: string;
+  createdById: string | null;
+  createdByName: string | null;
+  createdAt: string;
+}
+
+export interface CashRegisterNote {
+  id: string;
+  type: 'debit' | 'credit';
+  number: number;
+  prefix: string;
+  totalAmount: number;
+  invoiceNumber: number;
+  invoicePrefix: string;
+  createdAt: string;
+}
+
 export interface CashRegisterResponse {
   id: string;
   registerDate: string;
   openedAt: string;
   openedById: string | null;
   openedByName: string | null;
+  /** Efectivo contado en caja al abrir ("base"). */
+  openingAmount: number;
   closedAt: string | null;
   closedById: string | null;
   closedByName: string | null;
@@ -14,6 +37,16 @@ export interface CashRegisterResponse {
   totalAmount: number | null;
   /** Adeudado — sum of that day's quotations still open (not invoiced/cancelled) at close time. */
   totalOwed: number | null;
+  totalCash: number | null;
+  totalCard: number | null;
+  totalTransfer: number | null;
+  expectedCash: number | null;
+  countedCash: number | null;
+  cashDiscrepancy: number | null;
+  movements: CashMovement[];
+  /** Debit/credit notes issued that store day — informational only, not
+   * part of totalCash/expectedCash. */
+  notes: CashRegisterNote[];
   isOpen: boolean;
 }
 
@@ -22,6 +55,8 @@ export interface CashRegisterStatus {
   register: CashRegisterResponse | null;
   totalSoFar: number | null;
   totalOwedSoFar: number | null;
+  expectedCashSoFar: number | null;
+  previousClosingCash: number | null;
 }
 
 export interface CashRegisterQuery {
@@ -34,13 +69,43 @@ export async function getTodayCashRegister(): Promise<CashRegisterStatus> {
   return data;
 }
 
-export async function openCashRegister(): Promise<CashRegisterResponse> {
-  const { data } = await api.post<CashRegisterResponse>('/cash-register/open');
+export async function openCashRegister(
+  openingAmount: number,
+): Promise<CashRegisterResponse> {
+  const { data } = await api.post<CashRegisterResponse>('/cash-register/open', {
+    openingAmount,
+  });
   return data;
 }
 
-export async function closeCashRegister(): Promise<CashRegisterResponse> {
-  const { data } = await api.post<CashRegisterResponse>('/cash-register/close');
+export async function closeCashRegister(
+  countedCash: number,
+): Promise<CashRegisterResponse> {
+  const { data } = await api.post<CashRegisterResponse>('/cash-register/close', {
+    countedCash,
+  });
+  return data;
+}
+
+export async function updateCountedCash(
+  id: string,
+  countedCash: number,
+): Promise<CashRegisterResponse> {
+  const { data } = await api.patch<CashRegisterResponse>(
+    `/cash-register/${id}/counted-cash`,
+    { countedCash },
+  );
+  return data;
+}
+
+export async function createCashMovement(input: {
+  amount: number;
+  reason: string;
+}): Promise<CashRegisterResponse> {
+  const { data } = await api.post<CashRegisterResponse>(
+    '/cash-register/movements',
+    input,
+  );
   return data;
 }
 

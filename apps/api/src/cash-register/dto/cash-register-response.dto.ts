@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CashRegister } from '../entities/cash-register.entity';
+import { CashMovementResponseDto } from './cash-movement-response.dto';
+import { CashRegisterNoteResponseDto } from './cash-register-note.dto';
 
 export class CashRegisterResponseDto {
   @ApiProperty()
@@ -16,6 +18,9 @@ export class CashRegisterResponseDto {
 
   @ApiProperty({ nullable: true })
   openedByName: string | null;
+
+  @ApiProperty({ description: 'Efectivo contado en caja al abrir ("base").' })
+  openingAmount: number;
 
   @ApiProperty({ nullable: true })
   closedAt: string | null;
@@ -39,6 +44,41 @@ export class CashRegisterResponseDto {
   })
   totalOwed: number | null;
 
+  @ApiProperty({ nullable: true, description: 'totalAmount paid in cash.' })
+  totalCash: number | null;
+
+  @ApiProperty({ nullable: true, description: 'totalAmount paid by card.' })
+  totalCard: number | null;
+
+  @ApiProperty({ nullable: true, description: 'totalAmount paid by transfer.' })
+  totalTransfer: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: 'openingAmount + totalCash + net cash movements.',
+  })
+  expectedCash: number | null;
+
+  @ApiProperty({ nullable: true, description: 'Physically counted at close.' })
+  countedCash: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      'countedCash - expectedCash. Positive = surplus, negative = missing.',
+  })
+  cashDiscrepancy: number | null;
+
+  @ApiProperty({ type: [CashMovementResponseDto] })
+  movements: CashMovementResponseDto[];
+
+  @ApiProperty({
+    type: [CashRegisterNoteResponseDto],
+    description:
+      'Debit/credit notes issued that store day — informational only, not part of totalCash/expectedCash. Set by CashRegisterService, not fromEntity (see there).',
+  })
+  notes: CashRegisterNoteResponseDto[];
+
   @ApiProperty()
   isOpen: boolean;
 
@@ -51,6 +91,7 @@ export class CashRegisterResponseDto {
     dto.openedByName = register.openedBy
       ? `${register.openedBy.firstName} ${register.openedBy.lastName}`
       : null;
+    dto.openingAmount = register.openingAmount;
     dto.closedAt = register.closedAt ? register.closedAt.toISOString() : null;
     dto.closedById = register.closedBy?.id ?? null;
     dto.closedByName = register.closedBy
@@ -58,6 +99,16 @@ export class CashRegisterResponseDto {
       : null;
     dto.totalAmount = register.totalAmount;
     dto.totalOwed = register.totalOwed;
+    dto.totalCash = register.totalCash;
+    dto.totalCard = register.totalCard;
+    dto.totalTransfer = register.totalTransfer;
+    dto.expectedCash = register.expectedCash;
+    dto.countedCash = register.countedCash;
+    dto.cashDiscrepancy = register.cashDiscrepancy;
+    dto.movements = (register.movements ?? []).map((movement) =>
+      CashMovementResponseDto.fromEntity(movement),
+    );
+    dto.notes = [];
     dto.isOpen = register.closedAt === null;
     return dto;
   }

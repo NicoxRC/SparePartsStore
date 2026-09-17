@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -15,7 +23,11 @@ import { UserRole } from '../common/enums/user-role.enum';
 import { CashRegisterService } from './cash-register.service';
 import { CashRegisterResponseDto } from './dto/cash-register-response.dto';
 import { CashRegisterStatusDto } from './dto/cash-register-status.dto';
+import { CloseCashRegisterDto } from './dto/close-cash-register.dto';
+import { CreateCashMovementDto } from './dto/create-cash-movement.dto';
+import { OpenCashRegisterDto } from './dto/open-cash-register.dto';
 import { QueryCashRegisterDto } from './dto/query-cash-register.dto';
+import { UpdateCountedCashDto } from './dto/update-counted-cash.dto';
 
 @ApiTags('Cash register')
 @ApiBearerAuth()
@@ -29,14 +41,15 @@ export class CashRegisterController {
   @ApiResponse({ status: 409, description: "Today's register is already open" })
   @Post('open')
   open(
+    @Body() dto: OpenCashRegisterDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<CashRegisterResponseDto> {
-    return this.cashRegisterService.open(user.id);
+    return this.cashRegisterService.open(user.id, dto.openingAmount);
   }
 
   @ApiOperation({
     summary:
-      "Cerrar caja — close today's cash register, auto-computing the day's total",
+      "Cerrar caja — close today's cash register, auto-computing the day's report",
   })
   @ApiResponse({ status: 200, type: CashRegisterResponseDto })
   @ApiResponse({ status: 404, description: 'No register open today' })
@@ -46,9 +59,38 @@ export class CashRegisterController {
   })
   @Post('close')
   close(
+    @Body() dto: CloseCashRegisterDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<CashRegisterResponseDto> {
-    return this.cashRegisterService.close(user.id);
+    return this.cashRegisterService.close(user.id, dto.countedCash);
+  }
+
+  @ApiOperation({
+    summary: 'Corregir el efectivo contado de una caja ya cerrada.',
+  })
+  @ApiResponse({ status: 200, type: CashRegisterResponseDto })
+  @ApiResponse({ status: 400, description: 'La caja no está cerrada' })
+  @ApiResponse({ status: 404, description: 'Cash register not found' })
+  @Patch(':id/counted-cash')
+  updateCountedCash(
+    @Param('id') id: string,
+    @Body() dto: UpdateCountedCashDto,
+  ): Promise<CashRegisterResponseDto> {
+    return this.cashRegisterService.updateCountedCash(id, dto.countedCash);
+  }
+
+  @ApiOperation({
+    summary:
+      'Registrar una entrada o salida de efectivo que no es una venta (requiere razón).',
+  })
+  @ApiResponse({ status: 201, type: CashRegisterResponseDto })
+  @ApiResponse({ status: 400, description: 'No hay una caja abierta para hoy' })
+  @Post('movements')
+  addMovement(
+    @Body() dto: CreateCashMovementDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<CashRegisterResponseDto> {
+    return this.cashRegisterService.addMovement(dto, user.id);
   }
 
   @ApiOperation({
