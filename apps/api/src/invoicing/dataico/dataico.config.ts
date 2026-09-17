@@ -57,4 +57,20 @@ export class DataicoConfig {
     }
     return accountId;
   }
+
+  /**
+   * Credit/debit notes use Dataico's flexible numbering — no DIAN
+   * `resolution_number` the way invoices need one, just this store's own
+   * prefix (see DebitNotesService). Required, no fallback: a wrong prefix
+   * would produce an invalid legal document.
+   */
+  get debitNotePrefix(): string {
+    const prefix = this.configService.get<string>('DATAICO_DEBIT_NOTE_PREFIX');
+    if (!prefix) {
+      throw new Error(
+        'DATAICO_DEBIT_NOTE_PREFIX is not configured — set it in .env, see docs/ENVIRONMENT_VARIABLES.md',
+      );
+    }
+    return prefix;
+  }
 }

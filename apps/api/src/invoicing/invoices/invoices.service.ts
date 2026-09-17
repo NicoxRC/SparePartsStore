@@ -17,6 +17,7 @@ import { Product } from '../../products/entities/product.entity';
 import { ProductsService } from '../../products/products.service';
 import { DataicoClientService } from '../dataico/dataico-client.service';
 import { DataicoConfig } from '../dataico/dataico.config';
+import { toDataicoDate } from '../dataico/dataico-date.util';
 import { ResolutionsService } from '../resolutions/resolutions.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
@@ -107,12 +108,12 @@ export class InvoicesService {
         dataico_account_id: this.dataicoConfig.accountId,
         operation: 'ESTANDAR',
         invoice_type_code: 'FACTURA_VENTA',
-        issue_date: this.toDataicoDate(issueDate),
+        issue_date: toDataicoDate(issueDate),
         order_reference: '',
         number,
         payment_means: dto.paymentMeans,
         payment_means_type: dto.paymentMeansType,
-        payment_date: this.toDataicoDate(paymentDate),
+        payment_date: toDataicoDate(paymentDate),
         numbering: {
           resolution_number: resolution.resolutionNumber,
           prefix: resolution.prefix,
@@ -369,12 +370,6 @@ export class InvoicesService {
         };
       }),
     );
-  }
-
-  /** ISO 'YYYY-MM-DD' -> Dataico's confirmed 'DD/MM/YYYY' format. */
-  private toDataicoDate(isoDate: string): string {
-    const [year, month, day] = isoDate.slice(0, 10).split('-');
-    return `${day}/${month}/${year}`;
   }
 
   /**
