@@ -124,11 +124,14 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `role` | ENUM `user_role` | default `employee` |
 | `is_active` | BOOLEAN | default `true` — deactivate without deleting |
 | `must_change_password` | BOOLEAN | default `false` — see "Forced password change" in `GLOSSARY.md` |
+| `permissions` | TEXT[], `NOT NULL` default `'{}'` | Only meaningful when `role = 'employee'` — always `[]` for admin/auditor, never consulted for them either. Plain array, not a table or a Postgres enum — see `common/constants/permission.constant.ts` and `GLOSSARY.md` ("Permisos") for why. |
 | `last_login_at` | TIMESTAMPTZ, nullable | set on successful login |
 | `created_by_id`, `updated_by_id` | UUID, nullable, self-FK → `users.id`, `SET NULL` | first admin has both `NULL` |
 | `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard, see Conventions |
 
-**Self-protection rules (enforced in `UsersService.update`/`.remove`, not at the DB level):** a user cannot deactivate their own account, cannot demote themselves away from `admin` while currently `admin`, and cannot delete (soft-remove) their own account. Setting a new `password` on update always flips `must_change_password` back to `true`.
+**Self-protection rules (enforced in `UsersService.update`/`.remove`, not at the DB level):** a user cannot deactivate their own account, cannot demote themselves away from `admin` while currently `admin`, and cannot delete (soft-remove) their own account. Setting a new `password` on update always flips `must_change_password` back to `true`. Changing `role` away from `employee` clears `permissions` to `[]` — a stale set would otherwise silently resurface if the account is ever made an employee again.
+
+**Business logic (`UsersService.updatePermissions`):** full replace, `expandPermissions()`'d before persisting (see `common/constants/permission.constant.ts`). Rejects with 400 if the target user isn't `role: employee` — permissions are never stored for admin/auditor.
 
 ### `products`
 
@@ -444,6 +447,7 @@ The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" 
 | 22 | `CreateCreditNotes` | Phase 10 follow-up, alongside `debit_notes`. `credit_notes` table — identical shape (FK to `invoices` `RESTRICT`, FK to `users`, indexes on `created_at DESC` and `invoice_id`). Hand-written, same reason as the migrations above. |
 | 23 | `AddCashReconciliationToCashRegisters` | Local enhancement (not a numbered phase). Adds `cash_registers.opening_amount` (`NOT NULL`, backfilled `0` then dropped as a default) and nullable `total_cash`/`total_card`/`total_transfer`/`expected_cash`/`counted_cash`/`cash_discrepancy`. Hand-written, same reason as the migrations above. |
 | 24 | `CreateCashMovements` | Local enhancement, alongside migration 23. `cash_movements` table (FK to `cash_registers` `CASCADE`, FK to `users` for the audit column, index on `cash_register_id`). Hand-written, same reason as the migrations above. |
+| 25 | `AddPermissionsToUsers` | Local enhancement (not a numbered phase). Adds `users.permissions text[] NOT NULL DEFAULT '{}'`, then backfills every existing `role = 'employee'` row with the full permission catalog (replicating today's coarse-employee behavior as a starting point) — see `GLOSSARY.md` ("Permisos"). Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

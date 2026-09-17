@@ -75,11 +75,12 @@ apps/api/src/
 ├── dashboard/                           # admin panel summary (not Dataico, no persistence of its own) — reads Invoice/Quotation/Product repositories directly and CashRegisterModule's service for a single read-only GET /dashboard/summary. See GLOSSARY.md ("Panel administrativo")
 │
 ├── common/
-│   ├── decorators/                      # @Roles(), @Public(), @SkipPasswordCheck(), @CurrentUser()
+│   ├── constants/permission.constant.ts # granular per-employee permission catalog + expandPermissions() — see GLOSSARY.md ("Permisos")
+│   ├── decorators/                      # @Roles(), @RequirePermission(), @Public(), @SkipPasswordCheck(), @CurrentUser()
 │   ├── dto/                             # PaginatedResponseDto, PaginationMetaDto
 │   ├── entities/base.entity.ts          # id/createdAt/updatedAt/deletedAt shared base
 │   ├── enums/                           # UserRole, SaleType, MovementType
-│   ├── guards/                          # JwtAuthGuard, RolesGuard, LocalAuthGuard, JwtRefreshAuthGuard
+│   ├── guards/                          # JwtAuthGuard, RolesGuard, PermissionsGuard, LocalAuthGuard, JwtRefreshAuthGuard
 │   └── utils/                           # isUniqueViolation(), ILIKE-escaping helper
 │
 ├── database/
@@ -105,12 +106,14 @@ A controller never talks to a repository directly — always through a service.
 
 ### Global guards — everything is protected by default
 
-`AuthModule` registers `JwtAuthGuard` and `RolesGuard` as global guards (`APP_GUARD`). **Every endpoint in the entire API requires a valid access token by default**, and `RolesGuard` enforces any `@Roles(...)` decorator present. To opt an endpoint out:
+`AuthModule` registers `JwtAuthGuard`, `RolesGuard`, and `PermissionsGuard` as global guards (`APP_GUARD`), in that order. **Every endpoint in the entire API requires a valid access token by default**, and `RolesGuard` enforces any `@Roles(...)` decorator present. To opt an endpoint out:
 
 - `@Public()` — skips the JWT check entirely (login, refresh).
 - `@SkipPasswordCheck()` — still requires a valid JWT, but is exempt from the forced-password-change block (see `GLOSSARY.md` "Forced password change").
 
 No `@Roles(...)` on a controller/handler means any authenticated user of any role can call it.
+
+`PermissionsGuard` runs after `RolesGuard` and only ever refines what `@Roles` already allowed — it enforces `@RequirePermission(...)` for `role: employee` requests specifically, bypassing admin (fixed superuser) and auditor (fixed read-only, untouched by this system) unconditionally. See `GLOSSARY.md` ("Permisos") for the full design — a route can carry both decorators (`@Roles` deciding which roles reach it at all, `@RequirePermission` narrowing that further for employees).
 
 ### API prefix and versioning
 
