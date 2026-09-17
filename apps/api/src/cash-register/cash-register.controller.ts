@@ -66,13 +66,11 @@ export class CashRegisterController {
   }
 
   @ApiOperation({
-    summary:
-      'Corregir el efectivo contado de una caja ya cerrada — solo administradores.',
+    summary: 'Corregir el efectivo contado de una caja ya cerrada.',
   })
   @ApiResponse({ status: 200, type: CashRegisterResponseDto })
   @ApiResponse({ status: 400, description: 'La caja no está cerrada' })
   @ApiResponse({ status: 404, description: 'Cash register not found' })
-  @Roles(UserRole.ADMIN)
   @Patch(':id/counted-cash')
   updateCountedCash(
     @Param('id') id: string,

@@ -63,6 +63,30 @@ export function CloseCashRegisterDialog({
               <dt className="text-steel">Transferencia</dt>
               <dd className="font-mono">{money(report.totalTransfer ?? 0)}</dd>
             </div>
+
+            {report.movements.length > 0 && (
+              <div className="mt-1 flex flex-col gap-1 border-t border-line pt-2">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-fog">
+                  Entradas y salidas
+                </dt>
+                {report.movements.map((movement) => (
+                  <div key={movement.id} className="flex items-center justify-between gap-2">
+                    <dd className="min-w-0 flex-1 truncate text-steel" title={movement.reason}>
+                      {movement.reason}
+                    </dd>
+                    <dd
+                      className={`shrink-0 font-mono ${
+                        movement.amount > 0 ? 'text-ok' : 'text-rust'
+                      }`}
+                    >
+                      {movement.amount > 0 ? '+' : ''}
+                      {money(movement.amount)}
+                    </dd>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="mt-1 flex items-center justify-between rounded-sm bg-mist px-3 py-2">
               <dt className="font-medium text-ink">Efectivo esperado</dt>
               <dd className="font-mono font-semibold text-ink">

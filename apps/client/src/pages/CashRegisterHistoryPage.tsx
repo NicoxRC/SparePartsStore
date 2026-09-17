@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { Alert } from '../components/Alert';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
@@ -78,6 +78,7 @@ function CorrectCountedCashCell({ register }: { register: CashRegisterResponse }
 
 export function CashRegisterHistoryPage() {
   const [page, setPage] = useState(1);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const historyQuery = useCashRegisterHistory({ page, limit: PAGE_SIZE });
 
   return (
@@ -107,14 +108,17 @@ export function CashRegisterHistoryPage() {
                     <th className="px-4 py-3 text-right">Esperado</th>
                     <th className="px-4 py-3 text-right">Contado</th>
                     <th className="px-4 py-3 text-right">Desfase</th>
+                    <th className="px-4 py-3">Movimientos</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
                   {historyQuery.data.data.map((register) => {
                     const discrepancy = register.cashDiscrepancy;
+                    const isExpanded = expandedId === register.id;
                     return (
-                      <tr key={register.id}>
+                      <Fragment key={register.id}>
+                      <tr>
                         <td className="px-4 py-3 font-medium text-ink">
                           {register.registerDate}
                           {register.isOpen && (
@@ -152,10 +156,52 @@ export function CashRegisterHistoryPage() {
                             ? '—'
                             : `${discrepancy > 0 ? '+' : ''}${money(discrepancy)}`}
                         </td>
+                        <td className="px-4 py-3">
+                          {register.movements.length > 0 ? (
+                            <button
+                              type="button"
+                              onClick={() => setExpandedId(isExpanded ? null : register.id)}
+                              className="text-xs font-medium text-steel hover:text-ink hover:underline"
+                            >
+                              {register.movements.length}{' '}
+                              {register.movements.length === 1 ? 'movimiento' : 'movimientos'}
+                              {isExpanded ? ' ▲' : ' ▼'}
+                            </button>
+                          ) : (
+                            <span className="text-xs text-fog">—</span>
+                          )}
+                        </td>
                         <td className="px-4 py-3 text-right">
                           {!register.isOpen && <CorrectCountedCashCell register={register} />}
                         </td>
                       </tr>
+                      {isExpanded && register.movements.length > 0 && (
+                        <tr>
+                          <td colSpan={10} className="bg-canvas px-4 py-3">
+                            <ul className="flex flex-col gap-1 text-sm">
+                              {register.movements.map((movement) => (
+                                <li key={movement.id} className="flex items-center justify-between gap-2">
+                                  <span className="text-steel">
+                                    {movement.reason}
+                                    {movement.createdByName && (
+                                      <span className="text-xs text-fog"> — {movement.createdByName}</span>
+                                    )}
+                                  </span>
+                                  <span
+                                    className={`font-mono ${
+                                      movement.amount > 0 ? 'text-ok' : 'text-rust'
+                                    }`}
+                                  >
+                                    {movement.amount > 0 ? '+' : ''}
+                                    {money(movement.amount)}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
+                        </tr>
+                      )}
+                      </Fragment>
                     );
                   })}
                 </tbody>
