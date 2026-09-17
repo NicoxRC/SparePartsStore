@@ -9,6 +9,8 @@ import { AuthLayout } from './layouts/AuthLayout';
 import { AuthenticatedLayout } from './layouts/AuthenticatedLayout';
 import { CatalogsPage } from './pages/CatalogsPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
+import { CustomerFormPage } from './pages/CustomerFormPage';
+import { CustomersListPage } from './pages/CustomersListPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { LoginPage } from './pages/LoginPage';
 import { LookupFormPage } from './pages/LookupFormPage';
@@ -58,6 +60,8 @@ function App() {
                   <Route path="/ventas" element={<InvoiceFormPage />} />
                   <Route path="/cotizaciones" element={<QuotationsListPage />} />
                   <Route path="/cotizaciones/:id" element={<QuotationDetailPage />} />
+                  <Route path="/customers" element={<CustomersListPage />} />
+                  <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
                   <Route path="/products/new" element={<ProductFormPage />} />
                   <Route path="/products/:id/edit" element={<ProductFormPage />} />
                 </Route>
