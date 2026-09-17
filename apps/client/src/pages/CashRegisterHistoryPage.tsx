@@ -1,6 +1,8 @@
 import { Fragment, useState } from 'react';
 import { Alert } from '../components/Alert';
 import { Pagination } from '../components/Pagination';
+import { CashRegisterTicket } from '../components/print/CashRegisterTicket';
+import { PrintTicket } from '../components/print/PrintTicket';
 import { Spinner } from '../components/Spinner';
 import { useCashRegisterHistory, useUpdateCountedCash } from '../hooks/useCashRegister';
 import { usePermissions } from '../hooks/usePermissions';
@@ -82,7 +84,9 @@ export function CashRegisterHistoryPage() {
   const canCorrect = has('cash_register.counted_cash.correct');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [printingId, setPrintingId] = useState<string | null>(null);
   const historyQuery = useCashRegisterHistory({ page, limit: PAGE_SIZE });
+  const printingRegister = historyQuery.data?.data.find((r) => r.id === printingId) ?? null;
 
   return (
     <div className="flex flex-col gap-4">
@@ -175,9 +179,20 @@ export function CashRegisterHistoryPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {!register.isOpen && canCorrect && (
-                            <CorrectCountedCashCell register={register} />
-                          )}
+                          <div className="flex items-center justify-end gap-2">
+                            {!register.isOpen && (
+                              <button
+                                type="button"
+                                onClick={() => setPrintingId(register.id)}
+                                className="text-xs font-medium text-steel hover:text-ink hover:underline"
+                              >
+                                Imprimir
+                              </button>
+                            )}
+                            {!register.isOpen && canCorrect && (
+                              <CorrectCountedCashCell register={register} />
+                            )}
+                          </div>
                         </td>
                       </tr>
                       {isExpanded && register.movements.length + register.notes.length > 0 && (
@@ -251,6 +266,12 @@ export function CashRegisterHistoryPage() {
 
           <Pagination meta={historyQuery.data.meta} onPageChange={setPage} />
         </>
+      )}
+
+      {printingRegister && (
+        <PrintTicket onClose={() => setPrintingId(null)}>
+          <CashRegisterTicket register={printingRegister} />
+        </PrintTicket>
       )}
     </div>
   );

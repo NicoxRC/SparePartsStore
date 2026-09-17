@@ -216,7 +216,7 @@ function CustomerSection({
 
 interface InvoiceDraftFormProps {
   draft: InvoiceDraft;
-  onInvoiced: (message: string) => void;
+  onInvoiced: (message: string, pdfUrl: string | null) => void;
 }
 
 /**
@@ -501,7 +501,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     // navigating away.
     closeDraft(draft.id);
     const invoiceNumber = invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`;
-    onInvoiced(`Factura ${invoiceNumber} creada correctamente.`);
+    onInvoiced(`Factura ${invoiceNumber} creada correctamente.`, invoice.pdfUrl);
   };
 
   const total = watchedItems.reduce((sum, item) => sum + computeItemTotal(item), 0);
@@ -852,7 +852,9 @@ export function InvoiceFormPage() {
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
   const [openingAmount, setOpeningAmount] = useState('');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; pdfUrl: string | null } | null>(
+    null,
+  );
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
 
   if (cashRegisterQuery.isPending) {
@@ -1062,13 +1064,17 @@ export function InvoiceFormPage() {
           <InvoiceDraftForm
             key={activeDraft.id}
             draft={activeDraft}
-            onInvoiced={setToastMessage}
+            onInvoiced={(message, pdfUrl) => setToast({ message, pdfUrl })}
           />
         </div>
       </div>
 
-      {toastMessage && (
-        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+      {toast && (
+        <Toast
+          message={toast.message}
+          onDismiss={() => setToast(null)}
+          action={toast.pdfUrl ? { label: 'Ver/imprimir factura', href: toast.pdfUrl } : undefined}
+        />
       )}
     </div>
   );
