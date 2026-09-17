@@ -190,12 +190,12 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
       taxRate: item.taxRate,
       discount: item.discount || undefined,
     }));
-    const updated = await updateItemsMutation.mutateAsync({
+    await updateItemsMutation.mutateAsync({
       id: quotation.id,
       input: { items: input },
     });
-    // Re-sync from the server response — prices were just re-locked.
-    setItems(editableItemsFrom(updated.items ?? []));
+    // Back to the list — same pattern as Facturar/Cancelar below.
+    navigate('/cotizaciones');
   };
 
   const handleInvoice = async () => {
