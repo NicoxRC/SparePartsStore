@@ -3,6 +3,7 @@ import logo from '../assets/logo.png';
 import {
   IconBox,
   IconCart,
+  IconContact,
   IconIdCard,
   IconLayers,
   IconReceipt,
@@ -23,6 +24,7 @@ export function AuthenticatedLayout() {
           { to: '/ventas', label: 'Venta', Icon: IconCart },
           { to: '/cotizaciones', label: 'Cotizaciones', Icon: IconIdCard },
           { to: '/invoicing/invoices', label: 'Facturas', Icon: IconReceipt },
+          { to: '/customers', label: 'Clientes', Icon: IconContact },
         ]
       : []),
     ...(user?.role === 'admin'

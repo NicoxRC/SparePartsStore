@@ -1,5 +1,7 @@
 import { api } from '../lib/api';
+import type { InvoiceResponse } from './invoices';
 import type { PaginatedResponse } from './products';
+import type { QuotationResponse } from './quotations';
 
 export type CustomerPartyType = 'PERSONA_JURIDICA' | 'PERSONA_NATURAL';
 
@@ -77,5 +79,32 @@ export async function updateCustomer(
   input: Partial<CustomerInput>,
 ): Promise<CustomerResponse> {
   const { data } = await api.patch<CustomerResponse>(`/customers/${id}`, input);
+  return data;
+}
+
+export async function deleteCustomer(id: string): Promise<void> {
+  await api.delete(`/customers/${id}`);
+}
+
+export interface CustomerHistoryQuery {
+  /** Inclusive, YYYY-MM-DD. */
+  from?: string;
+  /** Inclusive, YYYY-MM-DD. */
+  to?: string;
+}
+
+export interface CustomerHistoryResponse {
+  invoices: InvoiceResponse[];
+  quotations: QuotationResponse[];
+}
+
+export async function getCustomerHistory(
+  id: string,
+  query: CustomerHistoryQuery = {},
+): Promise<CustomerHistoryResponse> {
+  const { data } = await api.get<CustomerHistoryResponse>(
+    `/customers/${id}/history`,
+    { params: query },
+  );
   return data;
 }

@@ -6,9 +6,12 @@ import {
 } from '@tanstack/react-query';
 import {
   createCustomer,
+  deleteCustomer,
   getCustomer,
+  getCustomerHistory,
   getCustomers,
   updateCustomer,
+  type CustomerHistoryQuery,
   type CustomerInput,
   type CustomersQuery,
 } from '../services/customers';
@@ -45,6 +48,24 @@ export function useUpdateCustomer(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: Partial<CustomerInput>) => updateCustomer(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [CUSTOMERS_KEY] });
+    },
+  });
+}
+
+export function useCustomerHistory(id: string, query: CustomerHistoryQuery = {}) {
+  return useQuery({
+    queryKey: [CUSTOMERS_KEY, id, 'history', query],
+    queryFn: () => getCustomerHistory(id, query),
+    enabled: Boolean(id),
+  });
+}
+
+export function useDeleteCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteCustomer(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [CUSTOMERS_KEY] });
     },

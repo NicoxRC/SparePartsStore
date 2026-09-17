@@ -1,6 +1,9 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { QueryFailedError } from 'typeorm';
+import { getStoreDayRangeUtc } from '../common/utils/store-date.util';
+import type { Invoice } from '../invoicing/invoices/entities/invoice.entity';
+import type { Quotation } from '../quotations/entities/quotation.entity';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Customer } from './entities/customer.entity';
@@ -13,6 +16,22 @@ describe('CustomersService', () => {
     save: jest.Mock;
     findOne: jest.Mock;
     createQueryBuilder: jest.Mock;
+    softRemove: jest.Mock;
+  };
+  let invoicesRepository: { createQueryBuilder: jest.Mock };
+  let quotationsRepository: { createQueryBuilder: jest.Mock };
+  let invoiceQueryBuilder: {
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    orderBy: jest.Mock;
+    getMany: jest.Mock;
+  };
+  let quotationQueryBuilder: {
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    leftJoinAndSelect: jest.Mock;
+    orderBy: jest.Mock;
+    getMany: jest.Mock;
   };
 
   const baseDto: CreateCustomerDto = {
@@ -61,10 +80,34 @@ describe('CustomersService', () => {
       ),
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(),
+      softRemove: jest.fn().mockResolvedValue(undefined),
+    };
+
+    invoiceQueryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+    invoicesRepository = {
+      createQueryBuilder: jest.fn(() => invoiceQueryBuilder),
+    };
+
+    quotationQueryBuilder = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      leftJoinAndSelect: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getMany: jest.fn().mockResolvedValue([]),
+    };
+    quotationsRepository = {
+      createQueryBuilder: jest.fn(() => quotationQueryBuilder),
     };
 
     service = new CustomersService(
       repository as unknown as Repository<Customer>,
+      invoicesRepository as unknown as Repository<Invoice>,
+      quotationsRepository as unknown as Repository<Quotation>,
     );
   });
 
@@ -152,6 +195,154 @@ describe('CustomersService', () => {
         ConflictException,
       );
       expect(repository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    it('throws NotFoundException when the customer does not exist', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('missing-id')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.softRemove).not.toHaveBeenCalled();
+    });
+
+    it('soft-removes the customer when it exists', async () => {
+      repository.findOne.mockResolvedValue({ ...existingCustomer });
+
+      await service.remove('cust-1');
+
+      expect(repository.softRemove).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'cust-1' }),
+      );
+    });
+  });
+
+  describe('getHistory', () => {
+    it('throws NotFoundException when the customer does not exist', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(service.getHistory('missing-id', {})).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(invoicesRepository.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('matches invoices and quotations by the identification pair', async () => {
+      repository.findOne.mockResolvedValue({ ...existingCustomer });
+
+      await service.getHistory('cust-1', {});
+
+      expect(invoiceQueryBuilder.where).toHaveBeenCalledWith(
+        'invoice.customerIdentificationType = :type',
+        { type: 'NIT' },
+      );
+      expect(invoiceQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'invoice.customerIdentification = :identification',
+        { identification: '830033494' },
+      );
+      expect(quotationQueryBuilder.where).toHaveBeenCalledWith(
+        'quotation.customerIdentificationType = :type',
+        { type: 'NIT' },
+      );
+      expect(quotationQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.customerIdentification = :identification',
+        { identification: '830033494' },
+      );
+    });
+
+    it('does not apply date filters when none are given', async () => {
+      repository.findOne.mockResolvedValue({ ...existingCustomer });
+
+      await service.getHistory('cust-1', {});
+
+      // Only the two identification-matching calls, no date filters.
+      expect(invoiceQueryBuilder.andWhere).toHaveBeenCalledTimes(1);
+      expect(quotationQueryBuilder.andWhere).toHaveBeenCalledTimes(1);
+    });
+
+    it('applies the from/to range to both invoices (plain dates) and quotations (store-day range)', async () => {
+      repository.findOne.mockResolvedValue({ ...existingCustomer });
+
+      await service.getHistory('cust-1', {
+        from: '2026-01-01',
+        to: '2026-01-31',
+      });
+
+      expect(invoiceQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'invoice.issueDate >= :from',
+        { from: '2026-01-01' },
+      );
+      expect(invoiceQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'invoice.issueDate <= :to',
+        { to: '2026-01-31' },
+      );
+      expect(quotationQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.createdAt >= :from',
+        { from: getStoreDayRangeUtc('2026-01-01').start },
+      );
+      expect(quotationQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.createdAt < :to',
+        { to: getStoreDayRangeUtc('2026-01-31').end },
+      );
+    });
+
+    it('maps the query results into response DTOs', async () => {
+      repository.findOne.mockResolvedValue({ ...existingCustomer });
+      invoiceQueryBuilder.getMany.mockResolvedValue([
+        {
+          id: 'inv-1',
+          number: 1,
+          prefix: 'FE',
+          dataicoNumber: null,
+          customerIdentification: '830033494',
+          customerCompanyName: 'ACME SAS',
+          issueDate: '2026-01-15',
+          dianStatus: 'ACCEPTED',
+          cufe: 'cufe-1',
+          xmlUrl: null,
+          pdfUrl: null,
+          dianMessages: null,
+          totalAmount: 100000,
+          createdAt: new Date('2026-01-15T10:00:00.000Z'),
+        },
+      ]);
+      quotationQueryBuilder.getMany.mockResolvedValue([
+        {
+          id: 'q-1',
+          number: 1,
+          customerIdentificationType: 'NIT',
+          customerIdentification: '830033494',
+          customerIdentificationDv: null,
+          customerPartyType: 'PERSONA_JURIDICA',
+          customerTaxLevelCode: 'COMUN',
+          customerRegimen: null,
+          customerCompanyName: 'ACME SAS',
+          customerFirstName: null,
+          customerFamilyName: null,
+          customerCountryCode: 'CO',
+          customerDepartment: '11',
+          customerCity: '001',
+          customerAddressLine: 'CL 1 # 2-3',
+          customerEmail: 'billing@acme.com',
+          customerPhone: null,
+          notes: null,
+          totalAmount: 50000,
+          invoicedAt: null,
+          invoice: null,
+          cancelledAt: null,
+          createdAt: new Date('2026-01-10T10:00:00.000Z'),
+        },
+      ]);
+
+      const result = await service.getHistory('cust-1', {});
+
+      expect(result.invoices).toHaveLength(1);
+      expect(result.invoices[0].id).toBe('inv-1');
+      expect(result.quotations).toHaveLength(1);
+      expect(result.quotations[0].id).toBe('q-1');
+      expect(result.quotations[0].status).toBe('open');
     });
   });
 });

@@ -120,6 +120,15 @@ export function IconCamera(props: IconProps) {
   );
 }
 
+export function IconContact(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="8.5" r="3.5" />
+      <path d="M5 20c.9-3.8 3.3-5.8 7-5.8s6.1 2 7 5.8" />
+    </svg>
+  );
+}
+
 export function IconClose(props: IconProps) {
   return (
     <svg {...base} {...props}>
