@@ -12,6 +12,17 @@ const base = {
   'aria-hidden': true,
 };
 
+export function IconDashboard(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3.5" y="3.5" width="7.5" height="9" rx="1" />
+      <rect x="13" y="3.5" width="7.5" height="5.5" rx="1" />
+      <rect x="13" y="11" width="7.5" height="9.5" rx="1" />
+      <rect x="3.5" y="14.5" width="7.5" height="6" rx="1" />
+    </svg>
+  );
+}
+
 export function IconBox(props: IconProps) {
   return (
     <svg {...base} {...props}>

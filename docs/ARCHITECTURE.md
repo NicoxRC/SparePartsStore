@@ -72,6 +72,8 @@ apps/api/src/
 │
 ├── quotations/                          # "cotizaciones" — store credit handed over before payment (not Dataico — no HTTP calls of its own). Decrements inventory on create/edit like a real sale; converts into a real Invoice via InvoicesModule (imported here) with an internal-only skip-stock-effects flag — see DATABASE.md ("quotations") and GLOSSARY.md ("Cotización")
 │
+├── dashboard/                           # admin panel summary (not Dataico, no persistence of its own) — reads Invoice/Quotation/Product repositories directly and CashRegisterModule's service for a single read-only GET /dashboard/summary. See GLOSSARY.md ("Panel administrativo")
+│
 ├── common/
 │   ├── decorators/                      # @Roles(), @Public(), @SkipPasswordCheck(), @CurrentUser()
 │   ├── dto/                             # PaginatedResponseDto, PaginationMetaDto

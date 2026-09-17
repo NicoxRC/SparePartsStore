@@ -30,6 +30,7 @@ import { QuotationsListPage } from './pages/QuotationsListPage';
 import { ResolutionFormPage } from './pages/ResolutionFormPage';
 import { ResolutionsListPage } from './pages/ResolutionsListPage';
 import { CashRegisterHistoryPage } from './pages/CashRegisterHistoryPage';
+import { DashboardPage } from './pages/DashboardPage';
 import { UserFormPage } from './pages/UserFormPage';
 import { UsersListPage } from './pages/UsersListPage';
 
@@ -82,6 +83,8 @@ function App() {
                 </Route>
 
                 <Route element={<AdminRoute />}>
+                  <Route path="/dashboard" element={<DashboardPage />} />
+
                   <Route path="/users" element={<UsersListPage />} />
                   <Route path="/users/new" element={<UserFormPage />} />
                   <Route path="/users/:id/edit" element={<UserFormPage />} />

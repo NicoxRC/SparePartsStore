@@ -5,6 +5,7 @@ import {
   IconCart,
   IconCashRegister,
   IconContact,
+  IconDashboard,
   IconIdCard,
   IconLayers,
   IconReceipt,
@@ -18,6 +19,9 @@ export function AuthenticatedLayout() {
   const { user, logout } = useAuth();
 
   const navItems = [
+    ...(user?.role === 'admin'
+      ? [{ to: '/dashboard', label: 'Panel', Icon: IconDashboard }]
+      : []),
     { to: '/products', label: 'Productos', Icon: IconBox },
     { to: '/inventory', label: 'Inventario', Icon: IconLayers },
     ...(user?.role !== 'auditor'
