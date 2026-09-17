@@ -152,7 +152,7 @@ Notable differences from the invoice's own confirmed shape, all deliberate:
 - [x] `POST/GET /api/invoicing/debit-notes`, `GET /api/invoicing/debit-notes/:id` (ADMIN, EMPLOYEE — same tier as invoices), Swagger-documented.
 - [x] `DATAICO_DEBIT_NOTE_PREFIX` (required) and `DEBIT_NOTE_NUMBER_START` (default `1`) added as new env vars — see `docs/ENVIRONMENT_VARIABLES.md`.
 - [x] Unit tests: rejects with no open cash register, rejects when the invoice has no Dataico uuid, rejects when the invoice's stored payload has no customer block, rejects on insufficient stock (all without calling Dataico), sends the confirmed payload shape reusing the invoice's uuid/customer, decrements stock only after Dataico succeeds, persists the mapped response excluding `xml`, auto-increments the number per prefix.
-- [ ] Frontend: "Nota débito" action on `InvoicesListPage` opening a dedicated form (pick products, quantities, tax rates) against that invoice; a `DebitNotesListPage` linked from Facturas to see issued notes. **In progress — update this line once shipped.**
+- [x] Frontend: "Nota débito" action on `InvoicesListPage` opening a dedicated form (pick products, quantities, tax rates) against that invoice; a `DebitNotesListPage` linked from Facturas to see issued notes.
 
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
 

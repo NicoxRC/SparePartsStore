@@ -62,6 +62,11 @@ export async function getInvoices(
   return data;
 }
 
+export async function getInvoice(id: string): Promise<InvoiceResponse> {
+  const { data } = await api.get<InvoiceResponse>(`/invoicing/invoices/${id}`);
+  return data;
+}
+
 export async function createInvoice(
   input: CreateInvoiceInput,
 ): Promise<InvoiceResponse> {
