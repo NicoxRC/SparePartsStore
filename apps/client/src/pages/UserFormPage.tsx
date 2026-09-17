@@ -8,6 +8,7 @@ import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useCreateUser, useUpdateUser, useUser } from '../hooks/useUsers';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import {
   userEditFormSchema,
   userFormSchema,
@@ -85,6 +86,7 @@ export function UserFormPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        onKeyDown={handleEnterAsTab}
         className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6"
         noValidate
       >

@@ -7,6 +7,7 @@ import { SelectField } from '../components/SelectField';
 import { TextField } from '../components/TextField';
 import { useCreateResolution } from '../hooks/useResolutions';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import {
   resolutionFormSchema,
   type ResolutionFormInput,
@@ -62,6 +63,7 @@ export function ResolutionFormPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        onKeyDown={handleEnterAsTab}
         className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6"
         noValidate
       >

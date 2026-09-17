@@ -21,6 +21,7 @@ import {
   DEFAULT_DANE_DEPARTMENT_CODE,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import { computeItemTotal } from '../lib/invoiceMath';
 import type { ProductResponse } from '../services/products';
 import type {
@@ -217,7 +218,10 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+    <div
+      className="mx-auto flex w-full max-w-4xl flex-col gap-4"
+      onKeyDown={handleEnterAsTab}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">

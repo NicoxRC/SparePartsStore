@@ -8,6 +8,7 @@ import { SelectField } from '../components/SelectField';
 import { TextField } from '../components/TextField';
 import { useCreatePayrollEntry } from '../hooks/usePayroll';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import {
   payrollEntryFormSchema,
   type PayrollEntryFormInput,
@@ -128,6 +129,7 @@ export function PayrollFormPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        onKeyDown={handleEnterAsTab}
         className="flex flex-col gap-6"
         noValidate
       >

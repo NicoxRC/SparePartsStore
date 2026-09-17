@@ -13,6 +13,7 @@ import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useCheckReference, useCreateProduct, useProduct, useUpdateProduct } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import {
   productFormSchema,
   type ProductFormInput,
@@ -131,6 +132,7 @@ export function ProductFormPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        onKeyDown={handleEnterAsTab}
         className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6"
         noValidate
       >

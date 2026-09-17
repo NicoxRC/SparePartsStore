@@ -4,6 +4,7 @@ import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import {
   changePasswordFormSchema,
   type ChangePasswordFormValues,
@@ -48,6 +49,7 @@ export function ChangePasswordPage() {
 
           <form
             onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+            onKeyDown={handleEnterAsTab}
             className="mt-4 flex flex-col gap-4"
             noValidate
           >

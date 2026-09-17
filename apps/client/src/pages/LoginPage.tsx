@@ -5,6 +5,7 @@ import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import { loginFormSchema, type LoginFormValues } from '../lib/schemas/auth';
 
 export function LoginPage() {
@@ -39,6 +40,7 @@ export function LoginPage() {
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        onKeyDown={handleEnterAsTab}
         className="flex flex-col gap-4"
         noValidate
       >
