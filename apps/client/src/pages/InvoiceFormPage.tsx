@@ -17,6 +17,7 @@ import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { Toast } from '../components/Toast';
 import {
   useOpenCashRegister,
   useTodayCashRegister,
@@ -31,6 +32,7 @@ import {
   DANE_DEPARTMENTS,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
 import { computeItemTotal } from '../lib/invoiceMath';
 import {
@@ -212,6 +214,7 @@ function CustomerSection({
 
 interface InvoiceDraftFormProps {
   draft: InvoiceDraft;
+  onInvoiced: (message: string) => void;
 }
 
 /**
@@ -222,7 +225,7 @@ interface InvoiceDraftFormProps {
  * tabs, or navigating away to Productos/Inventario and back, never loses
  * progress.
  */
-function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
+function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const navigate = useNavigate();
   const createMutation = useCreateInvoice();
   const createQuotationMutation = useCreateQuotation();
@@ -462,7 +465,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
   const onSubmit = async (values: InvoiceFormValues) => {
     await saveCustomerBestEffort(values);
 
-    await createMutation.mutateAsync({
+    const invoice = await createMutation.mutateAsync({
       paymentDate: values.paymentMeansType === 'CREDITO' ? values.paymentDate : undefined,
       paymentMeans: values.paymentMeans,
       paymentMeansType: values.paymentMeansType,
@@ -488,9 +491,12 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
       notes: values.notes ? [values.notes] : undefined,
     });
     // This draft's sale is done — close it (auto-replaced by a fresh
-    // empty one if it was the only draft open) and leave the rest as-is.
+    // empty one if it was the only draft open, so the tab is ready for
+    // the next sale) and stay on Venta, confirming via toast instead of
+    // navigating away.
     closeDraft(draft.id);
-    navigate('/invoicing/invoices');
+    const invoiceNumber = invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`;
+    onInvoiced(`Factura ${invoiceNumber} creada correctamente.`);
   };
 
   const total = watchedItems.reduce((sum, item) => sum + computeItemTotal(item), 0);
@@ -512,6 +518,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        onKeyDown={handleEnterAsTab}
         className="flex flex-col gap-6"
         noValidate
       >
@@ -604,7 +611,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                               type="number"
                               min={1}
                               max={field.stock}
-                              className="w-20 rounded-sm border border-line px-2 py-1"
+                              className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
                               {...register(`items.${index}.quantity`)}
                             />
                           </td>
@@ -612,7 +619,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                             <input
                               type="number"
                               min={0}
-                              className="w-20 rounded-sm border border-line px-2 py-1"
+                              className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
                               {...register(`items.${index}.taxRate`)}
                             />
                             {Number(watchedItems[index]?.taxRate) === 0 && (
@@ -626,7 +633,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
                               type="number"
                               min={0}
                               placeholder="0"
-                              className="w-24 rounded-sm border border-line px-2 py-1"
+                              className="w-24 rounded-sm border border-line-2 bg-white px-2 py-1"
                               {...register(`items.${index}.discount`)}
                             />
                           </td>
@@ -833,6 +840,7 @@ export function InvoiceFormPage() {
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
 
   if (cashRegisterQuery.isPending) {
@@ -986,9 +994,17 @@ export function InvoiceFormPage() {
         </div>
 
         <div className="rounded-b border border-t-0 border-line bg-white p-4 sm:p-6">
-          <InvoiceDraftForm key={activeDraft.id} draft={activeDraft} />
+          <InvoiceDraftForm
+            key={activeDraft.id}
+            draft={activeDraft}
+            onInvoiced={setToastMessage}
+          />
         </div>
       </div>
+
+      {toastMessage && (
+        <Toast message={toastMessage} onDismiss={() => setToastMessage(null)} />
+      )}
     </div>
   );
 }

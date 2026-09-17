@@ -9,6 +9,7 @@ import { SelectField } from './SelectField';
 import { TextField } from './TextField';
 import { useCreateProduct } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import {
   quickCreateProductSchema,
   type QuickCreateProductInput,
@@ -77,6 +78,7 @@ export function QuickCreateProductDialog({
             e.stopPropagation();
             void handleSubmit(onSubmit)(e);
           }}
+          onKeyDown={handleEnterAsTab}
           className="mt-3 flex flex-col gap-4"
           noValidate
         >

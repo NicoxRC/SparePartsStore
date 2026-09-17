@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
+import { TextField } from '../components/TextField';
 import { useQuotations } from '../hooks/useQuotations';
 import { getApiErrorMessage } from '../lib/errors';
 import type { QuotationStatus } from '../services/quotations';
@@ -35,13 +36,35 @@ function quotationNumberLabel(number: number): string {
 export function QuotationsListPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState<QuotationStatus | undefined>('open');
-  const quotationsQuery = useQuotations({ page, limit: PAGE_SIZE, status });
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  const quotationsQuery = useQuotations({
+    page,
+    limit: PAGE_SIZE,
+    status,
+    search: debouncedSearch || undefined,
+  });
 
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
         Cotizaciones
       </h1>
+
+      <TextField
+        label="Buscar por número, cliente o identificación"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+      />
 
       <div className="flex flex-wrap gap-2">
         {FILTERS.map((filter) => {

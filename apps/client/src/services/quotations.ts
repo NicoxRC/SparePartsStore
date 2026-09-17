@@ -46,6 +46,7 @@ export interface QuotationsQuery {
   page?: number;
   limit?: number;
   status?: QuotationStatus;
+  search?: string;
 }
 
 export interface CreateQuotationItemInput {

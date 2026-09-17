@@ -21,6 +21,7 @@ import {
   DEFAULT_DANE_DEPARTMENT_CODE,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import { computeItemTotal } from '../lib/invoiceMath';
 import type { ProductResponse } from '../services/products';
 import type {
@@ -190,12 +191,12 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
       taxRate: item.taxRate,
       discount: item.discount || undefined,
     }));
-    const updated = await updateItemsMutation.mutateAsync({
+    await updateItemsMutation.mutateAsync({
       id: quotation.id,
       input: { items: input },
     });
-    // Re-sync from the server response — prices were just re-locked.
-    setItems(editableItemsFrom(updated.items ?? []));
+    // Back to the list — same pattern as Facturar/Cancelar below.
+    navigate('/cotizaciones');
   };
 
   const handleInvoice = async () => {
@@ -217,7 +218,10 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+    <div
+      className="mx-auto flex w-full max-w-4xl flex-col gap-4"
+      onKeyDown={handleEnterAsTab}
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
@@ -368,7 +372,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         <input
                           type="number"
                           min={1}
-                          className="w-20 rounded-sm border border-line px-2 py-1"
+                          className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
                           value={item.quantity}
                           onChange={(e) =>
                             updateItemField(index, { quantity: Number(e.target.value) || 1 })
@@ -383,7 +387,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         <input
                           type="number"
                           min={0}
-                          className="w-20 rounded-sm border border-line px-2 py-1"
+                          className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
                           value={item.taxRate}
                           onChange={(e) =>
                             updateItemField(index, { taxRate: Number(e.target.value) || 0 })
@@ -402,7 +406,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                           type="number"
                           min={0}
                           placeholder="0"
-                          className="w-24 rounded-sm border border-line px-2 py-1"
+                          className="w-24 rounded-sm border border-line-2 bg-white px-2 py-1"
                           value={item.discount || ''}
                           onChange={(e) =>
                             updateItemField(index, { discount: Number(e.target.value) || 0 })
