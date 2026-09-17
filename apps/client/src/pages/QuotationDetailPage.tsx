@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
+import { PrintTicket } from '../components/print/PrintTicket';
+import { QuotationTicket } from '../components/print/QuotationTicket';
 import { QuickCreateProductDialog } from '../components/QuickCreateProductDialog';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
@@ -104,6 +106,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   const canInvoice = has('quotations.invoice');
   const canCancel = has('quotations.cancel');
   const isOpen = quotation.status === 'open';
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const [items, setItems] = useState<EditableItem[]>(() =>
     editableItemsFrom(quotation.items ?? []),
@@ -240,6 +243,13 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           >
             {STATUS_LABEL[quotation.status]}
           </span>
+          <button
+            type="button"
+            onClick={() => setIsPrinting(true)}
+            className="text-xs font-medium text-steel hover:text-ink hover:underline"
+          >
+            Imprimir
+          </button>
           {isOpen && canCancel && (
             <button
               type="button"
@@ -710,6 +720,12 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           onClose={() => setIsCancelDialogOpen(false)}
           onCancelled={() => setIsCancelDialogOpen(false)}
         />
+      )}
+
+      {isPrinting && (
+        <PrintTicket onClose={() => setIsPrinting(false)}>
+          <QuotationTicket quotation={quotation} />
+        </PrintTicket>
       )}
     </div>
   );

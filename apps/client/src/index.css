@@ -35,3 +35,28 @@
 
   --color-info-tint: #e9eaec;
 }
+
+/* Printable tickets (PrintTicket component) — rendered as a sibling of
+   #root via a portal, hidden on screen, shown (and everything else
+   hidden) only when actually printing. */
+.print-ticket {
+  display: none;
+}
+
+@media print {
+  #root {
+    display: none !important;
+  }
+
+  .print-ticket {
+    display: block !important;
+  }
+
+  /* Best-effort for an 80mm receipt printer — browsers/drivers that don't
+     support a custom paper size just fall back to their own default and
+     center the (narrow, w-[300px]) ticket content on it. */
+  @page {
+    size: 80mm auto;
+    margin: 4mm;
+  }
+}

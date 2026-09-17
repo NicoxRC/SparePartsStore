@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Alert } from './Alert';
 import { Button } from './Button';
+import { CashRegisterTicket } from './print/CashRegisterTicket';
+import { PrintTicket } from './print/PrintTicket';
 import { useCloseCashRegister } from '../hooks/useCashRegister';
 import { getApiErrorMessage } from '../lib/errors';
 import type { CashRegisterResponse } from '../services/cashRegister';
@@ -28,6 +30,7 @@ export function CloseCashRegisterDialog({
   const closeMutation = useCloseCashRegister();
   const [countedCash, setCountedCash] = useState('');
   const [report, setReport] = useState<CashRegisterResponse | null>(null);
+  const [isPrinting, setIsPrinting] = useState(false);
 
   const parsedCounted = parseFloat(countedCash);
   const isValidCounted = !isNaN(parsedCounted) && parsedCounted >= 0;
@@ -141,11 +144,24 @@ export function CloseCashRegisterDialog({
             </div>
           </dl>
 
-          <div className="mt-4">
-            <Button type="button" onClick={onClosed} className="w-full">
+          <div className="mt-4 flex gap-2">
+            <Button
+              type="button"
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setIsPrinting(true)}
+            >
+              Imprimir
+            </Button>
+            <Button type="button" className="flex-1" onClick={onClosed}>
               Listo
             </Button>
           </div>
+          {isPrinting && (
+            <PrintTicket onClose={() => setIsPrinting(false)}>
+              <CashRegisterTicket register={report} />
+            </PrintTicket>
+          )}
         </div>
       </div>,
       document.body,
