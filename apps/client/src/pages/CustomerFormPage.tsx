@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
@@ -18,9 +19,12 @@ import {
 } from '../lib/schemas/customer';
 import type { CustomerPartyType } from '../services/customers';
 
+type Tab = 'data' | 'history';
+
 export function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [tab, setTab] = useState<Tab>('data');
 
   const customerQuery = useCustomer(id);
   const updateMutation = useUpdateCustomer(id ?? '');
@@ -93,6 +97,35 @@ export function CustomerFormPage() {
         Editar cliente
       </h1>
 
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => setTab('data')}
+          className={`rounded-full border px-3 py-1.5 text-sm ${
+            tab === 'data'
+              ? 'border-ink bg-ink text-white'
+              : 'border-line bg-white text-steel hover:bg-mist'
+          }`}
+        >
+          Datos
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab('history')}
+          className={`rounded-full border px-3 py-1.5 text-sm ${
+            tab === 'history'
+              ? 'border-ink bg-ink text-white'
+              : 'border-line bg-white text-steel hover:bg-mist'
+          }`}
+        >
+          Historial de compras
+        </button>
+      </div>
+
+      {tab === 'history' ? (
+        id && <CustomerPurchaseHistory customerId={id} />
+      ) : (
+        <>
       {updateMutation.isError && (
         <Alert variant="error">{getApiErrorMessage(updateMutation.error)}</Alert>
       )}
@@ -247,8 +280,8 @@ export function CustomerFormPage() {
           </Button>
         </div>
       </form>
-
-      {id && <CustomerPurchaseHistory customerId={id} />}
+        </>
+      )}
     </div>
   );
 }
