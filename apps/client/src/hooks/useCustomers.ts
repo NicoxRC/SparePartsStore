@@ -8,8 +8,10 @@ import {
   createCustomer,
   deleteCustomer,
   getCustomer,
+  getCustomerHistory,
   getCustomers,
   updateCustomer,
+  type CustomerHistoryQuery,
   type CustomerInput,
   type CustomersQuery,
 } from '../services/customers';
@@ -49,6 +51,14 @@ export function useUpdateCustomer(id: string) {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [CUSTOMERS_KEY] });
     },
+  });
+}
+
+export function useCustomerHistory(id: string, query: CustomerHistoryQuery = {}) {
+  return useQuery({
+    queryKey: [CUSTOMERS_KEY, id, 'history', query],
+    queryFn: () => getCustomerHistory(id, query),
+    enabled: Boolean(id),
   });
 }
 

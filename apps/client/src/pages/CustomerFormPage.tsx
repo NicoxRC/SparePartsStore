@@ -3,6 +3,7 @@ import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CustomerPurchaseHistory } from '../components/CustomerPurchaseHistory';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
@@ -246,6 +247,8 @@ export function CustomerFormPage() {
           </Button>
         </div>
       </form>
+
+      {id && <CustomerPurchaseHistory customerId={id} />}
     </div>
   );
 }
