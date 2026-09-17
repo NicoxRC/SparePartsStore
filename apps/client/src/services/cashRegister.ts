@@ -11,6 +11,17 @@ export interface CashMovement {
   createdAt: string;
 }
 
+export interface CashRegisterNote {
+  id: string;
+  type: 'debit' | 'credit';
+  number: number;
+  prefix: string;
+  totalAmount: number;
+  invoiceNumber: number;
+  invoicePrefix: string;
+  createdAt: string;
+}
+
 export interface CashRegisterResponse {
   id: string;
   registerDate: string;
@@ -33,6 +44,9 @@ export interface CashRegisterResponse {
   countedCash: number | null;
   cashDiscrepancy: number | null;
   movements: CashMovement[];
+  /** Debit/credit notes issued that store day — informational only, not
+   * part of totalCash/expectedCash. */
+  notes: CashRegisterNote[];
   isOpen: boolean;
 }
 

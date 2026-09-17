@@ -108,7 +108,7 @@ export function CashRegisterHistoryPage() {
                     <th className="px-4 py-3 text-right">Esperado</th>
                     <th className="px-4 py-3 text-right">Contado</th>
                     <th className="px-4 py-3 text-right">Desfase</th>
-                    <th className="px-4 py-3">Movimientos</th>
+                    <th className="px-4 py-3">Detalles</th>
                     <th className="px-4 py-3" />
                   </tr>
                 </thead>
@@ -157,14 +157,14 @@ export function CashRegisterHistoryPage() {
                             : `${discrepancy > 0 ? '+' : ''}${money(discrepancy)}`}
                         </td>
                         <td className="px-4 py-3">
-                          {register.movements.length > 0 ? (
+                          {register.movements.length + register.notes.length > 0 ? (
                             <button
                               type="button"
                               onClick={() => setExpandedId(isExpanded ? null : register.id)}
                               className="text-xs font-medium text-steel hover:text-ink hover:underline"
                             >
-                              {register.movements.length}{' '}
-                              {register.movements.length === 1 ? 'movimiento' : 'movimientos'}
+                              {register.movements.length + register.notes.length} detalle
+                              {register.movements.length + register.notes.length === 1 ? '' : 's'}
                               {isExpanded ? ' ▲' : ' ▼'}
                             </button>
                           ) : (
@@ -175,29 +175,64 @@ export function CashRegisterHistoryPage() {
                           {!register.isOpen && <CorrectCountedCashCell register={register} />}
                         </td>
                       </tr>
-                      {isExpanded && register.movements.length > 0 && (
+                      {isExpanded && register.movements.length + register.notes.length > 0 && (
                         <tr>
                           <td colSpan={10} className="bg-canvas px-4 py-3">
-                            <ul className="flex flex-col gap-1 text-sm">
-                              {register.movements.map((movement) => (
-                                <li key={movement.id} className="flex items-center justify-between gap-2">
-                                  <span className="text-steel">
-                                    {movement.reason}
-                                    {movement.createdByName && (
-                                      <span className="text-xs text-fog"> — {movement.createdByName}</span>
-                                    )}
-                                  </span>
-                                  <span
-                                    className={`font-mono ${
-                                      movement.amount > 0 ? 'text-ok' : 'text-rust'
-                                    }`}
-                                  >
-                                    {movement.amount > 0 ? '+' : ''}
-                                    {money(movement.amount)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
+                            <div className="flex flex-col gap-3 text-sm">
+                              {register.movements.length > 0 && (
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-fog">
+                                    Entradas y salidas
+                                  </p>
+                                  <ul className="flex flex-col gap-1">
+                                    {register.movements.map((movement) => (
+                                      <li key={movement.id} className="flex items-center justify-between gap-2">
+                                        <span className="text-steel">
+                                          {movement.reason}
+                                          {movement.createdByName && (
+                                            <span className="text-xs text-fog"> — {movement.createdByName}</span>
+                                          )}
+                                        </span>
+                                        <span
+                                          className={`font-mono ${
+                                            movement.amount > 0 ? 'text-ok' : 'text-rust'
+                                          }`}
+                                        >
+                                          {movement.amount > 0 ? '+' : ''}
+                                          {money(movement.amount)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                              {register.notes.length > 0 && (
+                                <div className="flex flex-col gap-1">
+                                  <p className="text-xs font-semibold uppercase tracking-wide text-fog">
+                                    Notas débito/crédito
+                                  </p>
+                                  <ul className="flex flex-col gap-1">
+                                    {register.notes.map((note) => (
+                                      <li key={note.id} className="flex items-center justify-between gap-2">
+                                        <span className="text-steel">
+                                          {note.type === 'debit' ? 'Nota débito' : 'Nota crédito'} #{note.number}{' '}
+                                          — factura {note.invoicePrefix}
+                                          {note.invoiceNumber}
+                                        </span>
+                                        <span
+                                          className={`font-mono ${
+                                            note.type === 'debit' ? 'text-ok' : 'text-rust'
+                                          }`}
+                                        >
+                                          {note.type === 'debit' ? '+' : '-'}
+                                          {money(note.totalAmount)}
+                                        </span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       )}

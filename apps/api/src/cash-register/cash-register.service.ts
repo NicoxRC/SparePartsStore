@@ -5,15 +5,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { Between, IsNull, Not, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
 import {
   getStoreDayRangeUtc,
   getStoreToday,
 } from '../common/utils/store-date.util';
+import { CreditNote } from '../invoicing/credit-notes/entities/credit-note.entity';
+import { DebitNote } from '../invoicing/debit-notes/entities/debit-note.entity';
 import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
 import { Quotation } from '../quotations/entities/quotation.entity';
+import { CashRegisterNoteResponseDto } from './dto/cash-register-note.dto';
 import { CashRegisterResponseDto } from './dto/cash-register-response.dto';
 import { CashRegisterStatusDto } from './dto/cash-register-status.dto';
 import { CreateCashMovementDto } from './dto/create-cash-movement.dto';
@@ -52,6 +55,13 @@ export class CashRegisterService {
     private readonly invoicesRepository: Repository<Invoice>,
     @InjectRepository(Quotation)
     private readonly quotationsRepository: Repository<Quotation>,
+    // Read directly for the same reason as Invoice/Quotation above — both
+    // DebitNotesModule/CreditNotesModule import CashRegisterModule for the
+    // open-register gate, so going the other way would be circular.
+    @InjectRepository(DebitNote)
+    private readonly debitNotesRepository: Repository<DebitNote>,
+    @InjectRepository(CreditNote)
+    private readonly creditNotesRepository: Repository<CreditNote>,
   ) {}
 
   async open(
@@ -75,9 +85,7 @@ export class CashRegisterService {
 
     try {
       const saved = await this.cashRegisterRepository.save(register);
-      return CashRegisterResponseDto.fromEntity(
-        await this.findWithRelations(saved.id),
-      );
+      return this.buildResponse(await this.findWithRelations(saved.id));
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException('La caja de hoy ya fue abierta.');
@@ -117,9 +125,7 @@ export class CashRegisterService {
     register.closedBy = { id: userId } as CashRegister['closedBy'];
 
     const saved = await this.cashRegisterRepository.save(register);
-    return CashRegisterResponseDto.fromEntity(
-      await this.findWithRelations(saved.id),
-    );
+    return this.buildResponse(await this.findWithRelations(saved.id));
   }
 
   /** Corrects a closed day's physical cash count — e.g. it was miscounted
@@ -146,9 +152,7 @@ export class CashRegisterService {
     register.cashDiscrepancy = countedCash - register.expectedCash;
 
     const saved = await this.cashRegisterRepository.save(register);
-    return CashRegisterResponseDto.fromEntity(
-      await this.findWithRelations(saved.id),
-    );
+    return this.buildResponse(await this.findWithRelations(saved.id));
   }
 
   /** Records a cash movement that isn't a sale (e.g. bringing in change,
@@ -176,9 +180,7 @@ export class CashRegisterService {
     });
     await this.cashMovementRepository.save(movement);
 
-    return CashRegisterResponseDto.fromEntity(
-      await this.findWithRelations(register.id),
-    );
+    return this.buildResponse(await this.findWithRelations(register.id));
   }
 
   async getTodayStatus(): Promise<CashRegisterStatusDto> {
@@ -210,7 +212,7 @@ export class CashRegisterService {
 
     return {
       isOpen,
-      register: CashRegisterResponseDto.fromEntity(register),
+      register: await this.buildResponse(register),
       totalSoFar: isOpen ? await this.computeTotal(today) : null,
       totalOwedSoFar: isOpen ? await this.computeOwedTotal(today) : null,
       expectedCashSoFar,
@@ -231,8 +233,8 @@ export class CashRegisterService {
     });
 
     return {
-      data: registers.map((register) =>
-        CashRegisterResponseDto.fromEntity(register),
+      data: await Promise.all(
+        registers.map((register) => this.buildResponse(register)),
       ),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
@@ -346,6 +348,56 @@ export class CashRegisterService {
       order: { registerDate: 'DESC' },
     });
     return previous?.countedCash ?? null;
+  }
+
+  /** Attaches that day's debit/credit notes (informational only) to an
+   * already-built response — see CashRegisterResponseDto.notes. */
+  private async buildResponse(
+    register: CashRegister,
+  ): Promise<CashRegisterResponseDto> {
+    const dto = CashRegisterResponseDto.fromEntity(register);
+    dto.notes = await this.findNotesForDay(register.registerDate);
+    return dto;
+  }
+
+  /** Debit/credit notes issued on the given store day, read straight off
+   * their own tables (not folded into totalCash/expectedCash — see the
+   * comment on CashRegister.totalCash for why). Shown purely so a manager
+   * closing/reviewing the day can see a note happened, since it can move
+   * real money without being a sale. */
+  private async findNotesForDay(
+    storeDate: string,
+  ): Promise<CashRegisterNoteResponseDto[]> {
+    const { start, end } = getStoreDayRangeUtc(storeDate);
+    const [debitNotes, creditNotes] = await Promise.all([
+      this.debitNotesRepository.find({
+        where: { createdAt: Between(start, end) },
+        relations: ['invoice'],
+      }),
+      this.creditNotesRepository.find({
+        where: { createdAt: Between(start, end) },
+        relations: ['invoice'],
+      }),
+    ]);
+
+    const toDto = (
+      note: DebitNote | CreditNote,
+      type: 'debit' | 'credit',
+    ): CashRegisterNoteResponseDto => ({
+      id: note.id,
+      type,
+      number: note.number,
+      prefix: note.prefix,
+      totalAmount: note.totalAmount,
+      invoiceNumber: note.invoice.number,
+      invoicePrefix: note.invoice.prefix,
+      createdAt: note.createdAt.toISOString(),
+    });
+
+    return [
+      ...debitNotes.map((note) => toDto(note, 'debit')),
+      ...creditNotes.map((note) => toDto(note, 'credit')),
+    ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
   }
 
   private async findWithRelations(id: string): Promise<CashRegister> {

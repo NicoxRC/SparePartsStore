@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { CashRegister } from '../entities/cash-register.entity';
 import { CashMovementResponseDto } from './cash-movement-response.dto';
+import { CashRegisterNoteResponseDto } from './cash-register-note.dto';
 
 export class CashRegisterResponseDto {
   @ApiProperty()
@@ -71,6 +72,13 @@ export class CashRegisterResponseDto {
   @ApiProperty({ type: [CashMovementResponseDto] })
   movements: CashMovementResponseDto[];
 
+  @ApiProperty({
+    type: [CashRegisterNoteResponseDto],
+    description:
+      'Debit/credit notes issued that store day — informational only, not part of totalCash/expectedCash. Set by CashRegisterService, not fromEntity (see there).',
+  })
+  notes: CashRegisterNoteResponseDto[];
+
   @ApiProperty()
   isOpen: boolean;
 
@@ -100,6 +108,7 @@ export class CashRegisterResponseDto {
     dto.movements = (register.movements ?? []).map((movement) =>
       CashMovementResponseDto.fromEntity(movement),
     );
+    dto.notes = [];
     dto.isOpen = register.closedAt === null;
     return dto;
   }

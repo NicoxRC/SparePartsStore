@@ -87,6 +87,31 @@ export function CloseCashRegisterDialog({
               </div>
             )}
 
+            {report.notes.length > 0 && (
+              <div className="mt-1 flex flex-col gap-1 border-t border-line pt-2">
+                <dt className="text-xs font-semibold uppercase tracking-wide text-fog">
+                  Notas débito/crédito de hoy
+                </dt>
+                {report.notes.map((note) => (
+                  <div key={note.id} className="flex items-center justify-between gap-2">
+                    <dd className="min-w-0 flex-1 truncate text-steel">
+                      {note.type === 'debit' ? 'Nota débito' : 'Nota crédito'} #{note.number} —
+                      factura {note.invoicePrefix}
+                      {note.invoiceNumber}
+                    </dd>
+                    <dd
+                      className={`shrink-0 font-mono ${
+                        note.type === 'debit' ? 'text-ok' : 'text-rust'
+                      }`}
+                    >
+                      {note.type === 'debit' ? '+' : '-'}
+                      {money(note.totalAmount)}
+                    </dd>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <div className="mt-1 flex items-center justify-between rounded-sm bg-mist px-3 py-2">
               <dt className="font-medium text-ink">Efectivo esperado</dt>
               <dd className="font-mono font-semibold text-ink">

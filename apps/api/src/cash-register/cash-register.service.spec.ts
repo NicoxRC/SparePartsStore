@@ -4,6 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { QueryFailedError, Repository } from 'typeorm';
+import { CreditNote } from '../invoicing/credit-notes/entities/credit-note.entity';
+import { DebitNote } from '../invoicing/debit-notes/entities/debit-note.entity';
 import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
 import { Quotation } from '../quotations/entities/quotation.entity';
 import { CashRegisterService } from './cash-register.service';
@@ -25,6 +27,8 @@ describe('CashRegisterService', () => {
   };
   let invoicesRepository: { createQueryBuilder: jest.Mock };
   let quotationsRepository: { createQueryBuilder: jest.Mock };
+  let debitNotesRepository: { find: jest.Mock };
+  let creditNotesRepository: { find: jest.Mock };
   let invoiceQueryBuilder: {
     select: jest.Mock;
     where: jest.Mock;
@@ -116,12 +120,16 @@ describe('CashRegisterService', () => {
     quotationsRepository = {
       createQueryBuilder: jest.fn(() => quotationQueryBuilder),
     };
+    debitNotesRepository = { find: jest.fn().mockResolvedValue([]) };
+    creditNotesRepository = { find: jest.fn().mockResolvedValue([]) };
 
     service = new CashRegisterService(
       cashRegisterRepository as unknown as Repository<CashRegister>,
       cashMovementRepository as unknown as Repository<CashMovement>,
       invoicesRepository as unknown as Repository<Invoice>,
       quotationsRepository as unknown as Repository<Quotation>,
+      debitNotesRepository as unknown as Repository<DebitNote>,
+      creditNotesRepository as unknown as Repository<CreditNote>,
     );
 
     jest.useFakeTimers().setSystemTime(new Date('2026-09-16T18:00:00.000Z')); // 1pm Bogotá
@@ -226,6 +234,52 @@ describe('CashRegisterService', () => {
       // 50000 opening + 100000 cash sales - 20000 net movements
       expect(saved.expectedCash).toBe(130000);
       expect(saved.cashDiscrepancy).toBe(0);
+    });
+
+    it("includes that day's debit/credit notes in the response for visibility, without folding them into expectedCash", async () => {
+      debitNotesRepository.find.mockResolvedValue([
+        {
+          id: 'debit-1',
+          number: 3,
+          prefix: 'NDE',
+          totalAmount: 15000,
+          createdAt: new Date('2026-09-16T20:00:00.000Z'),
+          invoice: { number: 1225, prefix: 'FVE' },
+        },
+      ]);
+      creditNotesRepository.find.mockResolvedValue([
+        {
+          id: 'credit-1',
+          number: 1,
+          prefix: 'NCE',
+          totalAmount: 5000,
+          createdAt: new Date('2026-09-16T21:00:00.000Z'),
+          invoice: { number: 1226, prefix: 'FVE' },
+        },
+      ]);
+      cashRegisterRepository.findOne
+        .mockResolvedValueOnce({ ...openRegister })
+        .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
+
+      const result = await service.close('user-1', 150000);
+
+      expect(result.notes).toEqual([
+        expect.objectContaining({
+          id: 'debit-1',
+          type: 'debit',
+          totalAmount: 15000,
+        }),
+        expect.objectContaining({
+          id: 'credit-1',
+          type: 'credit',
+          totalAmount: 5000,
+        }),
+      ]);
+      // Not part of the reconciliation math — see the comment on
+      // CashRegister.totalCash.
+      const saved = cashRegisterRepository.save.mock
+        .calls[0][0] as CashRegister;
+      expect(saved.expectedCash).toBe(150000);
     });
 
     it('queries invoices and quotations within the Bogotá-local day, not the UTC day', async () => {

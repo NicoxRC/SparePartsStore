@@ -99,6 +99,8 @@ Closing ("cerrar caja") at the end of the day **auto-calculates a full report**,
 
 **Movimientos de caja (cash movements)** — `cash_movements`, entradas/salidas of cash that aren't a sale (e.g. bringing in change, paying a supplier out of the till). Requires a reason, and a signed `amount` (positive = entrada, negative = salida) instead of a separate type column, mirroring how `inventory_movements.quantity` already encodes direction by sign. Feeds into `expected_cash` at close time. Deliberately cash-only — no payment-method field, since these exist purely to reconcile physical cash, not card/transfer balances.
 
+The report also lists that day's **nota débito/nota crédito** (see below) for visibility — a note can move real money without being a sale — but deliberately does **not** fold them into `total_cash`/`expected_cash`: a note inherits the original invoice's payment method (which may be card/transfer, not cash), so summing it into the cash math would misrepresent the drawer.
+
 There is no reopen flow — once closed, a day's register's invoices/quotations/movements are done; only `counted_cash` stays correctable. Per-seller breakdown isn't tracked here — that's already covered by each invoice/quotation's own `created_by_id`. In code: `CashRegisterService`, `POST /api/cash-register/open`, `POST /api/cash-register/close`, `PATCH /api/cash-register/:id/counted-cash`, `POST /api/cash-register/movements`, `GET /api/cash-register/today`, `GET /api/cash-register`, `cash_registers`/`cash_movements` tables.
 
 ### Cotización (Quotation / store credit)
