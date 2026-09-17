@@ -145,6 +145,29 @@ describe('InvoicesService', () => {
     expect(dataicoClient.post).not.toHaveBeenCalled();
   });
 
+  it('scopes the active resolution lookup to the ELECTRONICO subtype, never just the document type', async () => {
+    resolutionsService.findActiveForDocumentType.mockResolvedValue({
+      resolutionNumber: '18764105397963',
+      prefix: 'FVE',
+    });
+    dataicoClient.post.mockResolvedValue({
+      number: 'FVE1225',
+      dian_status: 'DIAN_ACEPTADO',
+      cufe: 'abc123',
+      uuid: 'dataico-uuid-1',
+      xml_url: 'https://app.dataico.com/xml',
+      pdf_url: 'https://app.dataico.com/pdf',
+      xml: 'huge-base64-blob-not-to-be-persisted',
+    });
+
+    await service.create(baseDto, 'user-1');
+
+    expect(resolutionsService.findActiveForDocumentType).toHaveBeenCalledWith(
+      'invoice',
+      'ELECTRONICO',
+    );
+  });
+
   it('rejects on insufficient stock, without calling Dataico', async () => {
     resolutionsService.findActiveForDocumentType.mockResolvedValue({
       resolutionNumber: 'RES-1',

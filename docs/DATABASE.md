@@ -198,9 +198,11 @@ Added Phase 8 — a DIAN numbering resolution successfully synced to Dataico. Se
 | `technical_key` | VARCHAR(255), nullable | Only ever set for `document_type = 'invoice'`, per the confirmed reference. |
 | `start_date`, `end_date` | DATE | The resolution's validity window. |
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
-| `created_at` | TIMESTAMPTZ | **No `updated_at`, no `deleted_at` — append-only**, same convention as `inventory_movements`. A resolution is never edited; it's superseded by syncing a new one. The most recently created row for a given `(document_type, prefix)` is the active one — there is no separate "is active" flag. |
+| `created_at` | TIMESTAMPTZ | **No `updated_at`, no `deleted_at` — append-only**, same convention as `inventory_movements`. A resolution is never edited; it's superseded by syncing a new one. The most recently created row for a given `(document_type, subtype)` is the active one — there is no separate "is active" flag. |
 
 **Business logic (`ResolutionsService.create`):** builds Dataico's request body (field names differ by `document_type` — see the phase doc), calls Dataico, and **only inserts the local row if Dataico accepts it** — a rejected sync is never recorded as "on file."
+
+**Business logic (`ResolutionsService.findActiveForDocumentType`):** every caller must pass `subtype` explicitly (e.g. `InvoicesService.create()` passes `'ELECTRONICO'`) — never call it with just `document_type`. `subtype` is a free string, not an enum, so more than one resolution can exist under the same `document_type` (this store's now-removed POS module used `'POS'` under `document_type: invoice` alongside the standard `'ELECTRONICO'` one — see `docs/phases/PHASE_12_POS.md`); omitting `subtype` would let whichever row is most recent silently become "the" active one, regardless of what it was actually meant for. The `IDX_dian_resolutions_document_type_prefix` index predates this — `prefix` is an output of picking the active resolution (which row it lands on), not something a caller filters by going in.
 
 ### `invoices`
 

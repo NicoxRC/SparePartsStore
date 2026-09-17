@@ -82,8 +82,17 @@ export class InvoicesService {
   ): Promise<InvoiceResponseDto> {
     await this.cashRegisterService.assertOpenToday();
 
+    // subtype: 'ELECTRONICO' is explicit, not incidental — a business can
+    // hold more than one resolution under documentType: invoice (this
+    // store used to also have a 'POS' one, see docs/phases/PHASE_12_POS.md
+    // before its removal), and findActiveForDocumentType() picks whichever
+    // matching row was created most recently. Without this filter, a
+    // resolution created for a different purpose (even by mistake — the
+    // column is a free string, not an enum) could silently become "the"
+    // active one for standard invoicing.
     const resolution = await this.resolutionsService.findActiveForDocumentType(
       DianResolutionDocumentType.INVOICE,
+      'ELECTRONICO',
     );
     if (!resolution) {
       throw new BadRequestException(
