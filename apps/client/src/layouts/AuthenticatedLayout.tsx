@@ -14,35 +14,53 @@ import {
   IconUsers,
 } from '../components/icons';
 import { useAuth } from '../hooks/useAuth';
+import { usePermissions } from '../hooks/usePermissions';
 
 export function AuthenticatedLayout() {
   const { user, logout } = useAuth();
+  const { has } = usePermissions();
+  const isAdmin = user?.role === 'admin';
+  const isAuditor = user?.role === 'auditor';
 
   const navItems = [
-    ...(user?.role === 'admin'
-      ? [{ to: '/dashboard', label: 'Panel', Icon: IconDashboard }]
+    ...(isAdmin ? [{ to: '/dashboard', label: 'Panel', Icon: IconDashboard }] : []),
+    // Productos/Inventario predate this permission system as unrestricted
+    // views for any authenticated role — auditor keeps that fixed access
+    // here, unrelated to the employee permission grant.
+    ...(isAuditor || has('products.view')
+      ? [{ to: '/products', label: 'Productos', Icon: IconBox }]
       : []),
-    { to: '/products', label: 'Productos', Icon: IconBox },
-    { to: '/inventory', label: 'Inventario', Icon: IconLayers },
-    ...(user?.role !== 'auditor'
-      ? [
-          { to: '/ventas', label: 'Venta', Icon: IconCart },
-          { to: '/cotizaciones', label: 'Cotizaciones', Icon: IconIdCard },
-          { to: '/invoicing/invoices', label: 'Facturas', Icon: IconReceipt },
-          { to: '/customers', label: 'Clientes', Icon: IconContact },
-        ]
+    ...(isAuditor || has('inventory.view')
+      ? [{ to: '/inventory', label: 'Inventario', Icon: IconLayers }]
       : []),
-    ...(user?.role === 'admin'
+    ...(!isAuditor && has('invoices.create')
+      ? [{ to: '/ventas', label: 'Venta', Icon: IconCart }]
+      : []),
+    ...(!isAuditor && has('quotations.view')
+      ? [{ to: '/cotizaciones', label: 'Cotizaciones', Icon: IconIdCard }]
+      : []),
+    ...(!isAuditor && has('invoices.view')
+      ? [{ to: '/invoicing/invoices', label: 'Facturas', Icon: IconReceipt }]
+      : []),
+    ...(!isAuditor && has('customers.view')
+      ? [{ to: '/customers', label: 'Clientes', Icon: IconContact }]
+      : []),
+    ...(isAdmin
       ? [
           { to: '/users', label: 'Usuarios', Icon: IconUsers },
           { to: '/catalogs', label: 'Catálogos', Icon: IconTag },
           { to: '/invoicing/resolutions', label: 'Resoluciones DIAN', Icon: IconStamp },
-          { to: '/cash-register/history', label: 'Caja', Icon: IconCashRegister },
           // Nómina electrónica: not removed, just off the nav — not in use
           // for now but expected back later. Route/page/backend stay intact
           // at /invoicing/payroll-entries; restoring access is just adding
           // this entry back.
         ]
+      : []),
+    // "Caja" was previously hardcoded admin-only here even though the
+    // backend already allowed employee access — now it follows the same
+    // permission an employee can be granted, same as every other item.
+    ...(isAdmin || has('cash_register.view')
+      ? [{ to: '/cash-register/history', label: 'Caja', Icon: IconCashRegister }]
       : []),
   ];
 

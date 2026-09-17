@@ -16,6 +16,7 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { DepartmentsService } from './departments.service';
@@ -38,6 +39,7 @@ export class DepartmentsController {
   }
 
   @Get()
+  @RequirePermission('catalogs.view')
   findAll(
     @Query() query: QueryDepartmentsDto,
   ): Promise<PaginatedResponseDto<DepartmentResponseDto>> {
@@ -45,6 +47,7 @@ export class DepartmentsController {
   }
 
   @Get(':id')
+  @RequirePermission('catalogs.view')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<DepartmentResponseDto> {

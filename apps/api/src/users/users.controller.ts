@@ -20,6 +20,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { CreateUserDto } from './dto/create-user.dto';
 import { QueryUsersDto } from './dto/query-users.dto';
+import { UpdatePermissionsDto } from './dto/update-permissions.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UsersService } from './users.service';
@@ -59,6 +60,15 @@ export class UsersController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<UserResponseDto> {
     return this.usersService.update(id, dto, user.id);
+  }
+
+  @Patch(':id/permissions')
+  updatePermissions(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePermissionsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<UserResponseDto> {
+    return this.usersService.updatePermissions(id, dto.permissions, user.id);
   }
 
   @Delete(':id')

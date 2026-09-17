@@ -1,4 +1,5 @@
 import { api } from '../lib/api';
+import type { PermissionCode } from '../lib/permissions';
 import type { PaginatedResponse } from './products';
 
 export type UserRole = 'admin' | 'employee' | 'auditor';
@@ -10,6 +11,8 @@ export interface UserResponse {
   lastName: string;
   role: UserRole;
   isActive: boolean;
+  /** Only meaningful when role is 'employee' — always [] otherwise. */
+  permissions: PermissionCode[];
   lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -29,6 +32,7 @@ export interface CreateUserInput {
   firstName: string;
   lastName: string;
   role: UserRole;
+  permissions?: PermissionCode[];
 }
 
 export interface UpdateUserInput {
@@ -69,4 +73,14 @@ export async function updateUser(
 
 export async function deleteUser(id: string): Promise<void> {
   await api.delete(`/users/${id}`);
+}
+
+export async function updateUserPermissions(
+  id: string,
+  permissions: PermissionCode[],
+): Promise<UserResponse> {
+  const { data } = await api.patch<UserResponse>(`/users/${id}/permissions`, {
+    permissions,
+  });
+  return data;
 }

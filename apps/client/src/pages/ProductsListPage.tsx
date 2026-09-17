@@ -9,6 +9,7 @@ import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
 import { useExportArticulos } from '../hooks/useExport';
+import { usePermissions } from '../hooks/usePermissions';
 import { useDeleteProduct, useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import type { ProductResponse, ProductsQuery } from '../services/products';
@@ -17,8 +18,10 @@ const PAGE_SIZE = 20;
 
 export function ProductsListPage() {
   const { user } = useAuth();
+  const { has } = usePermissions();
   const isAdmin = user?.role === 'admin';
-  const canMutate = user?.role === 'admin' || user?.role === 'employee';
+  const canCreate = has('products.create');
+  const canEdit = has('products.update');
 
   const [filters, setFilters] = useState<ProductsQuery>({
     page: 1,
@@ -76,7 +79,7 @@ export function ProductsListPage() {
               Exportar
             </Button>
           )}
-          {canMutate && (
+          {canCreate && (
             <Link to="/products/new" className="shrink-0">
               <Button type="button">+ Nuevo</Button>
             </Link>
@@ -158,7 +161,7 @@ export function ProductsListPage() {
                 <ProductCard
                   key={product.id}
                   product={product}
-                  canEdit={canMutate}
+                  canEdit={canEdit}
                   canDelete={isAdmin}
                   onDelete={handleDeleteRequest}
                   isDeleting={

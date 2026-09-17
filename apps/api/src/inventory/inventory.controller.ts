@@ -4,6 +4,7 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../common/enums/user-role.enum';
 import { CreateMovementDto } from './dto/create-movement.dto';
@@ -17,6 +18,7 @@ export class InventoryController {
 
   @Post('movements')
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @RequirePermission('inventory.create')
   createMovement(
     @Body() dto: CreateMovementDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -26,6 +28,7 @@ export class InventoryController {
 
   @Get('movements')
   @Roles(UserRole.ADMIN, UserRole.EMPLOYEE, UserRole.AUDITOR)
+  @RequirePermission('inventory.view')
   findMovements(
     @Query() query: QueryMovementsDto,
   ): Promise<PaginatedResponseDto<MovementResponseDto>> {

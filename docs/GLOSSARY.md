@@ -8,10 +8,22 @@ This document defines the business vocabulary used throughout the codebase, data
 Full system access: users, products, catalogs (departments/groups/brands), inventory, invoicing. In code: `UserRole.ADMIN`.
 
 ### Employee
-Can create/edit products and record inventory movements. Cannot manage users or catalogs. In code: `UserRole.EMPLOYEE`.
+A base role gating which whole app sections exist for this user's employment at all (invoicing, inventory, cash register, etc. — see `RolesGuard`/`@Roles`). Cannot manage users or catalogs — those stay admin-only, same as before. **Within** what an employee-role account can reach, individual permissions (see "Permisos" below) decide what *this specific* employee can actually see and do — two employees can have very different access despite sharing `UserRole.EMPLOYEE`. In code: `UserRole.EMPLOYEE`.
 
 ### Auditor
-Read-only role. Can view products and inventory movement history, but the frontend's `EmployeeRoute` guard blocks it from the create/edit product routes. In code: `UserRole.AUDITOR` — added after the original two-role design, via the `AddAuditorRole` migration.
+Read-only role. Can view products and inventory movement history, but the frontend's `EmployeeRoute` guard blocks it from the create/edit product routes. Fixed and untouched by the permission system below — an auditor's access never varies per account. In code: `UserRole.AUDITOR` — added after the original two-role design, via the `AddAuditorRole` migration.
+
+## Permisos (granular per-employee permissions)
+
+A local enhancement, **not a Dataico integration** — added because a coarse `employee` role treated every employee as identical, and a store may want one employee able to do something another shouldn't (the example that prompted this: access to Productos is one thing, being able to delete a product is another — though that specific example was already true before this system, since delete was already admin-only). Only ever meaningful for `role: employee` — `admin` is a fixed superuser and `auditor`'s fixed read-only access is untouched; neither uses this system at all.
+
+A flat, code-owned catalog of `<scope>.<action>` codes (`products.view`, `cash_register.open`, `quotations.invoice`, etc. — see `common/constants/permission.constant.ts` for the full list and `docs/DATABASE.md` for the column) stored per user as `users.permissions text[]`. The catalog only ever contains actions a coarse `employee` could already do before this system existed — nothing admin-only (deleting a product/customer, catalog CRUD, managing users, resolutions, payroll) is assignable, so this system can never be used to grant an employee admin-level power.
+
+Enforced by a new `@RequirePermission(...)` decorator + `PermissionsGuard`, which **coexists** with `@Roles`/`RolesGuard` rather than replacing it: `RolesGuard` still decides whether a role can reach a route at all, `PermissionsGuard` then refines that only for `employee` (it bypasses admin and auditor entirely). Permissions ride the JWT the same way `role` already does, so a change takes effect on the normal token-refresh cycle, not instantly.
+
+Granting a permission auto-grants what it structurally implies (e.g. `products.create` also grants `products.view` and `catalogs.view`, since the product form's dropdowns need it — see `expandPermissions()`) — a small hardcoded map, not a rule engine, and verified against the actual client code rather than assumed (e.g. `invoices.create`/`quotations.create` imply `customers.*`/`third_parties.view` because the sale/quotation customer step genuinely depends on both).
+
+Managed from the existing user edit form (`UserFormPage`, a "Permisos" section shown only when role is employee) via its own `PATCH /api/users/:id/permissions` endpoint — a full replace, same convention as `PATCH /quotations/:id/items`. See `docs/DATABASE.md` for the migration and backfill.
 
 ## Inventory domain
 

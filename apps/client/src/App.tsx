@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Navigate, Route, BrowserRouter, Routes } from 'react-router-dom';
 import { AdminRoute } from './components/AdminRoute';
 import { EmployeeRoute } from './components/EmployeeRoute';
+import { PermissionRoute } from './components/PermissionRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
 import { InvoiceDraftsProvider } from './context/InvoiceDraftsContext';
@@ -58,28 +59,69 @@ function App() {
               <Route path="/change-password" element={<ChangePasswordPage />} />
 
               <Route element={<AuthenticatedLayout />}>
-                <Route path="/products" element={<ProductsListPage />} />
-                <Route path="/inventory" element={<InventoryPage />} />
+                {/* Productos/Inventario predate this permission system as
+                    unrestricted views for any authenticated role — kept
+                    outside EmployeeRoute so auditor keeps that fixed
+                    access; PermissionRoute itself bypasses admin/auditor
+                    and only actually checks an employee's grant. */}
+                <Route element={<PermissionRoute permission="products.view" />}>
+                  <Route path="/products" element={<ProductsListPage />} />
+                </Route>
+                <Route element={<PermissionRoute permission="inventory.view" />}>
+                  <Route path="/inventory" element={<InventoryPage />} />
+                </Route>
 
                 <Route element={<EmployeeRoute />}>
-                  <Route path="/invoicing/invoices" element={<InvoicesListPage />} />
+                  <Route element={<PermissionRoute permission="invoices.view" />}>
+                    <Route path="/invoicing/invoices" element={<InvoicesListPage />} />
+                  </Route>
+                  <Route element={<PermissionRoute permission="debit_notes.create" />}>
+                    <Route
+                      path="/invoicing/invoices/:invoiceId/debit-note"
+                      element={<DebitNoteFormPage />}
+                    />
+                  </Route>
+                  <Route element={<PermissionRoute permission="debit_notes.view" />}>
+                    <Route path="/invoicing/debit-notes" element={<DebitNotesListPage />} />
+                  </Route>
+                  <Route element={<PermissionRoute permission="credit_notes.create" />}>
+                    <Route
+                      path="/invoicing/invoices/:invoiceId/credit-note"
+                      element={<CreditNoteFormPage />}
+                    />
+                  </Route>
+                  <Route element={<PermissionRoute permission="credit_notes.view" />}>
+                    <Route path="/invoicing/credit-notes" element={<CreditNotesListPage />} />
+                  </Route>
                   <Route
-                    path="/invoicing/invoices/:invoiceId/debit-note"
-                    element={<DebitNoteFormPage />}
-                  />
-                  <Route path="/invoicing/debit-notes" element={<DebitNotesListPage />} />
-                  <Route
-                    path="/invoicing/invoices/:invoiceId/credit-note"
-                    element={<CreditNoteFormPage />}
-                  />
-                  <Route path="/invoicing/credit-notes" element={<CreditNotesListPage />} />
-                  <Route path="/ventas" element={<InvoiceFormPage />} />
-                  <Route path="/cotizaciones" element={<QuotationsListPage />} />
-                  <Route path="/cotizaciones/:id" element={<QuotationDetailPage />} />
-                  <Route path="/customers" element={<CustomersListPage />} />
-                  <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
-                  <Route path="/products/new" element={<ProductFormPage />} />
-                  <Route path="/products/:id/edit" element={<ProductFormPage />} />
+                    element={<PermissionRoute permission={['invoices.create', 'quotations.create']} />}
+                  >
+                    <Route path="/ventas" element={<InvoiceFormPage />} />
+                  </Route>
+                  <Route element={<PermissionRoute permission="quotations.view" />}>
+                    <Route path="/cotizaciones" element={<QuotationsListPage />} />
+                    <Route path="/cotizaciones/:id" element={<QuotationDetailPage />} />
+                  </Route>
+                  <Route element={<PermissionRoute permission="customers.view" />}>
+                    <Route path="/customers" element={<CustomersListPage />} />
+                    <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
+                  </Route>
+                  <Route element={<PermissionRoute permission="products.create" />}>
+                    <Route path="/products/new" element={<ProductFormPage />} />
+                  </Route>
+                  <Route element={<PermissionRoute permission="products.update" />}>
+                    <Route path="/products/:id/edit" element={<ProductFormPage />} />
+                  </Route>
+                  {/* Admin always passes PermissionRoute too, so this one
+                      grant covers both "an admin viewing caja" and "an
+                      employee an admin chose to let see it" — see
+                      AuthenticatedLayout's nav for the matching change. */}
+                  <Route element={<PermissionRoute permission="cash_register.view" />}>
+                    <Route
+                      path="/cash-register/history"
+                      element={<CashRegisterHistoryPage />}
+                    />
+                  </Route>
                 </Route>
 
                 <Route element={<AdminRoute />}>
@@ -90,11 +132,6 @@ function App() {
                   <Route path="/users/:id/edit" element={<UserFormPage />} />
 
                   <Route path="/catalogs" element={<CatalogsPage />} />
-
-                  <Route
-                    path="/cash-register/history"
-                    element={<CashRegisterHistoryPage />}
-                  />
 
                   <Route
                     path="/invoicing/resolutions"

@@ -8,6 +8,7 @@ import {
   useRefreshInvoiceStatus,
   useResendInvoice,
 } from '../hooks/useInvoices';
+import { usePermissions } from '../hooks/usePermissions';
 import { getApiErrorMessage } from '../lib/errors';
 import type { InvoiceResponse } from '../services/invoices';
 
@@ -50,6 +51,7 @@ function formatDateHeading(dateStr: string): string {
 }
 
 export function InvoicesListPage() {
+  const { has } = usePermissions();
   const [page, setPage] = useState(1);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -88,18 +90,22 @@ export function InvoicesListPage() {
           Facturas
         </h1>
         <div className="flex gap-3">
-          <Link
-            to="/invoicing/debit-notes"
-            className="text-sm font-medium text-ink hover:underline"
-          >
-            Notas débito →
-          </Link>
-          <Link
-            to="/invoicing/credit-notes"
-            className="text-sm font-medium text-ink hover:underline"
-          >
-            Notas crédito →
-          </Link>
+          {has('debit_notes.view') && (
+            <Link
+              to="/invoicing/debit-notes"
+              className="text-sm font-medium text-ink hover:underline"
+            >
+              Notas débito →
+            </Link>
+          )}
+          {has('credit_notes.view') && (
+            <Link
+              to="/invoicing/credit-notes"
+              className="text-sm font-medium text-ink hover:underline"
+            >
+              Notas crédito →
+            </Link>
+          )}
         </div>
       </div>
 
@@ -171,34 +177,42 @@ export function InvoicesListPage() {
                                     Ver PDF
                                   </a>
                                 )}
-                                <button
-                                  type="button"
-                                  disabled={isActioning}
-                                  onClick={() => void handleRefresh(invoice.id)}
-                                  className="text-xs font-medium text-ink hover:underline disabled:opacity-40"
-                                >
-                                  Consultar
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={isActioning}
-                                  onClick={() => void handleResend(invoice.id)}
-                                  className="text-xs font-medium text-ink hover:underline disabled:opacity-40"
-                                >
-                                  Reenviar
-                                </button>
-                                <Link
-                                  to={`/invoicing/invoices/${invoice.id}/debit-note`}
-                                  className="text-xs font-medium text-ink hover:underline"
-                                >
-                                  Nota débito
-                                </Link>
-                                <Link
-                                  to={`/invoicing/invoices/${invoice.id}/credit-note`}
-                                  className="text-xs font-medium text-ink hover:underline"
-                                >
-                                  Nota crédito
-                                </Link>
+                                {has('invoices.refresh') && (
+                                  <button
+                                    type="button"
+                                    disabled={isActioning}
+                                    onClick={() => void handleRefresh(invoice.id)}
+                                    className="text-xs font-medium text-ink hover:underline disabled:opacity-40"
+                                  >
+                                    Consultar
+                                  </button>
+                                )}
+                                {has('invoices.resend') && (
+                                  <button
+                                    type="button"
+                                    disabled={isActioning}
+                                    onClick={() => void handleResend(invoice.id)}
+                                    className="text-xs font-medium text-ink hover:underline disabled:opacity-40"
+                                  >
+                                    Reenviar
+                                  </button>
+                                )}
+                                {has('debit_notes.create') && (
+                                  <Link
+                                    to={`/invoicing/invoices/${invoice.id}/debit-note`}
+                                    className="text-xs font-medium text-ink hover:underline"
+                                  >
+                                    Nota débito
+                                  </Link>
+                                )}
+                                {has('credit_notes.create') && (
+                                  <Link
+                                    to={`/invoicing/invoices/${invoice.id}/credit-note`}
+                                    className="text-xs font-medium text-ink hover:underline"
+                                  >
+                                    Nota crédito
+                                  </Link>
+                                )}
                               </div>
                             </div>
                             <p className="shrink-0 font-mono text-base font-semibold text-ink">

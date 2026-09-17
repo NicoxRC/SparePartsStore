@@ -1,4 +1,5 @@
 import { api } from '../lib/api';
+import type { PermissionCode } from '../lib/permissions';
 
 export type UserRole = 'admin' | 'employee' | 'auditor';
 
@@ -9,6 +10,8 @@ export interface AuthUser {
   lastName: string;
   role: UserRole;
   mustChangePassword: boolean;
+  /** Only meaningful when role is 'employee' — always [] otherwise. */
+  permissions: PermissionCode[];
 }
 
 export interface UserProfile extends AuthUser {

@@ -5,6 +5,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { QueryThirdPartyDto } from './dto/query-third-party.dto';
@@ -27,6 +28,7 @@ export class ThirdPartiesController {
     description: 'No tercero found for this identification',
   })
   @Get()
+  @RequirePermission('third_parties.view')
   lookup(@Query() query: QueryThirdPartyDto): Promise<ThirdPartyResponseDto> {
     return this.thirdPartiesService.lookup(query);
   }

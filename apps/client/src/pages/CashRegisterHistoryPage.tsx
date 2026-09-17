@@ -3,6 +3,7 @@ import { Alert } from '../components/Alert';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
 import { useCashRegisterHistory, useUpdateCountedCash } from '../hooks/useCashRegister';
+import { usePermissions } from '../hooks/usePermissions';
 import { getApiErrorMessage } from '../lib/errors';
 import type { CashRegisterResponse } from '../services/cashRegister';
 
@@ -77,6 +78,8 @@ function CorrectCountedCashCell({ register }: { register: CashRegisterResponse }
 }
 
 export function CashRegisterHistoryPage() {
+  const { has } = usePermissions();
+  const canCorrect = has('cash_register.counted_cash.correct');
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const historyQuery = useCashRegisterHistory({ page, limit: PAGE_SIZE });
@@ -172,7 +175,9 @@ export function CashRegisterHistoryPage() {
                           )}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {!register.isOpen && <CorrectCountedCashCell register={register} />}
+                          {!register.isOpen && canCorrect && (
+                            <CorrectCountedCashCell register={register} />
+                          )}
                         </td>
                       </tr>
                       {isExpanded && register.movements.length + register.notes.length > 0 && (

@@ -17,6 +17,7 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { UserRole } from '../common/enums/user-role.enum';
@@ -40,6 +41,7 @@ export class CashRegisterController {
   @ApiResponse({ status: 201, type: CashRegisterResponseDto })
   @ApiResponse({ status: 409, description: "Today's register is already open" })
   @Post('open')
+  @RequirePermission('cash_register.open')
   open(
     @Body() dto: OpenCashRegisterDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -58,6 +60,7 @@ export class CashRegisterController {
     description: "Today's register is already closed",
   })
   @Post('close')
+  @RequirePermission('cash_register.close')
   close(
     @Body() dto: CloseCashRegisterDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -72,6 +75,7 @@ export class CashRegisterController {
   @ApiResponse({ status: 400, description: 'La caja no está cerrada' })
   @ApiResponse({ status: 404, description: 'Cash register not found' })
   @Patch(':id/counted-cash')
+  @RequirePermission('cash_register.counted_cash.correct')
   updateCountedCash(
     @Param('id') id: string,
     @Body() dto: UpdateCountedCashDto,
@@ -86,6 +90,7 @@ export class CashRegisterController {
   @ApiResponse({ status: 201, type: CashRegisterResponseDto })
   @ApiResponse({ status: 400, description: 'No hay una caja abierta para hoy' })
   @Post('movements')
+  @RequirePermission('cash_register.movements.create')
   addMovement(
     @Body() dto: CreateCashMovementDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -99,6 +104,7 @@ export class CashRegisterController {
   })
   @ApiResponse({ status: 200, type: CashRegisterStatusDto })
   @Get('today')
+  @RequirePermission('cash_register.view')
   getTodayStatus(): Promise<CashRegisterStatusDto> {
     return this.cashRegisterService.getTodayStatus();
   }
@@ -106,6 +112,7 @@ export class CashRegisterController {
   @ApiOperation({ summary: 'List past cash registers, most recent day first' })
   @ApiResponse({ status: 200, type: [CashRegisterResponseDto] })
   @Get()
+  @RequirePermission('cash_register.view')
   findAll(
     @Query() query: QueryCashRegisterDto,
   ): Promise<PaginatedResponseDto<CashRegisterResponseDto>> {

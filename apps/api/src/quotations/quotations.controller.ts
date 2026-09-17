@@ -18,6 +18,7 @@ import {
   AuthenticatedUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
+import { RequirePermission } from '../common/decorators/require-permission.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { UserRole } from '../common/enums/user-role.enum';
@@ -41,6 +42,7 @@ export class QuotationsController {
   })
   @ApiResponse({ status: 201, type: QuotationResponseDto })
   @Post()
+  @RequirePermission('quotations.create')
   create(
     @Body() dto: CreateQuotationDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -51,6 +53,7 @@ export class QuotationsController {
   @ApiOperation({ summary: 'List quotations, most recent first' })
   @ApiResponse({ status: 200, type: [QuotationResponseDto] })
   @Get()
+  @RequirePermission('quotations.view')
   findAll(
     @Query() query: QueryQuotationsDto,
   ): Promise<PaginatedResponseDto<QuotationResponseDto>> {
@@ -60,6 +63,7 @@ export class QuotationsController {
   @ApiOperation({ summary: 'Get one quotation with its items' })
   @ApiResponse({ status: 200, type: QuotationResponseDto })
   @Get(':id')
+  @RequirePermission('quotations.view')
   findOne(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<QuotationResponseDto> {
@@ -69,6 +73,7 @@ export class QuotationsController {
   @ApiOperation({ summary: "Replace a quotation's items — only while open" })
   @ApiResponse({ status: 200, type: QuotationResponseDto })
   @Patch(':id/items')
+  @RequirePermission('quotations.update')
   updateItems(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateQuotationItemsDto,
@@ -80,6 +85,7 @@ export class QuotationsController {
   @ApiOperation({ summary: 'Convert a quotation into a real invoice' })
   @ApiResponse({ status: 201, type: InvoiceResponseDto })
   @Post(':id/invoice')
+  @RequirePermission('quotations.invoice')
   invoice(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: InvoiceQuotationDto,
@@ -91,6 +97,7 @@ export class QuotationsController {
   @ApiOperation({ summary: 'Cancel a quotation — returns its stock' })
   @ApiResponse({ status: 200, type: QuotationResponseDto })
   @Post(':id/cancel')
+  @RequirePermission('quotations.cancel')
   cancel(
     @Param('id', ParseUUIDPipe) id: string,
     @CurrentUser() user: AuthenticatedUser,

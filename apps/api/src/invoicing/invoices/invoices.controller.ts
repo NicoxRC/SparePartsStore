@@ -18,6 +18,7 @@ import {
   CurrentUser,
 } from '../../common/decorators/current-user.decorator';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { RequirePermission } from '../../common/decorators/require-permission.decorator';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -47,6 +48,7 @@ export class InvoicesController {
     description: 'Dataico/DIAN rejected the invoice',
   })
   @Post()
+  @RequirePermission('invoices.create')
   create(
     @Body() dto: CreateInvoiceDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -57,6 +59,7 @@ export class InvoicesController {
   @ApiOperation({ summary: 'List sent invoices, most recent first' })
   @ApiResponse({ status: 200, type: [InvoiceResponseDto] })
   @Get()
+  @RequirePermission('invoices.view')
   findAll(
     @Query() query: QueryInvoicesDto,
   ): Promise<PaginatedResponseDto<InvoiceResponseDto>> {
@@ -66,6 +69,7 @@ export class InvoicesController {
   @ApiOperation({ summary: 'Get one invoice by its local id' })
   @ApiResponse({ status: 200, type: InvoiceResponseDto })
   @Get(':id')
+  @RequirePermission('invoices.view')
   async findOne(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<InvoiceResponseDto> {
@@ -80,6 +84,7 @@ export class InvoicesController {
   @ApiResponse({ status: 200, type: InvoiceResponseDto })
   @ApiResponse({ status: 502, description: 'Dataico/DIAN rejected the resend' })
   @Post(':id/resend')
+  @RequirePermission('invoices.resend')
   resend(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: ResendInvoiceDto,
@@ -92,6 +97,7 @@ export class InvoicesController {
   })
   @ApiResponse({ status: 200, type: InvoiceResponseDto })
   @Post(':id/refresh')
+  @RequirePermission('invoices.refresh')
   refreshStatus(
     @Param('id', ParseUUIDPipe) id: string,
   ): Promise<InvoiceResponseDto> {

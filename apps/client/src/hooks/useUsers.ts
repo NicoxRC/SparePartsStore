@@ -4,12 +4,14 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
+import type { PermissionCode } from '../lib/permissions';
 import {
   createUser,
   deleteUser,
   getUser,
   getUsers,
   updateUser,
+  updateUserPermissions,
   type CreateUserInput,
   type UpdateUserInput,
   type UsersQuery,
@@ -58,6 +60,17 @@ export function useToggleUserActive() {
   return useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       updateUser(id, { isActive }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [USERS_KEY] });
+    },
+  });
+}
+
+export function useUpdateUserPermissions(id: string) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (permissions: PermissionCode[]) =>
+      updateUserPermissions(id, permissions),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [USERS_KEY] });
     },
