@@ -4,6 +4,7 @@ import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
 import { Quotation } from '../quotations/entities/quotation.entity';
 import { CashRegisterController } from './cash-register.controller';
 import { CashRegisterService } from './cash-register.service';
+import { CashMovement } from './entities/cash-movement.entity';
 import { CashRegister } from './entities/cash-register.entity';
 
 /**
@@ -14,7 +15,9 @@ import { CashRegister } from './entities/cash-register.entity';
  * daily-total aggregates — see the note in `cash-register.service.ts`.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([CashRegister, Invoice, Quotation])],
+  imports: [
+    TypeOrmModule.forFeature([CashRegister, CashMovement, Invoice, Quotation]),
+  ],
   controllers: [CashRegisterController],
   providers: [CashRegisterService],
   exports: [CashRegisterService],

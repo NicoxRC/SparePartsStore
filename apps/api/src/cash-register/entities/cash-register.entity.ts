@@ -3,9 +3,11 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { CashMovement } from './cash-movement.entity';
 
 // Same pattern as Invoice.totalAmount — pg returns `numeric` as a string.
 const decimalTransformer = {
@@ -21,7 +23,9 @@ const decimalTransformer = {
  * invoice). `openedAt`/`closedAt` double as this row's own timestamps — a
  * generic `createdAt` would just duplicate `openedAt` — and there's no
  * `deletedAt`/remove endpoint since nothing references this table and a
- * day's register is never undone once closed.
+ * day's register is never undone once closed. The one deliberate exception
+ * to "closed is frozen" is `countedCash`/`cashDiscrepancy`, correctable
+ * after close via `CashRegisterService.updateCountedCash` — see there.
  */
 @Entity('cash_registers')
 export class CashRegister {
@@ -37,6 +41,17 @@ export class CashRegister {
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'opened_by_id' })
   openedBy: User | null;
+
+  // Cash physically counted into the drawer at open time ("base") —
+  // required going forward; no default, always cashier-entered.
+  @Column({
+    name: 'opening_amount',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    transformer: decimalTransformer,
+  })
+  openingAmount: number;
 
   @Column({ name: 'closed_at', type: 'timestamptz', nullable: true })
   closedAt: Date | null;
@@ -67,4 +82,80 @@ export class CashRegister {
     transformer: decimalTransformer,
   })
   totalOwed: number | null;
+
+  // Breakdown of total_amount by payment_means — read out of that day's
+  // invoices' stored request_payload (not its own column there, see
+  // InvoicesService). All NULL until closed. Debit/credit notes are
+  // deliberately excluded from this breakdown — rare corrections, not
+  // part of the day's till reconciliation.
+  @Column({
+    name: 'total_cash',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  totalCash: number | null;
+
+  @Column({
+    name: 'total_card',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  totalCard: number | null;
+
+  @Column({
+    name: 'total_transfer',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  totalTransfer: number | null;
+
+  // opening_amount + total_cash + net cash movements — what should
+  // physically be in the drawer at close time. NULL until closed.
+  @Column({
+    name: 'expected_cash',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  expectedCash: number | null;
+
+  // What the cashier actually counted at close — the only field
+  // `updateCountedCash` is allowed to touch after close, to fix a
+  // miscount without reopening the day.
+  @Column({
+    name: 'counted_cash',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  countedCash: number | null;
+
+  // counted_cash - expected_cash. Positive = surplus, negative = missing,
+  // 0 = squared. Always recomputed alongside counted_cash, never edited
+  // directly.
+  @Column({
+    name: 'cash_discrepancy',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  cashDiscrepancy: number | null;
+
+  @OneToMany(() => CashMovement, (movement) => movement.cashRegister)
+  movements: CashMovement[];
 }

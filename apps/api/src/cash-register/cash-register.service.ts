@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
 import {
@@ -16,14 +16,32 @@ import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
 import { Quotation } from '../quotations/entities/quotation.entity';
 import { CashRegisterResponseDto } from './dto/cash-register-response.dto';
 import { CashRegisterStatusDto } from './dto/cash-register-status.dto';
+import { CreateCashMovementDto } from './dto/create-cash-movement.dto';
 import { QueryCashRegisterDto } from './dto/query-cash-register.dto';
+import { CashMovement } from './entities/cash-movement.entity';
 import { CashRegister } from './entities/cash-register.entity';
+
+// Only field this service actually reads off an invoice's stored request
+// payload — see the "totalCash/totalCard/totalTransfer" comment on
+// CashRegister for why payment_means isn't promoted to its own invoices
+// column just for this.
+interface InvoiceRequestPayload {
+  invoice?: { payment_means?: string };
+}
+
+const PAYMENT_MEANS = {
+  CASH: 'CASH',
+  CARD: 'CARD',
+  BANK_TRANSFER: 'BANK_TRANSFER',
+} as const;
 
 @Injectable()
 export class CashRegisterService {
   constructor(
     @InjectRepository(CashRegister)
     private readonly cashRegisterRepository: Repository<CashRegister>,
+    @InjectRepository(CashMovement)
+    private readonly cashMovementRepository: Repository<CashMovement>,
     // Reads Invoice/Quotation directly (not via InvoicesService/
     // QuotationsService) for the read-only daily-total aggregates below —
     // both of those services depend on this one for the open-register
@@ -36,7 +54,10 @@ export class CashRegisterService {
     private readonly quotationsRepository: Repository<Quotation>,
   ) {}
 
-  async open(userId: string): Promise<CashRegisterResponseDto> {
+  async open(
+    userId: string,
+    openingAmount: number,
+  ): Promise<CashRegisterResponseDto> {
     const today = getStoreToday();
     const existing = await this.cashRegisterRepository.findOne({
       where: { registerDate: today },
@@ -49,6 +70,7 @@ export class CashRegisterService {
       registerDate: today,
       openedAt: new Date(),
       openedBy: { id: userId } as CashRegister['openedBy'],
+      openingAmount,
     });
 
     try {
@@ -64,7 +86,10 @@ export class CashRegisterService {
     }
   }
 
-  async close(userId: string): Promise<CashRegisterResponseDto> {
+  async close(
+    userId: string,
+    countedCash: number,
+  ): Promise<CashRegisterResponseDto> {
     const today = getStoreToday();
     const register = await this.cashRegisterRepository.findOne({
       where: { registerDate: today },
@@ -76,8 +101,18 @@ export class CashRegisterService {
       throw new ConflictException('La caja de hoy ya fue cerrada.');
     }
 
+    const breakdown = await this.computePaymentBreakdown(today);
+    const netMovements = await this.computeCashMovementsNet(register.id);
+    const expectedCash = register.openingAmount + breakdown.cash + netMovements;
+
     register.totalAmount = await this.computeTotal(today);
     register.totalOwed = await this.computeOwedTotal(today);
+    register.totalCash = breakdown.cash;
+    register.totalCard = breakdown.card;
+    register.totalTransfer = breakdown.transfer;
+    register.expectedCash = expectedCash;
+    register.countedCash = countedCash;
+    register.cashDiscrepancy = countedCash - expectedCash;
     register.closedAt = new Date();
     register.closedBy = { id: userId } as CashRegister['closedBy'];
 
@@ -87,11 +122,70 @@ export class CashRegisterService {
     );
   }
 
+  /** Corrects a closed day's physical cash count — e.g. it was miscounted
+   * or mistyped at close. Only `countedCash`/`cashDiscrepancy` change;
+   * everything else about that day (invoices, movements, totals) stays
+   * frozen, same append-only spirit as the rest of this table. */
+  async updateCountedCash(
+    id: string,
+    countedCash: number,
+  ): Promise<CashRegisterResponseDto> {
+    const register = await this.cashRegisterRepository.findOne({
+      where: { id },
+    });
+    if (!register) {
+      throw new NotFoundException('Cash register not found');
+    }
+    if (register.closedAt === null || register.expectedCash === null) {
+      throw new BadRequestException(
+        'Solo se puede corregir el efectivo contado de una caja ya cerrada.',
+      );
+    }
+
+    register.countedCash = countedCash;
+    register.cashDiscrepancy = countedCash - register.expectedCash;
+
+    const saved = await this.cashRegisterRepository.save(register);
+    return CashRegisterResponseDto.fromEntity(
+      await this.findWithRelations(saved.id),
+    );
+  }
+
+  /** Records a cash movement that isn't a sale (e.g. bringing in change,
+   * pulling cash out for a supplier payment) against today's open
+   * register. */
+  async addMovement(
+    dto: CreateCashMovementDto,
+    userId: string,
+  ): Promise<CashRegisterResponseDto> {
+    const today = getStoreToday();
+    const register = await this.cashRegisterRepository.findOne({
+      where: { registerDate: today },
+    });
+    if (!register || register.closedAt !== null) {
+      throw new BadRequestException(
+        'No hay una caja abierta para hoy. Abre la caja antes de registrar movimientos.',
+      );
+    }
+
+    const movement = this.cashMovementRepository.create({
+      cashRegister: { id: register.id } as CashMovement['cashRegister'],
+      amount: dto.amount,
+      reason: dto.reason,
+      createdBy: { id: userId } as CashMovement['createdBy'],
+    });
+    await this.cashMovementRepository.save(movement);
+
+    return CashRegisterResponseDto.fromEntity(
+      await this.findWithRelations(register.id),
+    );
+  }
+
   async getTodayStatus(): Promise<CashRegisterStatusDto> {
     const today = getStoreToday();
     const register = await this.cashRegisterRepository.findOne({
       where: { registerDate: today },
-      relations: ['openedBy', 'closedBy'],
+      relations: ['openedBy', 'closedBy', 'movements', 'movements.createdBy'],
     });
 
     if (!register) {
@@ -100,15 +194,27 @@ export class CashRegisterService {
         register: null,
         totalSoFar: null,
         totalOwedSoFar: null,
+        expectedCashSoFar: null,
+        previousClosingCash: await this.findPreviousClosingCash(),
       };
     }
 
     const isOpen = register.closedAt === null;
+    let expectedCashSoFar: number | null = null;
+    if (isOpen) {
+      const breakdown = await this.computePaymentBreakdown(today);
+      const netMovements = await this.computeCashMovementsNet(register.id);
+      expectedCashSoFar =
+        register.openingAmount + breakdown.cash + netMovements;
+    }
+
     return {
       isOpen,
       register: CashRegisterResponseDto.fromEntity(register),
       totalSoFar: isOpen ? await this.computeTotal(today) : null,
       totalOwedSoFar: isOpen ? await this.computeOwedTotal(today) : null,
+      expectedCashSoFar,
+      previousClosingCash: null,
     };
   }
 
@@ -118,7 +224,7 @@ export class CashRegisterService {
     const { page, limit } = query;
 
     const [registers, total] = await this.cashRegisterRepository.findAndCount({
-      relations: ['openedBy', 'closedBy'],
+      relations: ['openedBy', 'closedBy', 'movements', 'movements.createdBy'],
       order: { registerDate: 'DESC' },
       skip: (page - 1) * limit,
       take: limit,
@@ -181,10 +287,71 @@ export class CashRegisterService {
     return Number(result?.sum ?? 0);
   }
 
+  /** `total_amount` broken down by `payment_means`, read out of that day's
+   * invoices' stored `request_payload` (never its own invoices column —
+   * see the interface above). Debit/credit notes are deliberately excluded
+   * — see the comment on CashRegister.totalCash. Any payment_means outside
+   * the three confirmed values (shouldn't happen — the invoice form only
+   * offers these) is silently left out of the breakdown, though it's still
+   * part of `total_amount` itself. */
+  private async computePaymentBreakdown(
+    storeDate: string,
+  ): Promise<{ cash: number; card: number; transfer: number }> {
+    const { start, end } = getStoreDayRangeUtc(storeDate);
+    const invoices = await this.invoicesRepository
+      .createQueryBuilder('invoice')
+      .select(['invoice.id', 'invoice.totalAmount', 'invoice.requestPayload'])
+      .where('invoice.createdAt >= :start AND invoice.createdAt < :end', {
+        start,
+        end,
+      })
+      .getMany();
+
+    return invoices.reduce(
+      (acc, invoice) => {
+        const paymentMeans = (invoice.requestPayload as InvoiceRequestPayload)
+          ?.invoice?.payment_means;
+        if (paymentMeans === PAYMENT_MEANS.CASH) {
+          acc.cash += invoice.totalAmount;
+        } else if (paymentMeans === PAYMENT_MEANS.CARD) {
+          acc.card += invoice.totalAmount;
+        } else if (paymentMeans === PAYMENT_MEANS.BANK_TRANSFER) {
+          acc.transfer += invoice.totalAmount;
+        }
+        return acc;
+      },
+      { cash: 0, card: 0, transfer: 0 },
+    );
+  }
+
+  /** Net of today's manual cash movements (entradas positive, salidas
+   * negative) for the given register. */
+  private async computeCashMovementsNet(
+    cashRegisterId: string,
+  ): Promise<number> {
+    const result = await this.cashMovementRepository
+      .createQueryBuilder('movement')
+      .select('COALESCE(SUM(movement.amount), 0)', 'sum')
+      .where('movement.cash_register_id = :cashRegisterId', { cashRegisterId })
+      .getRawOne<{ sum: string }>();
+    return Number(result?.sum ?? 0);
+  }
+
+  /** The last closed day's counted cash — surfaced by `getTodayStatus()`
+   * only while nothing is open yet, purely as a frontend placeholder for
+   * the next "abrir caja" input (see CashRegisterStatusDto). */
+  private async findPreviousClosingCash(): Promise<number | null> {
+    const previous = await this.cashRegisterRepository.findOne({
+      where: { closedAt: Not(IsNull()) },
+      order: { registerDate: 'DESC' },
+    });
+    return previous?.countedCash ?? null;
+  }
+
   private async findWithRelations(id: string): Promise<CashRegister> {
     const register = await this.cashRegisterRepository.findOne({
       where: { id },
-      relations: ['openedBy', 'closedBy'],
+      relations: ['openedBy', 'closedBy', 'movements', 'movements.createdBy'],
     });
     if (!register) {
       throw new NotFoundException('Cash register not found');
