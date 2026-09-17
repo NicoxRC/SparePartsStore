@@ -611,7 +611,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                               type="number"
                               min={1}
                               max={field.stock}
-                              className="w-20 rounded-sm border border-line-2 px-2 py-1"
+                              className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
                               {...register(`items.${index}.quantity`)}
                             />
                           </td>
@@ -619,7 +619,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                             <input
                               type="number"
                               min={0}
-                              className="w-20 rounded-sm border border-line-2 px-2 py-1"
+                              className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
                               {...register(`items.${index}.taxRate`)}
                             />
                             {Number(watchedItems[index]?.taxRate) === 0 && (
@@ -633,7 +633,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                               type="number"
                               min={0}
                               placeholder="0"
-                              className="w-24 rounded-sm border border-line-2 px-2 py-1"
+                              className="w-24 rounded-sm border border-line-2 bg-white px-2 py-1"
                               {...register(`items.${index}.discount`)}
                             />
                           </td>
