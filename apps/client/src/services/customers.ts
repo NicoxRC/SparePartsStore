@@ -79,3 +79,7 @@ export async function updateCustomer(
   const { data } = await api.patch<CustomerResponse>(`/customers/${id}`, input);
   return data;
 }
+
+export async function deleteCustomer(id: string): Promise<void> {
+  await api.delete(`/customers/${id}`);
+}

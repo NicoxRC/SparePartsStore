@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import {
   createCustomer,
+  deleteCustomer,
   getCustomer,
   getCustomers,
   updateCustomer,
@@ -45,6 +46,16 @@ export function useUpdateCustomer(id: string) {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: Partial<CustomerInput>) => updateCustomer(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: [CUSTOMERS_KEY] });
+    },
+  });
+}
+
+export function useDeleteCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteCustomer(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [CUSTOMERS_KEY] });
     },
