@@ -1,14 +1,22 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import { useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { PermissionsEditor } from '../components/PermissionsEditor';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
-import { useCreateUser, useUpdateUser, useUser } from '../hooks/useUsers';
+import {
+  useCreateUser,
+  useUpdateUser,
+  useUpdateUserPermissions,
+  useUser,
+} from '../hooks/useUsers';
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
+import type { PermissionCode } from '../lib/permissions';
 import {
   userEditFormSchema,
   userFormSchema,
@@ -26,11 +34,24 @@ export function UserFormPage() {
   const userQuery = useUser(id);
   const createMutation = useCreateUser();
   const updateMutation = useUpdateUser(id ?? '');
+  const updatePermissionsMutation = useUpdateUserPermissions(id ?? '');
+
+  const [permissions, setPermissions] = useState<PermissionCode[]>([]);
+  const [syncedUserId, setSyncedUserId] = useState<string | undefined>(undefined);
+
+  // Rehydrate the local permissions state whenever a different user's data
+  // arrives, without an effect — same pattern AuthContext already uses for
+  // "adjust state when the fetched data changes."
+  if (userQuery.data && syncedUserId !== userQuery.data.id) {
+    setPermissions(userQuery.data.permissions);
+    setSyncedUserId(userQuery.data.id);
+  }
 
   const {
     register,
     handleSubmit,
     reset,
+    control,
     formState: { errors },
   } = useForm<UserFormInput | UserEditFormInput, unknown, UserFormValues | UserEditFormValues>({
     resolver: zodResolver(isEditMode ? userEditFormSchema : userFormSchema),
@@ -53,14 +74,22 @@ export function UserFormPage() {
   });
 
   const mutation = isEditMode ? updateMutation : createMutation;
+  const watchedRole = useWatch({ control, name: 'role' });
+  const isEmployee = watchedRole === 'employee';
 
   const onSubmit = async (values: UserFormValues | UserEditFormValues) => {
     if (isEditMode) {
       const { password, ...rest } = values;
       const payload = password ? { ...rest, password } : rest;
       await updateMutation.mutateAsync(payload);
+      if (values.role === 'employee') {
+        await updatePermissionsMutation.mutateAsync(permissions);
+      }
     } else {
-      await createMutation.mutateAsync(values as UserFormValues);
+      await createMutation.mutateAsync({
+        ...(values as UserFormValues),
+        permissions: values.role === 'employee' ? permissions : undefined,
+      });
       reset();
     }
     navigate('/users');
@@ -82,6 +111,11 @@ export function UserFormPage() {
 
       {mutation.isError && (
         <Alert variant="error">{getApiErrorMessage(mutation.error)}</Alert>
+      )}
+      {updatePermissionsMutation.isError && (
+        <Alert variant="error">
+          {getApiErrorMessage(updatePermissionsMutation.error)}
+        </Alert>
       )}
 
       <form
@@ -137,6 +171,19 @@ export function UserFormPage() {
             : 'Puedes asignar una contraseña simple. El usuario deberá cambiarla al iniciar sesión por primera vez.'}
         </p>
 
+        {isEmployee && (
+          <div className="flex flex-col gap-2 border-t border-line pt-4">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
+              Permisos
+            </h2>
+            <p className="text-sm text-steel">
+              Qué puede ver y hacer este empleado. El administrador y el auditor no usan
+              permisos — tienen acceso fijo.
+            </p>
+            <PermissionsEditor value={permissions} onChange={setPermissions} />
+          </div>
+        )}
+
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button
             type="button"
@@ -146,7 +193,11 @@ export function UserFormPage() {
           >
             Cancelar
           </Button>
-          <Button type="submit" className="sm:w-auto sm:px-6" isLoading={mutation.isPending}>
+          <Button
+            type="submit"
+            className="sm:w-auto sm:px-6"
+            isLoading={mutation.isPending || updatePermissionsMutation.isPending}
+          >
             {isEditMode ? 'Guardar cambios' : 'Crear usuario'}
           </Button>
         </div>
