@@ -1,6 +1,6 @@
 # Phase 10 — Factura electrónica estándar (Backend)
 
-**Status: Done** — send, resend, and query. Credit note and debit note remain pending (see below). The centerpiece of the invoicing pivot.
+**Status: Done** — send, resend, query, and (as a follow-up) debit note and credit note. The centerpiece of the invoicing pivot.
 
 ## Goal
 
@@ -87,6 +87,103 @@ No response example was shared for query — **assumed** (not guessed from nothi
 
 **Security note, recorded for future readers**: every curl shared for this sub-feature included a `Cookie: AWSALBAPP-*=...` header (AWS load-balancer session cookies, evidently captured incidentally when the request was recorded in Postman). These are **not** part of Dataico's actual auth contract — the very first confirmed request (Phase 7) had no Cookie header and worked fine — so they are deliberately not sent by `DataicoClientService`.
 
+## Confirmed reference — "Nota débito" (debit note)
+
+```
+POST https://api.dataico.com/direct/dataico_api/v2/debit_notes
+Content-Type: application/json
+Auth-token: <DATAICO_AUTH_TOKEN>
+```
+
+Two real examples shared (different accounts/prefixes — `NNND`/production, `CT`/dry-run test), confirming the shape below. The two examples link to the original invoice two different ways — one by `invoice_id` (Dataico's own uuid), the other by `invoice_cufe`/`invoice_number`/`invoice_issue_date` together. This app uses `invoice_id` (the simpler, single-field option), since it already stores `invoices.dataico_uuid` and the same field already addresses `resend`/`refresh` above:
+
+```json
+{
+  "actions": { "send_dian": true, "send_email": false },
+  "debit_note": {
+    "env": "PRODUCCION",
+    "dataico_account_id": "<DATAICO_ACCOUNT_ID>",
+    "invoice_id": "<invoices.dataico_uuid of the corrected invoice>",
+    "issue_date": "07/09/2026",
+    "number": 3,
+    "numbering": { "prefix": "NDL", "flexible": true },
+    "reason": "OTROS",
+    "customer": { "...": "same shape as the invoice's own customer block" },
+    "items": [
+      {
+        "sku": "TRANSPORTE",
+        "measuring_unit": "94",
+        "quantity": 25,
+        "description": "SERVICIO DE TRANSPORTE",
+        "price": 12600,
+        "taxes": [{ "tax_category": "IVA", "tax_rate": 19 }]
+      }
+    ]
+  }
+}
+```
+
+Notable differences from the invoice's own confirmed shape, all deliberate:
+
+- **No `resolution_number` in `numbering`** — notes use Dataico's *flexible numbering*, not a pre-authorized DIAN resolution range the way invoices do. This app's own prefix comes from `DATAICO_DEBIT_NOTE_PREFIX` (see `docs/ENVIRONMENT_VARIABLES.md`), not `dian_resolutions`.
+- **Item `taxes` only carry `tax_category`/`tax_rate`** — no `tax_base`/`tax_amount` the way invoice items need. Confirmed from a separate, genuinely clean (non-health) credit note example sharing this same request family — Dataico evidently computes the base/amount itself for notes.
+- **`reason: "OTROS"`** is the only value confirmed against a real debit-note example — hardcoded server-side, not exposed as a picker.
+- **`measuring_unit`** (underscore) was inconsistent across the shared examples — one used a hyphen (`measuring-unit`) instead. This app sends the underscore form, matching the invoice's own already-proven-working field name, and flags the inconsistency here rather than guessing silently.
+- **The `customer` block is not re-collected** — `DebitNotesService` reads it straight from the target invoice's own stored `request_payload.invoice.customer`, guaranteeing it matches what was legally on that invoice.
+
+**No response example was shared** for debit notes (only requests) — this app **assumes** the same response shape as "Envío Factura" (`dian_status`/`cufe`/`uuid`/`xml_url`/`pdf_url`/`qrcode`/`dian_messages`), since it's the same underlying Dataico document-resource family, reusing the identical `mapDataicoResponse()`-style mapping. First thing to verify once a real debit note goes through Dataico.
+
+## Confirmed reference — "Nota crédito" (credit note)
+
+```
+POST https://api.dataico.com/direct/dataico_api/v2/credit_notes
+Content-Type: application/json
+Auth-token: <DATAICO_AUTH_TOKEN>
+```
+
+The original shared example was health-sector-contaminated (see "Still not confirmed" below) — a second, genuinely clean example (sourced from Dataico's own documentation, no health block, real production account/customer data) confirmed the shape:
+
+```json
+{
+  "actions": { "send_dian": true, "send_email": false },
+  "credit_note": {
+    "env": "PRODUCCION",
+    "dataico_account_id": "<DATAICO_ACCOUNT_ID>",
+    "invoice_id": "<invoices.dataico_uuid of the corrected invoice>",
+    "issue_date": "07/09/2026",
+    "payment_means": "<the corrected invoice's own payment_means>",
+    "payment_means_type": "<the corrected invoice's own payment_means_type>",
+    "payment_date": "<the corrected invoice's own payment_date>",
+    "number": 27,
+    "numbering": { "prefix": "NCE", "flexible": true },
+    "reason": "DEVOLUCION",
+    "customer": { "...": "same shape as the invoice's own customer block" },
+    "items": [
+      {
+        "sku": "27",
+        "measuring-unit": "94",
+        "quantity": 1,
+        "description": "Hamburguesa De Carne",
+        "price": 20277.7778,
+        "taxes": [{ "tax_category": "IMP_CONSUMO", "tax_rate": 8 }]
+      }
+    ],
+    "charges": []
+  }
+}
+```
+
+A close sibling of the debit note shape above, with real, deliberate differences:
+
+- **`reason: "DEVOLUCION"`** — the only value confirmed against this clean example. The original (blocked) example used `"ANULACION"`, but that came from the health-contaminated fixture and isn't trusted — see "Still not confirmed" below.
+- **`payment_means`/`payment_means_type`/`payment_date` are present** (debit notes' confirmed examples never included them). This app reuses the *original invoice's own* values for all three — read from `invoices.request_payload`/`invoices.payment_date` — rather than asking the caller to re-enter payment terms for a correction to an existing sale.
+- **`measuring-unit` is hyphenated**, not `measuring_unit` like invoices/this app's debit notes — confirmed by every item across this example using the hyphen consistently. Debit notes' own two shared examples disagreed with each other on this exact point (see above); credit note's example doesn't contradict itself, so this app follows what it actually shows rather than forcing consistency with debit notes' choice.
+- **`charges: []`** — a new array not seen on debit notes, always empty in the example. Sent as `[]` unconditionally; no populated example exists to confirm its shape if it's ever non-empty.
+- **Item `taxes`** — same as debit notes, only `tax_category`/`tax_rate`, no `tax_base`/`tax_amount`. The example also shows `tax_category: "IMP_CONSUMO"` on some lines (a different tax entirely, not used by this store) — irrelevant here, since this app only ever sends `"IVA"` (see "Deliberately left out" above).
+- **Inventory moves the opposite direction from a debit note**: a credit note returns merchandise, so `CreditNotesService.create()` increments stock (positive `InventoryService.createMovement` quantity) and skips the stock-sufficiency check entirely — there's no way to "run out" of room to accept a return.
+
+**No response example was shared** for credit notes either — same assumption as debit notes (mirrors "Envío Factura"'s confirmed response shape).
+
 ## What shipped
 
 - [x] `invoices` table (see `docs/DATABASE.md`) — promotes the fields this app actually queries (status, CUFE, customer identity) to real columns, keeps the full request/response as JSONB rather than normalizing Dataico's rich, still-partially-confirmed payload.
@@ -102,6 +199,16 @@ No response example was shared for query — **assumed** (not guessed from nothi
 - [x] `InvoicesService.resend()` / `.refreshStatus()` — `POST /api/invoicing/invoices/:id/resend` and `/:id/refresh`. Unlike everything else in this table, these **update the existing row in place** (added `updatedAt` via a follow-up migration) rather than inserting a new one — a resend/refresh is a correction to the same legal document, not a new one. `DataicoClientService.put()` added alongside `get`/`post`.
 - [x] `GET /api/invoicing/invoices/:id` — needed so resend/refresh have something to act on from the UI.
 - [x] Frontend: "Reenviar"/"Consultar" actions per row on `InvoicesListPage`, with per-row loading state and inline error surfacing.
+- [x] `debit_notes` table (see `docs/DATABASE.md`) and `DebitNotesService.create()` — see "Confirmed reference — Nota débito" above for the full request shape. Loads the target invoice (must have a `dataico_uuid`), reuses its stored customer block, validates stock up front, sends the request, and only after Dataico accepts decrements stock per item via the same `InventoryService.createMovement` invoices use. No resend/refresh for notes in this first pass — add one later the same way `AddUpdatedAtToInvoices` did, if it turns out to be needed.
+- [x] `POST/GET /api/invoicing/debit-notes`, `GET /api/invoicing/debit-notes/:id` (ADMIN, EMPLOYEE — same tier as invoices), Swagger-documented.
+- [x] `DATAICO_DEBIT_NOTE_PREFIX` (required) and `DEBIT_NOTE_NUMBER_START` (default `1`) added as new env vars — see `docs/ENVIRONMENT_VARIABLES.md`.
+- [x] Unit tests: rejects with no open cash register, rejects when the invoice has no Dataico uuid, rejects when the invoice's stored payload has no customer block, rejects on insufficient stock (all without calling Dataico), sends the confirmed payload shape reusing the invoice's uuid/customer, decrements stock only after Dataico succeeds, persists the mapped response excluding `xml`, auto-increments the number per prefix.
+- [x] Frontend: "Nota débito" action on `InvoicesListPage` opening a dedicated form (pick products, quantities, tax rates) against that invoice; a `DebitNotesListPage` linked from Facturas to see issued notes.
+- [x] `credit_notes` table and `CreditNotesService.create()` — see "Confirmed reference — Nota crédito" above. Same structure as debit notes, but reuses the original invoice's `payment_means`/`payment_means_type`/`payment_date` too (not just `customer`), and — since a credit note returns merchandise — increments stock instead of decrementing it, with no stock-sufficiency check.
+- [x] `POST/GET /api/invoicing/credit-notes`, `GET /api/invoicing/credit-notes/:id` (ADMIN, EMPLOYEE), Swagger-documented.
+- [x] `DATAICO_CREDIT_NOTE_PREFIX` (required) and `CREDIT_NOTE_NUMBER_START` (default `1`) added as new env vars.
+- [x] Unit tests: same coverage shape as debit notes, plus a rejection when the invoice's stored payload is missing `payment_means`, and a case confirming insufficient stock does NOT block a credit note.
+- [x] Frontend: "Nota crédito" action on `InvoicesListPage`, a dedicated form (pick products to return, quantities, tax rates), and a `CreditNotesListPage` linked from Facturas.
 
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
 
@@ -122,13 +229,14 @@ No response example was shared for query — **assumed** (not guessed from nothi
 
 ## Still not confirmed — do not guess
 
-- **Credit note ("Nota crédito") — blocked, not just pending.** The only example shared is contaminated with health-sector fields (a `health` block with `PLAN_DE_BENEFICIOS`/`PAGO_POR_EVENTO`, and `operation: "SS_SIN_APORTE"`) — copied verbatim across multiple differently-named requests in the Postman collection ("Enviar Nota Credito" and "Enviar Nota Credito - Anular FE SS-CUFE" have the *identical* body), which means it's a generic/reused test fixture, not a real standard-invoicing example. Confirmed with the human not to implement against this. Needs either a genuinely clean example or a live test with Dataico support before building.
-- **Debit note ("Nota débito") — deferred by choice, not blocked.** Its one example looks clean (matches the invoice's own customer shape, no health contamination), but was deliberately not implemented alongside resend/query — the human asked to treat credit and debit notes as one pair, and to hold off until the credit note situation above is resolved, rather than shipping half the pair.
-- The full valid-value lists for `payment_means`, `payment_means_type`, `tax_level_code`, `regimen`, `party_type` — only the values seen in the confirmed examples are used in the UI's `<select>` options.
+- **Credit note ("Nota crédito") — confirmed and implemented.** See "Confirmed reference — Nota crédito" above. The original example (health-sector-contaminated — a `health` block with `PLAN_DE_BENEFICIOS`/`PAGO_POR_EVENTO`, `operation: "SS_SIN_APORTE"`, copied verbatim across multiple differently-named requests in the Postman collection) is **not** what this was built against — a second, genuinely clean example (sourced from Dataico's own documentation) confirmed the shape instead. That original contaminated example's `reason: "ANULACION"` is still not trusted; only `"DEVOLUCION"` (from the clean example) is used.
+- **Debit note ("Nota débito") — confirmed and implemented.** See "Confirmed reference — Nota débito" above.
+- The full valid-value lists for `payment_means`, `payment_means_type`, `tax_level_code`, `regimen`, `party_type`, and debit/credit note `reason` — only the values seen in the confirmed examples are used in the UI's `<select>` options (`reason` is hardcoded server-side for both note types — `OTROS` for debit, `DEVOLUCION` for credit — the only value confirmed for each).
+- Neither note type's **response shape** was ever shown in an example (only requests) — both assume the same shape as "Envío Factura"'s confirmed response. First thing to verify once a real note of either kind goes through Dataico.
 
-## Exit criteria (met, for send/resend/query)
+## Exit criteria (met, for send/resend/query/debit note/credit note)
 
-A sale can produce a real electronic invoice, sent to Dataico, validated by DIAN, with a retrievable CUFE and status; inventory is decremented accordingly; a failed DIAN submission or email can be retried without creating a duplicate document; and an invoice's live status can be re-pulled on demand. Credit/debit notes remain follow-up work — see "Still not confirmed" above.
+A sale can produce a real electronic invoice, sent to Dataico, validated by DIAN, with a retrievable CUFE and status; inventory is decremented accordingly; a failed DIAN submission or email can be retried without creating a duplicate document; an invoice's live status can be re-pulled on demand; a debit note can be issued against an already-sent invoice (decrementing inventory further); and a credit note can be issued against one too (returning inventory). Both note types' response-field mapping is an assumption pending a real send — see "Still not confirmed" above.
 
 ## Related documents
 

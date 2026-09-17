@@ -11,6 +11,10 @@ import { CatalogsPage } from './pages/CatalogsPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { CustomerFormPage } from './pages/CustomerFormPage';
 import { CustomersListPage } from './pages/CustomersListPage';
+import { CreditNoteFormPage } from './pages/CreditNoteFormPage';
+import { CreditNotesListPage } from './pages/CreditNotesListPage';
+import { DebitNoteFormPage } from './pages/DebitNoteFormPage';
+import { DebitNotesListPage } from './pages/DebitNotesListPage';
 import { InventoryPage } from './pages/InventoryPage';
 import { LoginPage } from './pages/LoginPage';
 import { LookupFormPage } from './pages/LookupFormPage';
@@ -57,6 +61,16 @@ function App() {
 
                 <Route element={<EmployeeRoute />}>
                   <Route path="/invoicing/invoices" element={<InvoicesListPage />} />
+                  <Route
+                    path="/invoicing/invoices/:invoiceId/debit-note"
+                    element={<DebitNoteFormPage />}
+                  />
+                  <Route path="/invoicing/debit-notes" element={<DebitNotesListPage />} />
+                  <Route
+                    path="/invoicing/invoices/:invoiceId/credit-note"
+                    element={<CreditNoteFormPage />}
+                  />
+                  <Route path="/invoicing/credit-notes" element={<CreditNotesListPage />} />
                   <Route path="/ventas" element={<InvoiceFormPage />} />
                   <Route path="/cotizaciones" element={<QuotationsListPage />} />
                   <Route path="/cotizaciones/:id" element={<QuotationDetailPage />} />

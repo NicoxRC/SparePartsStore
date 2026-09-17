@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
@@ -82,9 +83,25 @@ export function InvoicesListPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-        Facturas
-      </h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
+          Facturas
+        </h1>
+        <div className="flex gap-3">
+          <Link
+            to="/invoicing/debit-notes"
+            className="text-sm font-medium text-ink hover:underline"
+          >
+            Notas débito →
+          </Link>
+          <Link
+            to="/invoicing/credit-notes"
+            className="text-sm font-medium text-ink hover:underline"
+          >
+            Notas crédito →
+          </Link>
+        </div>
+      </div>
 
       {actionError && <Alert variant="error">{actionError}</Alert>}
 
@@ -170,6 +187,18 @@ export function InvoicesListPage() {
                                 >
                                   Reenviar
                                 </button>
+                                <Link
+                                  to={`/invoicing/invoices/${invoice.id}/debit-note`}
+                                  className="text-xs font-medium text-ink hover:underline"
+                                >
+                                  Nota débito
+                                </Link>
+                                <Link
+                                  to={`/invoicing/invoices/${invoice.id}/credit-note`}
+                                  className="text-xs font-medium text-ink hover:underline"
+                                >
+                                  Nota crédito
+                                </Link>
                               </div>
                             </div>
                             <p className="shrink-0 font-mono text-base font-semibold text-ink">

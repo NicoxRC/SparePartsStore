@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
+import { CreditNotesModule } from './credit-notes/credit-notes.module';
 import { DataicoModule } from './dataico/dataico.module';
+import { DebitNotesModule } from './debit-notes/debit-notes.module';
 import { InvoicesModule } from './invoices/invoices.module';
 import { PayrollModule } from './payroll/payroll.module';
 import { ResolutionsModule } from './resolutions/resolutions.module';
@@ -22,6 +24,8 @@ import { ThirdPartiesModule } from './third-parties/third-parties.module';
     ResolutionsModule,
     ThirdPartiesModule,
     InvoicesModule,
+    DebitNotesModule,
+    CreditNotesModule,
     PayrollModule,
   ],
 })
