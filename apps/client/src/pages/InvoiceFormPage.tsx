@@ -31,6 +31,7 @@ import {
   DANE_DEPARTMENTS,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
+import { handleEnterAsTab } from '../lib/formNavigation';
 import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
 import { computeItemTotal } from '../lib/invoiceMath';
 import {
@@ -512,6 +513,7 @@ function InvoiceDraftForm({ draft }: InvoiceDraftFormProps) {
 
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        onKeyDown={handleEnterAsTab}
         className="flex flex-col gap-6"
         noValidate
       >
