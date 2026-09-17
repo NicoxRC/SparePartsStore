@@ -258,6 +258,20 @@ Added as a follow-up to Phase 10 — a local record of every "nota débito" sent
 
 **Business logic (`DebitNotesService.create`):** loads the target invoice (must have a `dataico_uuid` on file), validates stock for every line item up front (same reasoning as invoices — an accepted note can't be un-sent), sends the confirmed request shape, and — only after Dataico accepts — decrements stock per item via `InventoryService.createMovement`, same connection between invoicing and inventory that `invoices` already has. Gated on `cash_registers` being open today, same as `invoices`/`quotations`.
 
+### `credit_notes`
+
+Added alongside `debit_notes` — a local record of every "nota crédito" sent to Dataico: a return/reduction against an already-sent invoice (a returned product, an overcharge, an error correction). Structurally identical to `debit_notes` (same columns, same reasoning for each), with these differences:
+
+| Column | Difference from `debit_notes` |
+|---|---|
+| `prefix` | This store's own credit-note prefix (`DATAICO_CREDIT_NOTE_PREFIX`), a separate value from the debit-note prefix — both are flexible numbering, no `dian_resolutions` row either way. |
+| `reason` | Hardcoded `'DEVOLUCION'` — the only value confirmed against a real, non-health-contaminated credit note example (the original shared example's `'ANULACION'` came from a health-sector test fixture, not trusted — see `docs/GLOSSARY.md`). |
+| `invoice_id` | Same FK, `RESTRICT` — but note the amount *returns*, not adds, so this is a credit against the invoice's total rather than a further charge. |
+
+**No `customer_*` columns, same as `debit_notes`** — but `CreditNotesService.create()` also reads `payment_means`/`payment_means_type` out of the linked invoice's stored `request_payload.invoice`, plus `payment_date` straight from `invoices.payment_date` (a real column already) — the confirmed credit-note request carries all three, unlike debit notes' confirmed examples, which never included them.
+
+**Business logic (`CreditNotesService.create`):** loads the target invoice (must have a `dataico_uuid` on file), sends the confirmed request shape (item `measuring-unit` is hyphenated here — confirmed from this note type's own example, distinct from `debit_notes`' underscored form), and — only after Dataico accepts — **returns** stock per item via `InventoryService.createMovement` (positive quantity, opposite direction from `debit_notes`). **No stock-sufficiency check** — a credit note only ever adds stock back, so there's nothing to run out of. Gated on `cash_registers` being open today, same as `invoices`/`quotations`/`debit_notes`.
+
 ### `pos_invoices` — **removed**
 
 Added Phase 12, **dropped** by the `DropPosInvoices` migration once POS Electrónico stopped being this store's sale flow (see `PROJECT_ROADMAP.md`). It held a local record of every POS Electrónico document sent to Dataico, as its own table separate from `invoices` (the two document types' confirmed request shapes differed too much — nested item `product` object, array `payment-means`, no `dataico_account_id`/`env`/`operation`, different tax shape — to share a schema). Historical shape and rationale stay in `docs/phases/PHASE_12_POS.md`.
@@ -403,16 +417,15 @@ The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" 
 | 19 | `CreateQuotations` | Local enhancement (not a numbered phase). `quotations` and `quotation_items` tables (FKs to `invoices`/`users`/`products`, index on `quotations.created_at DESC` and `quotation_items.quotation_id`). Hand-written, same reason as the two migrations above — the raw `migration:generate` diff against the live local DB included the same unrelated drift across every other table. |
 | 20 | `AddTotalOwedToCashRegisters` | Local enhancement (not a numbered phase). Adds `cash_registers.total_owed NUMERIC(12,2)`, nullable — the day's still-open-quotations total, alongside the existing `total_amount` (collected). Hand-written, same reason as the migrations above. |
 | 21 | `CreateDebitNotes` | Phase 10 follow-up. `debit_notes` table (FK to `invoices` `RESTRICT`, FK to `users` for the audit column, indexes on `created_at DESC` and `invoice_id`). Hand-written, same reason as the migrations above — the raw `migration:generate` diff against the live local DB included the same unrelated drift across every other table. |
+| 22 | `CreateCreditNotes` | Phase 10 follow-up, alongside `debit_notes`. `credit_notes` table — identical shape (FK to `invoices` `RESTRICT`, FK to `users`, indexes on `created_at DESC` and `invoice_id`). Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 
 **Migration workflow:** `npm run migration:generate -- src/database/migrations/<Name>` after changing an entity, review the generated SQL before committing it, `npm run migration:run` locally to apply, `npm run migration:revert` to undo the last one. `synchronize: false` always — schema changes only ever happen through a migration, never TypeORM auto-sync.
 
-## Remaining invoicing tables (Dataico) — not implemented yet
+## Remaining invoicing tables (Dataico)
 
-`dian_resolutions` (Phase 8), `invoices` (Phase 10), and `debit_notes` (Phase 10 follow-up) are done — see their own sections above. Still missing: **credit notes** ("nota crédito") and any status-refresh/reception-event table (Phase 11, confirmed out of scope — see `PROJECT_ROADMAP.md`).
-
-Credit notes are **blocked, not just unconfirmed** — every previously-shared example was contaminated with health-sector fields, unusable as a reference for a standard sale (see `docs/phases/PHASE_10_INVOICING_STANDARD.md`). A genuinely clean example has since been provided and looks like a close sibling of the now-implemented `debit_notes` shape (same `{ actions, credit_note: { ... } }` envelope, `invoice_id`, flexible `numbering`, item `taxes` with just `tax_category`/`tax_rate`) — but **do not design or implement this schema from that alone** without the human's explicit go-ahead; the same "never guess Dataico payload shapes" rule in `CLAUDE.md` still applies until it's confirmed this new example is usable and the credit note's own reason values / response shape are settled.
+`dian_resolutions` (Phase 8), `invoices` (Phase 10), `debit_notes`, and `credit_notes` (both Phase 10 follow-ups) are all done — see their own sections above. The only remaining Dataico collection ("6. Eventos de recepción" — a status-refresh/reception-event table, Phase 11) is **confirmed out of scope**, not pending — see `PROJECT_ROADMAP.md`.
 
 ## Related documents
 

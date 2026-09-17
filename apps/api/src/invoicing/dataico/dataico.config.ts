@@ -73,4 +73,15 @@ export class DataicoConfig {
     }
     return prefix;
   }
+
+  /** Same reasoning as `debitNotePrefix`, its own prefix per Dataico's numbering. */
+  get creditNotePrefix(): string {
+    const prefix = this.configService.get<string>('DATAICO_CREDIT_NOTE_PREFIX');
+    if (!prefix) {
+      throw new Error(
+        'DATAICO_CREDIT_NOTE_PREFIX is not configured — set it in .env, see docs/ENVIRONMENT_VARIABLES.md',
+      );
+    }
+    return prefix;
+  }
 }
