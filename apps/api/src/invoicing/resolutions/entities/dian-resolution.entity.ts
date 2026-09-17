@@ -14,8 +14,12 @@ import { User } from '../../../users/entities/user.entity';
  * docs/phases/PHASE_8_RESOLUTIONS.md and docs/DATABASE.md. Append-only,
  * same convention as InventoryMovement: a resolution is never edited or
  * deleted locally, only superseded by associating a new one. The most
- * recently created row for a given (documentType, prefix) is the active
- * one — there is no separate "is this active" flag.
+ * recently created row for a given (documentType, subtype) is the active
+ * one — there is no separate "is this active" flag. (Not `prefix`: this
+ * table's `prefix` is an output of picking the active resolution, not an
+ * input the caller already knows — `subtype` is what a caller like
+ * InvoicesService actually specifies up front, e.g. `'ELECTRONICO'`, to
+ * avoid ever picking up a resolution created for a different purpose.)
  */
 @Entity('dian_resolutions')
 export class DianResolution {
