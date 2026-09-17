@@ -208,7 +208,7 @@ A close sibling of the debit note shape above, with real, deliberate differences
 - [x] `POST/GET /api/invoicing/credit-notes`, `GET /api/invoicing/credit-notes/:id` (ADMIN, EMPLOYEE), Swagger-documented.
 - [x] `DATAICO_CREDIT_NOTE_PREFIX` (required) and `CREDIT_NOTE_NUMBER_START` (default `1`) added as new env vars.
 - [x] Unit tests: same coverage shape as debit notes, plus a rejection when the invoice's stored payload is missing `payment_means`, and a case confirming insufficient stock does NOT block a credit note.
-- [ ] Frontend: "Nota crédito" action on `InvoicesListPage`, a dedicated form (pick products to return, quantities, tax rates), and a `CreditNotesListPage` linked from Facturas. **In progress — update this line once shipped.**
+- [x] Frontend: "Nota crédito" action on `InvoicesListPage`, a dedicated form (pick products to return, quantities, tax rates), and a `CreditNotesListPage` linked from Facturas.
 
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
 

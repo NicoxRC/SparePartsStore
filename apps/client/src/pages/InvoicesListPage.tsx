@@ -87,12 +87,20 @@ export function InvoicesListPage() {
         <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
           Facturas
         </h1>
-        <Link
-          to="/invoicing/debit-notes"
-          className="text-sm font-medium text-ink hover:underline"
-        >
-          Notas débito →
-        </Link>
+        <div className="flex gap-3">
+          <Link
+            to="/invoicing/debit-notes"
+            className="text-sm font-medium text-ink hover:underline"
+          >
+            Notas débito →
+          </Link>
+          <Link
+            to="/invoicing/credit-notes"
+            className="text-sm font-medium text-ink hover:underline"
+          >
+            Notas crédito →
+          </Link>
+        </div>
       </div>
 
       {actionError && <Alert variant="error">{actionError}</Alert>}
@@ -184,6 +192,12 @@ export function InvoicesListPage() {
                                   className="text-xs font-medium text-ink hover:underline"
                                 >
                                   Nota débito
+                                </Link>
+                                <Link
+                                  to={`/invoicing/invoices/${invoice.id}/credit-note`}
+                                  className="text-xs font-medium text-ink hover:underline"
+                                >
+                                  Nota crédito
                                 </Link>
                               </div>
                             </div>
