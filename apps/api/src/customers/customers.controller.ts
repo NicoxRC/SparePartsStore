@@ -1,7 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -84,5 +87,15 @@ export class CustomersController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<CustomerResponseDto> {
     return this.customersService.update(id, dto, user.id);
+  }
+
+  @ApiOperation({ summary: 'Delete a customer from the local address book' })
+  @ApiResponse({ status: 204, description: 'Customer deleted' })
+  @ApiResponse({ status: 404, description: 'Customer not found' })
+  @Delete(':id')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.customersService.remove(id);
   }
 }

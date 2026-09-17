@@ -263,7 +263,7 @@ Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap
 
 **Uniqueness**: partial unique index on `(identification_type, identification) WHERE deleted_at IS NULL` — the same composite technique used elsewhere in this document, enforced at the DB level plus an app-level pre-check in `CustomersService` for a clean `ConflictException` message (see `CODING_STANDARDS.md`'s two-layer pattern).
 
-**Business logic**: this is a standalone local address book, not FK'd from `invoices`/`pos_invoices` — those tables keep their existing denormalized `customer_*` columns untouched (see those tables above; they predate this table and there was nothing to join against at the time). `customers` has no `remove()`/delete endpoint in v1 — nothing references it by FK, so a stale entry costs nothing.
+**Business logic**: this is a standalone local address book, not FK'd from `invoices`/`pos_invoices` — those tables keep their existing denormalized `customer_*` columns untouched (see those tables above; they predate this table and there was nothing to join against at the time). `DELETE /api/customers/:id` (admin-only, same as `products`' delete) soft-removes via `deleted_at` — safe by construction since nothing references this table by FK.
 
 ### `payroll_entries`
 

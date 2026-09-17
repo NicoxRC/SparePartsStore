@@ -13,6 +13,7 @@ describe('CustomersService', () => {
     save: jest.Mock;
     findOne: jest.Mock;
     createQueryBuilder: jest.Mock;
+    softRemove: jest.Mock;
   };
 
   const baseDto: CreateCustomerDto = {
@@ -61,6 +62,7 @@ describe('CustomersService', () => {
       ),
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(),
+      softRemove: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new CustomersService(
@@ -152,6 +154,27 @@ describe('CustomersService', () => {
         ConflictException,
       );
       expect(repository.save).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('remove', () => {
+    it('throws NotFoundException when the customer does not exist', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('missing-id')).rejects.toThrow(
+        NotFoundException,
+      );
+      expect(repository.softRemove).not.toHaveBeenCalled();
+    });
+
+    it('soft-removes the customer when it exists', async () => {
+      repository.findOne.mockResolvedValue({ ...existingCustomer });
+
+      await service.remove('cust-1');
+
+      expect(repository.softRemove).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'cust-1' }),
+      );
     });
   });
 });
