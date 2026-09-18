@@ -15,8 +15,7 @@ import type { InvoiceResponse } from '../services/invoices';
 const PAGE_SIZE = 20;
 
 const DIAN_STATUS_STYLE: Record<string, string> = {
-  DIAN_ACEPTADO: 'bg-ok-tint text-ok',
-  DIAN_RECHAZADO: 'bg-rust-tint text-rust-2',
+  DIAN_RECHAZADO: 'rounded-full bg-rust-tint px-2 py-0.5 text-rust-2',
 };
 
 /** Groups a page of invoices by issue date, preserving the backend's
@@ -140,7 +139,7 @@ export function InvoicesListPage() {
                       </p>
                     </div>
 
-                    <div className="divide-y divide-line rounded border border-line bg-white">
+                    <div className="divide-y divide-line rounded border border-line bg-paper">
                       {dayInvoices.map((invoice) => {
                         const isActioning = actioningId === invoice.id;
                         return (
@@ -157,11 +156,14 @@ export function InvoicesListPage() {
                                 {invoice.customerCompanyName ?? invoice.customerIdentification}
                               </p>
                               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                                {invoice.dianStatus && (
+                                {invoice.dianStatus === 'DIAN_ACEPTADO' && (
+                                  <span className="stamp">Aceptado DIAN</span>
+                                )}
+                                {invoice.dianStatus && invoice.dianStatus !== 'DIAN_ACEPTADO' && (
                                   <span
-                                    className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                                    className={`text-xs font-medium ${
                                       DIAN_STATUS_STYLE[invoice.dianStatus] ??
-                                      'bg-info-tint text-ink'
+                                      'rounded-full bg-info-tint px-2 py-0.5 text-ink'
                                     }`}
                                   >
                                     {invoice.dianStatus}

@@ -31,7 +31,7 @@ export function CashMovementDialog({ onClose, onCreated }: CashMovementDialogPro
 
   return createPortal(
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+      <div className="w-full max-w-sm rounded bg-paper p-5 shadow-lg">
         <h2 className="text-lg font-semibold text-ink">Entrada o salida de efectivo</h2>
         <p className="mt-1 text-sm text-steel">
           Para dinero que entra o sale de la caja sin ser una venta.
@@ -49,7 +49,7 @@ export function CashMovementDialog({ onClose, onCreated }: CashMovementDialogPro
               placeholder="Ej: 50000 ó -20000"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              className="min-h-12 w-full rounded-sm border border-line bg-white px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
+              className="min-h-12 w-full rounded-sm border border-line bg-paper px-4 py-3 text-base text-ink placeholder:text-fog focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
             />
           </div>
 
@@ -64,7 +64,7 @@ export function CashMovementDialog({ onClose, onCreated }: CashMovementDialogPro
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               maxLength={255}
-              className="w-full resize-none rounded-sm border border-line bg-white px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
+              className="w-full resize-none rounded-sm border border-line bg-paper px-4 py-3 text-sm text-ink placeholder:text-fog focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
             />
           </div>
         </div>

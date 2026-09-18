@@ -43,7 +43,7 @@ function AdjustModal({ product, onClose }: AdjustModalProps) {
 
   return (
     <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+      <div className="w-full max-w-sm rounded bg-paper p-5 shadow-lg">
         <h2 className="text-lg font-semibold text-ink">Ajustar stock</h2>
         <p className="mt-1 text-sm text-steel">
           <span className="font-mono font-medium">{product.reference}</span> — {product.description}
@@ -64,7 +64,7 @@ function AdjustModal({ product, onClose }: AdjustModalProps) {
               placeholder="Ej: 10 ó -3"
               value={quantity}
               onChange={(e) => setQuantity(e.target.value)}
-              className={`min-h-12 w-full rounded-sm border px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm ${
+              className={`min-h-12 w-full rounded-sm border px-4 py-3 text-base text-ink placeholder:text-fog focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm ${
                 stockWouldGoNegative ? 'border-rust' : 'border-line'
               }`}
             />
@@ -93,7 +93,7 @@ function AdjustModal({ product, onClose }: AdjustModalProps) {
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
-              className="w-full resize-none rounded-sm border border-line px-4 py-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
+              className="w-full resize-none rounded-sm border border-line px-4 py-3 text-sm text-ink placeholder:text-fog focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
             />
           </div>
         </div>
@@ -199,7 +199,7 @@ export function InventoryPage() {
                   {productsQuery.data.data.map((product) => (
                     <div
                       key={product.id}
-                      className="flex items-center justify-between gap-3 rounded border border-line bg-white px-4 py-3"
+                      className="flex items-center justify-between gap-3 rounded border border-line bg-paper px-4 py-3"
                     >
                       <div className="min-w-0 flex-1">
                         <p className="truncate font-mono text-sm font-semibold text-ink">
@@ -227,7 +227,7 @@ export function InventoryPage() {
                         <button
                           type="button"
                           onClick={() => setAdjustProduct(product)}
-                          className="shrink-0 rounded-sm border border-line bg-white px-3 py-2 text-sm font-medium text-steel hover:bg-canvas active:bg-line"
+                          className="shrink-0 rounded-sm border border-line bg-paper px-3 py-2 text-sm font-medium text-steel hover:bg-canvas active:bg-line"
                         >
                           + Stock
                         </button>
@@ -264,7 +264,7 @@ export function InventoryPage() {
                   {movementsQuery.data.data.map((m) => (
                     <div
                       key={m.id}
-                      className="rounded border border-line bg-white px-4 py-3"
+                      className="rounded border border-line bg-paper px-4 py-3"
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">

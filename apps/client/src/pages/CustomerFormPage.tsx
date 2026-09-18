@@ -107,7 +107,7 @@ export function CustomerFormPage() {
           className={`rounded-full border px-3 py-1.5 text-sm ${
             tab === 'data'
               ? 'border-ink bg-ink text-white'
-              : 'border-line bg-white text-steel hover:bg-mist'
+              : 'border-line bg-paper text-steel hover:bg-mist'
           }`}
         >
           Datos
@@ -118,7 +118,7 @@ export function CustomerFormPage() {
           className={`rounded-full border px-3 py-1.5 text-sm ${
             tab === 'history'
               ? 'border-ink bg-ink text-white'
-              : 'border-line bg-white text-steel hover:bg-mist'
+              : 'border-line bg-paper text-steel hover:bg-mist'
           }`}
         >
           Historial de compras
@@ -136,7 +136,7 @@ export function CustomerFormPage() {
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
         onKeyDown={handleEnterAsTab}
-        className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6"
+        className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6"
         noValidate
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

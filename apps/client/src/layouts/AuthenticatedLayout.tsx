@@ -70,7 +70,7 @@ export function AuthenticatedLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-canvas lg:flex-row">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col bg-ink lg:flex">
+      <aside className="relative hidden w-60 shrink-0 flex-col bg-ink lg:flex">
         <div className="flex h-16 items-center border-b border-white/10 px-6">
           <img src={logo} alt="La Casa de los Repuestos" className="h-8 w-auto" />
         </div>
@@ -112,11 +112,17 @@ export function AuthenticatedLayout() {
             Salir
           </button>
         </div>
+        {/* The ledger's own binding — a punched seam where the cover meets the pages. */}
+        <div
+          aria-hidden="true"
+          className="perforated-divider-vertical absolute inset-y-0 right-0"
+        />
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
         {/* Mobile / tablet top bar */}
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between bg-paper px-4 lg:hidden relative">
+          <div className="perforated-divider absolute inset-x-0 bottom-0" aria-hidden="true" />
           <div className="flex items-center gap-3">
             <div className="overflow-hidden rounded-sm bg-ink px-2 py-1.5">
               <img src={logo} alt="La Casa de los Repuestos" className="h-6 w-auto" />

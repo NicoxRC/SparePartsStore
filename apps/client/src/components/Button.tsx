@@ -10,13 +10,13 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantClasses: Record<Variant, string> = {
   primary:
-    'bg-ink text-white hover:bg-ink-2 active:bg-ink-3 disabled:bg-ink/40',
+    'bg-ink text-paper hover:bg-ink-2 active:bg-ink-3 disabled:bg-ink/40',
   secondary:
-    'bg-white text-ink border border-line hover:bg-mist active:bg-line disabled:bg-gray-50 disabled:text-gray-400',
+    'bg-paper text-ink border border-line-2 hover:bg-mist active:bg-line disabled:bg-paper disabled:text-fog',
   danger:
-    'bg-rust text-white hover:bg-rust-2 active:bg-rust-3 disabled:bg-rust/40',
+    'bg-rust text-paper hover:bg-rust-2 active:bg-rust-3 disabled:bg-rust/40',
   ghost:
-    'bg-transparent text-steel hover:bg-ink/5 active:bg-ink/10 disabled:text-gray-300',
+    'bg-transparent text-steel hover:bg-ink/5 active:bg-ink/10 disabled:text-fog',
 };
 
 export function Button({
@@ -29,7 +29,7 @@ export function Button({
 }: ButtonProps) {
   return (
     <button
-      className={`flex min-h-12 w-full items-center justify-center gap-2 rounded-sm px-4 py-3 text-base font-semibold transition-colors disabled:cursor-not-allowed sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm ${variantClasses[variant]} ${className}`}
+      className={`flex min-h-12 w-full items-center justify-center gap-2 px-4 py-3 text-base font-semibold transition-colors disabled:cursor-not-allowed sm:min-h-11 sm:px-5 sm:py-2.5 sm:text-sm ${variantClasses[variant]} ${className}`}
       disabled={disabled || isLoading}
       {...rest}
     >

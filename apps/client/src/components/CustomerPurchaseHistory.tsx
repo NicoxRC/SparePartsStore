@@ -107,7 +107,7 @@ export function CustomerPurchaseHistory({ customerId }: CustomerPurchaseHistoryP
     historyQuery.data?.quotations.reduce((sum, q) => sum + q.totalAmount, 0) ?? 0;
 
   return (
-    <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+    <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
         Historial de compras
       </h2>

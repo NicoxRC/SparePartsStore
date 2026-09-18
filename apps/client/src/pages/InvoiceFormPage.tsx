@@ -80,7 +80,7 @@ function CustomerSection({
     (city) => city.departmentCode === customerDepartment,
   );
   return (
-    <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+    <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
 
       <CustomerPicker
@@ -529,7 +529,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
       >
         {step === 'products' ? (
           <>
-            <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+            <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
                 Productos
               </h2>
@@ -559,7 +559,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
               </div>
 
               {hasActiveProductSearch && productsQuery.data && (
-                <div className="max-h-64 overflow-y-auto rounded-sm border border-line bg-white">
+                <div className="max-h-64 overflow-y-auto rounded-sm border border-line bg-paper">
                   {productsQuery.data.data.length === 0 ? (
                     <p className="px-4 py-3 text-sm text-fog">Sin resultados.</p>
                   ) : (
@@ -592,9 +592,9 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
               {errors.items?.message && <Alert variant="error">{errors.items.message}</Alert>}
 
               {itemFields.length > 0 && (
-                <div className="overflow-x-auto rounded-sm border border-line">
-                  <table className="min-w-full divide-y divide-line text-sm">
-                    <thead className="bg-canvas text-left text-xs font-medium uppercase tracking-wide text-fog">
+                <div className="overflow-x-auto border border-line-2 bg-paper">
+                  <table className="min-w-full text-sm">
+                    <thead className="border-b-2 border-ink/70 text-left text-xs font-medium uppercase tracking-wide text-steel">
                       <tr>
                         <th className="px-3 py-2">Producto</th>
                         <th className="px-3 py-2">Precio</th>
@@ -604,19 +604,21 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                         <th className="px-3 py-2" />
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-line">
+                    <tbody>
                       {itemFields.map((field, index) => (
-                        <tr key={field.id}>
+                        <tr key={field.id} className="border-b border-dotted border-line-2">
                           <td className="px-3 py-2">
                             {field.reference} — {field.description}
                           </td>
-                          <td className="px-3 py-2">${field.price.toLocaleString('es-CO')}</td>
+                          <td className="px-3 py-2 font-mono">
+                            ${field.price.toLocaleString('es-CO')}
+                          </td>
                           <td className="w-24 px-3 py-2">
                             <input
                               type="number"
                               min={1}
                               max={field.stock}
-                              className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
+                              className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
                               {...register(`items.${index}.quantity`)}
                             />
                           </td>
@@ -624,7 +626,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                             <input
                               type="number"
                               min={0}
-                              className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
+                              className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
                               {...register(`items.${index}.taxRate`)}
                             />
                             {Number(watchedItems[index]?.taxRate) === 0 && (
@@ -638,7 +640,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                               type="number"
                               min={0}
                               placeholder="0"
-                              className="w-24 rounded-sm border border-line-2 bg-white px-2 py-1"
+                              className="w-24 border border-line-2 bg-canvas px-2 py-1 font-mono"
                               {...register(`items.${index}.discount`)}
                             />
                           </td>
@@ -658,9 +660,11 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                 </div>
               )}
 
-              <p className="text-right text-lg font-semibold text-ink">
-                Total: ${total.toLocaleString('es-CO')}
-              </p>
+              <div className="flex justify-end">
+                <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
+                  Total: ${total.toLocaleString('es-CO')}
+                </p>
+              </div>
             </section>
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -739,7 +743,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
           </>
         ) : (
           <>
-            <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+            <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
                 Datos de la factura
               </h2>
@@ -772,7 +776,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
               </div>
             </section>
 
-            <section className="flex flex-col gap-3 rounded border border-line bg-white p-4 sm:p-6">
+            <section className="flex flex-col gap-3 rounded border border-line bg-paper p-4 sm:p-6">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
                   Productos
@@ -785,9 +789,12 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                   Editar productos
                 </button>
               </div>
-              <ul className="flex flex-col gap-1 text-sm text-steel">
+              <ul className="flex flex-col text-sm text-steel">
                 {watchedItems.map((item, index) => (
-                  <li key={itemFields[index]?.id ?? index} className="flex justify-between gap-2">
+                  <li
+                    key={itemFields[index]?.id ?? index}
+                    className="flex justify-between gap-2 border-b border-dotted border-line-2 py-1.5"
+                  >
                     <span>
                       {item.reference} — {item.description} × {Number(item.quantity)}
                       {Number(item.taxRate) === 0 && (
@@ -796,15 +803,17 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                         </span>
                       )}
                     </span>
-                    <span>
+                    <span className="font-mono">
                       ${computeItemTotal(item).toLocaleString('es-CO')}
                     </span>
                   </li>
                 ))}
               </ul>
-              <p className="text-right text-lg font-semibold text-ink">
-                Total: ${total.toLocaleString('es-CO')}
-              </p>
+              <div className="flex justify-end">
+                <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
+                  Total: ${total.toLocaleString('es-CO')}
+                </p>
+              </div>
             </section>
 
             <TextField label="Notas (opcional)" {...register('notes')} />
@@ -899,7 +908,7 @@ export function InvoiceFormPage() {
                 }
                 value={openingAmount}
                 onChange={(e) => setOpeningAmount(e.target.value)}
-                className="min-h-12 w-full rounded-sm border border-line bg-white px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
+                className="min-h-12 w-full rounded-sm border border-line bg-paper px-4 py-3 text-base text-ink placeholder:text-fog focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
               />
             </div>
             {openCashRegisterMutation.isError && (
@@ -1024,7 +1033,7 @@ export function InvoiceFormPage() {
                 aria-selected={isActive}
                 className={`group relative flex shrink-0 items-center gap-2 rounded-t border border-b-0 px-3 py-2 text-sm ${
                   isActive
-                    ? 'z-10 -mb-px border-line bg-white font-medium text-ink'
+                    ? 'z-10 -mb-px border-line bg-paper font-medium text-ink'
                     : 'border-transparent bg-transparent text-steel hover:bg-mist'
                 }`}
               >
@@ -1060,7 +1069,7 @@ export function InvoiceFormPage() {
           </button>
         </div>
 
-        <div className="rounded-b border border-t-0 border-line bg-white p-4 sm:p-6">
+        <div className="rounded-b border border-t-0 border-line bg-paper p-4 sm:p-6">
           <InvoiceDraftForm
             key={activeDraft.id}
             draft={activeDraft}

@@ -10,7 +10,7 @@ export function Pagination({ meta, onPageChange }: PaginationProps) {
 
   if (totalPages <= 1) {
     return (
-      <p className="py-2 text-center text-xs text-gray-400">
+      <p className="py-2 text-center font-mono text-xs text-fog">
         {total} {total === 1 ? 'resultado' : 'resultados'}
       </p>
     );
@@ -22,18 +22,18 @@ export function Pagination({ meta, onPageChange }: PaginationProps) {
         type="button"
         onClick={() => onPageChange(page - 1)}
         disabled={page <= 1}
-        className="min-h-11 min-w-11 rounded-sm border border-line bg-white px-4 py-2 text-sm font-medium text-steel hover:bg-mist disabled:opacity-40"
+        className="min-h-11 min-w-11 border border-line bg-paper px-4 py-2 text-sm font-medium text-steel hover:bg-mist disabled:opacity-40"
       >
         Anterior
       </button>
-      <p className="text-sm text-fog">
+      <p className="font-mono text-sm text-fog">
         Página {page} de {totalPages} · {total} resultados
       </p>
       <button
         type="button"
         onClick={() => onPageChange(page + 1)}
         disabled={page >= totalPages}
-        className="min-h-11 min-w-11 rounded-sm border border-line bg-white px-4 py-2 text-sm font-medium text-steel hover:bg-mist disabled:opacity-40"
+        className="min-h-11 min-w-11 border border-line bg-paper px-4 py-2 text-sm font-medium text-steel hover:bg-mist disabled:opacity-40"
       >
         Siguiente
       </button>

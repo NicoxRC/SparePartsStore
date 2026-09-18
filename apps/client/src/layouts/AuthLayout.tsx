@@ -16,7 +16,7 @@ export function AuthLayout() {
             Acceso para personal de tienda
           </p>
         </div>
-        <div className="rounded border border-line bg-white p-6 sm:p-8">
+        <div className="rounded border border-line bg-paper p-6 sm:p-8">
           <Outlet />
         </div>
       </div>

@@ -133,7 +133,7 @@ export function ProductFormPage() {
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
         onKeyDown={handleEnterAsTab}
-        className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6"
+        className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6"
         noValidate
       >
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -146,7 +146,7 @@ export function ProductFormPage() {
                 id="reference"
                 type="text"
                 placeholder="Ej: ABC-123"
-                className={`min-h-12 w-full rounded-sm border px-4 py-3 font-mono uppercase text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:min-h-11 sm:py-2.5 sm:text-sm ${
+                className={`min-h-12 w-full rounded-sm border px-4 py-3 font-mono uppercase text-base text-ink placeholder:text-fog focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:min-h-11 sm:py-2.5 sm:text-sm ${
                   referenceInputInvalid ? 'border-rust' : 'border-line'
                 }`}
                 aria-invalid={referenceInputInvalid}
@@ -156,7 +156,7 @@ export function ProductFormPage() {
               <button
                 type="button"
                 onClick={() => setScannerOpen(true)}
-                className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-line bg-white text-steel hover:bg-canvas sm:min-h-11 sm:min-w-11"
+                className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-line bg-paper text-steel hover:bg-canvas sm:min-h-11 sm:min-w-11"
                 aria-label="Escanear código de barras"
               >
                 <IconCamera className="h-5 w-5" />
@@ -302,7 +302,7 @@ export function ProductFormPage() {
 
       {feedback && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="w-full max-w-sm rounded bg-white p-6 text-center shadow-lg">
+          <div className="w-full max-w-sm rounded bg-paper p-6 text-center shadow-lg">
             <div
               className={`mx-auto flex h-14 w-14 items-center justify-center rounded-full text-3xl ${
                 feedback.type === 'success'

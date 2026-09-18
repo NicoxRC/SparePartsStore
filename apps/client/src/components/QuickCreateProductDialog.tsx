@@ -66,7 +66,7 @@ export function QuickCreateProductDialog({
 
   return createPortal(
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded bg-white p-5 shadow-lg">
+      <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded bg-paper p-5 shadow-lg">
         <h2 className="text-lg font-semibold text-ink">Crear producto nuevo</h2>
 
         {createMutation.isError && (

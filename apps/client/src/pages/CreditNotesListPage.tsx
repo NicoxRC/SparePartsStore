@@ -9,8 +9,7 @@ import { getApiErrorMessage } from '../lib/errors';
 const PAGE_SIZE = 20;
 
 const DIAN_STATUS_STYLE: Record<string, string> = {
-  DIAN_ACEPTADO: 'bg-ok-tint text-ok',
-  DIAN_RECHAZADO: 'bg-rust-tint text-rust-2',
+  DIAN_RECHAZADO: 'rounded-full bg-rust-tint px-2 py-0.5 text-rust-2',
 };
 
 export function CreditNotesListPage() {
@@ -39,7 +38,7 @@ export function CreditNotesListPage() {
           {creditNotesQuery.data.data.length === 0 ? (
             <Alert variant="info">Todavía no se ha emitido ninguna nota crédito.</Alert>
           ) : (
-            <div className="divide-y divide-line rounded border border-line bg-white">
+            <div className="divide-y divide-line border border-line bg-paper">
               {creditNotesQuery.data.data.map((note) => (
                 <div
                   key={note.id}
@@ -54,10 +53,14 @@ export function CreditNotesListPage() {
                       <span className="font-mono">{note.invoiceLabel}</span>
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
-                      {note.dianStatus && (
+                      {note.dianStatus === 'DIAN_ACEPTADO' && (
+                        <span className="stamp">Aceptado DIAN</span>
+                      )}
+                      {note.dianStatus && note.dianStatus !== 'DIAN_ACEPTADO' && (
                         <span
-                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            DIAN_STATUS_STYLE[note.dianStatus] ?? 'bg-info-tint text-ink'
+                          className={`text-xs font-medium ${
+                            DIAN_STATUS_STYLE[note.dianStatus] ??
+                            'rounded-full bg-info-tint px-2 py-0.5 text-ink'
                           }`}
                         >
                           {note.dianStatus}

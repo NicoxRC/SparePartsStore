@@ -64,7 +64,7 @@ export function ResolutionFormPage() {
       <form
         onSubmit={(e) => void handleSubmit(onSubmit)(e)}
         onKeyDown={handleEnterAsTab}
-        className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6"
+        className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6"
         noValidate
       >
         <SelectField

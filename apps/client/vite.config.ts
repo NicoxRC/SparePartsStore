@@ -15,8 +15,8 @@ export default defineConfig({
         name: 'La Casa de los Repuestos',
         short_name: 'CasaRespuestos',
         description: 'Gestión de inventario de repuestos',
-        theme_color: '#1E2A4A',
-        background_color: '#000000',
+        theme_color: '#1a1815',
+        background_color: '#f3ecd8',
         display: 'standalone',
         start_url: '/',
         icons: [

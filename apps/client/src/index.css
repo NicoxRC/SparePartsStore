@@ -1,18 +1,34 @@
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import 'tailwindcss';
 
 @theme {
-  /* Neutrals — graphite/steel, no warm "friendly" cream */
-  --color-ink: #111214; /* primary text, dark surfaces (sidebar, headers) */
-  --color-ink-2: #26282c; /* hover state on ink surfaces */
-  --color-ink-3: #050506; /* active/pressed state on ink surfaces */
-  --color-steel: #4b5160; /* secondary text */
-  --color-fog: #8b92a0; /* tertiary/meta text, placeholders */
-  --color-line: #dcdfe3; /* borders, dividers */
-  --color-line-2: #adb3bd; /* stronger border for interactive form controls — border-line is too close to canvas to read as an edge */
-  --color-mist: #e8e7e3; /* hover background on light surfaces */
-  --color-canvas: #f1f0ed; /* page background */
+  --font-sans: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  /* The store's own talonario, typed on a carbon-copy pad — reserved for
+     amounts, references, document numbers and stamps (data/measurement,
+     not a generic "technical" costume). */
+  --font-mono: 'Special Elite', ui-monospace, 'SFMono-Regular', monospace;
 
-  /* Brand accent — taken from the logo's red, used sparingly */
+  /* Invoice-paper world: warm cream stock, near-black typewriter ink, a
+     cool violet-gray carbon smudge underneath. The carbon tint runs cool
+     specifically because it sits against a warm ground — that contrast is
+     what actually reads as "the copy underneath," not a matched hue. */
+  --color-ink: #1a1815; /* primary text — typewriter-ribbon black, faint warm cast */
+  --color-ink-2: #2b2823; /* hover state on ink surfaces */
+  --color-ink-3: #0d0c0a; /* active/pressed state on ink surfaces */
+  --color-steel: #5a5348; /* secondary text */
+  --color-fog: #8c8371; /* tertiary/meta text, placeholders */
+  --color-line: #ddd2b3; /* borders, dividers — aged paper edge */
+  --color-line-2: #b8a97e; /* stronger border for interactive form controls */
+  --color-mist: #ece1c5; /* hover background on light surfaces */
+  --color-canvas: #f3ecd8; /* page background — invoice cream */
+  --color-paper: #faf7ec; /* the form surface itself — lighter than canvas */
+
+  --color-carbon: #5c5568; /* carbon-copy smudge ink */
+  --color-carbon-tint: #e7e2e6; /* duplicate/completed-row wash */
+
+  /* Brand accent — the logo's red. Reserved specifically for the rubber
+     stamp mark (accepted/paid/confirmed) and the one active callout —
+     never a background wash. */
   --color-signal: #c8231f;
   --color-signal-2: #a01c19;
 
@@ -20,20 +36,74 @@
   --color-rust: #9a3226; /* destructive actions */
   --color-rust-2: #7e2a20;
   --color-rust-3: #611f18;
-  --color-rust-tint: #f3e2de;
-  --color-rust-line: #e9c9c0;
+  --color-rust-tint: #f0ddd2;
+  --color-rust-line: #e2c2a8;
 
   --color-ok: #2f6b45;
-  --color-ok-tint: #e7efe9;
-  --color-ok-line: #cfe6d7;
+  --color-ok-tint: #e6ecd8;
+  --color-ok-line: #cddab0;
 
   --color-amber: #a8711a;
-  --color-amber-tint: #f5ecda;
+  --color-amber-tint: #f2e6cc;
 
-  --color-indigo: #465372;
-  --color-indigo-tint: #e7eaf0;
+  --color-indigo: #4b5568;
+  --color-indigo-tint: #e4e2d5;
 
-  --color-info-tint: #e9eaec;
+  --color-info-tint: #e6e0cf;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+/* A perforated tear-line — a real punch-row from the subject's own
+   talonario, used as a structural section divider instead of a plain
+   hairline or a shadowed card edge. Never used as an all-over texture. */
+.perforated-divider {
+  height: 1px;
+  border: none;
+  background-image: radial-gradient(circle, var(--color-line-2) 1px, transparent 1.3px);
+  background-size: 10px 1px;
+  background-repeat: repeat-x;
+}
+
+.perforated-divider-vertical {
+  width: 1px;
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.18) 1px, transparent 1.3px);
+  background-size: 1px 10px;
+  background-repeat: repeat-y;
+}
+
+/* The rubber-stamp mark — accepted/paid/confirmed states land like an
+   actual ink stamp on the form, not a pill badge. Reserve for the
+   emotionally load-bearing "sealed" moments (DIAN accepted, caja
+   cuadrada), not every status. */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  transform: rotate(-6deg);
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  padding: 0.2rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-signal);
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 25%, transparent);
+}
+
+/* The carbon-copy wash — a completed/historical/read-only row sits on the
+   cool duplicate-copy tint instead of the warm form ground. */
+.carbon-row {
+  background-color: var(--color-carbon-tint);
+}
+
+/* The old ledger convention: a single rule under a subtotal, a doubled
+   rule under the total a pagar. */
+.total-rule {
+  border-bottom: 3px double var(--color-ink);
 }
 
 /* Printable tickets (PrintTicket component) — rendered as a sibling of

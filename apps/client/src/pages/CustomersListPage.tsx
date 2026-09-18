@@ -89,7 +89,7 @@ export function CustomersListPage() {
 
       {customerPendingDelete && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+          <div className="w-full max-w-sm rounded bg-paper p-5 shadow-lg">
             <h2 className="text-lg font-semibold text-ink">Eliminar cliente</h2>
             <p className="mt-2 text-sm text-steel">
               ¿Seguro que deseas eliminar a{' '}
