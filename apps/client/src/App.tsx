@@ -5,6 +5,7 @@ import { EmployeeRoute } from './components/EmployeeRoute';
 import { PermissionRoute } from './components/PermissionRoute';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/AuthContext';
+import { ThemePreviewSwitcher } from './components/dev/ThemePreviewSwitcher';
 import { InvoiceDraftsProvider } from './context/InvoiceDraftsContext';
 import { AuthLayout } from './layouts/AuthLayout';
 import { AuthenticatedLayout } from './layouts/AuthenticatedLayout';
@@ -243,6 +244,7 @@ function App() {
         </InvoiceDraftsProvider>
         </AuthProvider>
       </BrowserRouter>
+      {import.meta.env.DEV && <ThemePreviewSwitcher />}
     </QueryClientProvider>
   );
 }

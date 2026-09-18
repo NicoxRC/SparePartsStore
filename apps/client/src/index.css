@@ -106,6 +106,83 @@ body {
   border-bottom: 3px double var(--color-ink);
 }
 
+/* ==========================================================================
+   TEMPORARY — visual comparison variants for review only.
+   Toggled via the dev-only ThemePreviewSwitcher (see components/dev/).
+   Never referenced in production; safe to delete once a direction is
+   confirmed. Each block only overrides tokens + the couple of component
+   details that carry that direction's own character — not a full rebuild.
+   ========================================================================== */
+
+/* EXTREME — "Diagrama de despiece" (exploded parts diagram): dark
+   blueprint world, thin white line-work, red reserved for the active
+   callout number. The direction the dice originally assigned, not chosen. */
+:root[data-theme='despiece'] {
+  --color-ink: #eef2f6;
+  --color-ink-2: #d7e0ea;
+  --color-ink-3: #ffffff;
+  --color-steel: #a9bcd2;
+  --color-fog: #7288a5;
+  --color-line: #33496b;
+  --color-line-2: #4c6790;
+  --color-mist: #22314a;
+  --color-canvas: #16223a;
+  --color-paper: #1c2c48;
+  --color-carbon: #3d5a86;
+  --color-carbon-tint: #223252;
+  --font-mono: ui-monospace, 'SFMono-Regular', monospace;
+}
+:root[data-theme='despiece'] .stamp {
+  transform: rotate(0deg);
+  border-radius: 0;
+}
+:root[data-theme='despiece'] .total-rule {
+  border-bottom-color: var(--color-ink);
+}
+:root[data-theme='despiece'] .perforated-divider,
+:root[data-theme='despiece'] .perforated-divider-vertical {
+  background-image: radial-gradient(circle, var(--color-line-2) 1px, transparent 1.3px);
+}
+
+/* MODERATE — "Tablero de vuelos" (split-flap departure board): a cooler,
+   neutral hall instead of warm paper; amber becomes the primary accent
+   (not red), for a "constantly updating, official" register. */
+:root[data-theme='tablero'] {
+  --color-ink: #15181a;
+  --color-ink-2: #262b2e;
+  --color-ink-3: #0a0c0d;
+  --color-steel: #52585c;
+  --color-fog: #868d92;
+  --color-line: #d6dad8;
+  --color-line-2: #a9b1ae;
+  --color-mist: #e7e9e7;
+  --color-canvas: #eef0ee;
+  --color-paper: #f7f9f7;
+  --color-carbon: #55606b;
+  --color-carbon-tint: #e4e8ea;
+  --color-signal: #a8711a;
+  --color-signal-2: #8a5c14;
+  --font-mono: ui-monospace, 'SFMono-Regular', monospace;
+}
+:root[data-theme='tablero'] .stamp {
+  transform: rotate(0deg);
+  border-radius: 2px;
+}
+
+/* SMALL TWEAK — "Talonario, más suave": the shipped direction, just
+   quieter — lighter paper, less carbon contrast, no stamp tilt. Same
+   world, turned down one notch. */
+:root[data-theme='talonario-suave'] {
+  --color-canvas: #f7f3ea;
+  --color-paper: #fdfbf5;
+  --color-line: #e6ddc6;
+  --color-mist: #f0e9d5;
+  --color-carbon-tint: #eeeaec;
+}
+:root[data-theme='talonario-suave'] .stamp {
+  transform: rotate(0deg);
+}
+
 /* Printable tickets (PrintTicket component) — rendered as a sibling of
    #root via a portal, hidden on screen, shown (and everything else
    hidden) only when actually printing. */
