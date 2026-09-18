@@ -13,6 +13,7 @@ import {
   IconTag,
   IconUsers,
 } from '../components/icons';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 
@@ -104,13 +105,16 @@ export function AuthenticatedLayout() {
               <span className="text-xs uppercase tracking-wide text-fog">{roleLabel}</span>
             </p>
           )}
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="min-h-10 w-full rounded-sm px-3 py-2 text-left text-sm font-medium text-fog hover:bg-white/5 hover:text-white active:bg-white/10"
-          >
-            Salir
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="min-h-10 flex-1 px-3 py-2 text-left text-sm font-medium text-fog hover:bg-white/5 hover:text-white active:bg-white/10"
+            >
+              Salir
+            </button>
+            <ThemeToggle className="flex min-h-10 min-w-10 items-center justify-center text-fog hover:bg-white/5 hover:text-white active:bg-white/10" />
+          </div>
         </div>
         {/* The ledger's own binding — a punched seam where the cover meets the pages. */}
         <div
@@ -133,13 +137,16 @@ export function AuthenticatedLayout() {
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="min-h-10 min-w-10 rounded-sm px-3 py-2 text-sm font-medium text-steel hover:bg-mist active:bg-line"
-          >
-            Salir
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle className="flex min-h-10 min-w-10 items-center justify-center rounded-sm text-steel hover:bg-mist active:bg-line" />
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="min-h-10 min-w-10 rounded-sm px-3 py-2 text-sm font-medium text-steel hover:bg-mist active:bg-line"
+            >
+              Salir
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 px-4 py-4 pb-20 lg:px-8 lg:py-8 lg:pb-8">
