@@ -26,9 +26,17 @@ export class InventoryService {
     dto: CreateMovementDto,
     createdById: string,
   ): Promise<MovementResponseDto> {
-    const product = await this.productsRepository.findOne({
-      where: { id: dto.productId },
-    });
+    // .withDeleted() — a movement here can be returning stock for a
+    // quotation line whose product was soft-deleted after the sale (see
+    // QuotationsService.cancel()/updateItems()); the product still exists
+    // and its stock counter still needs updating even though it's no
+    // longer sellable. Same pattern as ProductsService.findOne() for
+    // soft-deleted lookups.
+    const product = await this.productsRepository
+      .createQueryBuilder('product')
+      .withDeleted()
+      .where('product.id = :id', { id: dto.productId })
+      .getOne();
     if (!product) {
       throw new NotFoundException('Product not found');
     }

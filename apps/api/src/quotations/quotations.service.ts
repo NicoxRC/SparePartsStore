@@ -419,10 +419,20 @@ export class QuotationsService {
   }
 
   private async loadWithItems(id: string): Promise<Quotation> {
-    const quotation = await this.quotationsRepository.findOne({
-      where: { id },
-      relations: ['items', 'items.product', 'invoice'],
-    });
+    // .withDeleted() disables TypeORM's automatic "deleted_at IS NULL" filter
+    // for the quotation and every joined entity, so a line whose product was
+    // later soft-deleted still resolves instead of coming back null (same
+    // pattern as ProductsService.findOne() for department/group/brand).
+    // The quotation's own soft-delete filter is re-added below.
+    const quotation = await this.quotationsRepository
+      .createQueryBuilder('quotation')
+      .withDeleted()
+      .leftJoinAndSelect('quotation.items', 'items')
+      .leftJoinAndSelect('items.product', 'product')
+      .leftJoinAndSelect('quotation.invoice', 'invoice')
+      .where('quotation.id = :id', { id })
+      .andWhere('quotation.deletedAt IS NULL')
+      .getOne();
     if (!quotation) {
       throw new NotFoundException('Cotización no encontrada.');
     }

@@ -30,11 +30,14 @@ describe('QuotationsService', () => {
     select: jest.Mock;
     leftJoinAndSelect: jest.Mock;
     orderBy: jest.Mock;
+    where: jest.Mock;
     andWhere: jest.Mock;
+    withDeleted: jest.Mock;
     skip: jest.Mock;
     take: jest.Mock;
     getRawOne: jest.Mock;
     getManyAndCount: jest.Mock;
+    getOne: jest.Mock;
   };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
@@ -116,12 +119,16 @@ describe('QuotationsService', () => {
       select: jest.fn().mockReturnThis(),
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      withDeleted: jest.fn().mockReturnThis(),
       skip: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       // No prior quotations by default — resolveNextNumber() -> 1.
       getRawOne: jest.fn().mockResolvedValue({ max: null }),
       getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      // loadWithItems() default — an open quotation with one line.
+      getOne: jest.fn().mockResolvedValue(openQuotation()),
     };
     quotationsRepository = {
       create: jest.fn<Partial<Quotation>, [Partial<Quotation>]>(
@@ -262,7 +269,7 @@ describe('QuotationsService', () => {
     };
 
     it('rejects editing a quotation that is no longer open', async () => {
-      quotationsRepository.findOne.mockResolvedValue(
+      queryBuilder.getOne.mockResolvedValue(
         openQuotation({ cancelledAt: new Date() }),
       );
 
@@ -351,7 +358,7 @@ describe('QuotationsService', () => {
     };
 
     it('rejects invoicing a quotation that is no longer open', async () => {
-      quotationsRepository.findOne.mockResolvedValue(
+      queryBuilder.getOne.mockResolvedValue(
         openQuotation({ invoicedAt: new Date() }),
       );
 
@@ -436,7 +443,7 @@ describe('QuotationsService', () => {
 
   describe('cancel', () => {
     it('rejects cancelling a quotation that is no longer open', async () => {
-      quotationsRepository.findOne.mockResolvedValue(
+      queryBuilder.getOne.mockResolvedValue(
         openQuotation({ invoicedAt: new Date() }),
       );
 
