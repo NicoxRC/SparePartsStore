@@ -106,7 +106,7 @@ export function CustomerFormPage() {
           onClick={() => setTab('data')}
           className={`rounded-full border px-3 py-1.5 text-sm ${
             tab === 'data'
-              ? 'border-ink bg-ink text-white'
+              ? 'border-ink bg-ink text-paper'
               : 'border-line bg-paper text-steel hover:bg-mist'
           }`}
         >
@@ -117,7 +117,7 @@ export function CustomerFormPage() {
           onClick={() => setTab('history')}
           className={`rounded-full border px-3 py-1.5 text-sm ${
             tab === 'history'
-              ? 'border-ink bg-ink text-white'
+              ? 'border-ink bg-ink text-paper'
               : 'border-line bg-paper text-steel hover:bg-mist'
           }`}
         >

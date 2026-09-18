@@ -6,7 +6,7 @@ export function AuthLayout() {
     <div className="flex min-h-screen items-center justify-center bg-canvas px-4 py-8">
       <div className="w-full max-w-sm sm:max-w-md">
         <div className="mb-6 text-center sm:mb-8">
-          <div className="mx-auto mb-4 max-w-xs overflow-hidden rounded bg-ink sm:max-w-sm">
+          <div className="mx-auto mb-4 max-w-xs overflow-hidden rounded bg-spine sm:max-w-sm">
             <img src={logo} alt="La Casa de los Repuestos" className="w-full" />
           </div>
           <p className="font-mono text-xs font-semibold uppercase tracking-[0.3em] text-signal">

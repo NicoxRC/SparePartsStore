@@ -27,6 +27,13 @@
   --color-carbon: #5c5568; /* carbon-copy smudge ink */
   --color-carbon-tint: #eeeaec; /* duplicate/completed-row wash, quiet register */
 
+  /* The ledger's spine — sidebar/bottom-nav surface. Deliberately fixed
+     (not overridden in dark mode below): the binding of the ledger is
+     always dark leather, day or night, so its white/fog nav text never
+     has to flip. Do not use for page or form surfaces — those are what
+     actually go light/dark. */
+  --color-spine: #1a1815;
+
   /* Brand accent — the logo's red. Reserved specifically for the rubber
      stamp mark (accepted/paid/confirmed) and the one active callout —
      never a background wash. */

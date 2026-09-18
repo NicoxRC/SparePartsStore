@@ -71,7 +71,7 @@ export function AuthenticatedLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-canvas lg:flex-row">
       {/* Desktop sidebar */}
-      <aside className="relative hidden w-60 shrink-0 flex-col bg-ink lg:flex">
+      <aside className="relative hidden w-60 shrink-0 flex-col bg-spine lg:flex">
         <div className="flex h-16 items-center border-b border-white/10 px-6">
           <img src={logo} alt="La Casa de los Repuestos" className="h-8 w-auto" />
         </div>
@@ -128,7 +128,7 @@ export function AuthenticatedLayout() {
         <header className="sticky top-0 z-10 flex h-14 items-center justify-between bg-paper px-4 lg:hidden relative">
           <div className="perforated-divider absolute inset-x-0 bottom-0" aria-hidden="true" />
           <div className="flex items-center gap-3">
-            <div className="overflow-hidden rounded-sm bg-ink px-2 py-1.5">
+            <div className="overflow-hidden rounded-sm bg-spine px-2 py-1.5">
               <img src={logo} alt="La Casa de los Repuestos" className="h-6 w-auto" />
             </div>
             {user && (
@@ -156,7 +156,7 @@ export function AuthenticatedLayout() {
         </main>
 
         {/* Mobile bottom tab bar */}
-        <nav className="fixed bottom-0 left-0 right-0 z-10 flex overflow-x-auto border-t border-white/10 bg-ink lg:hidden">
+        <nav className="fixed bottom-0 left-0 right-0 z-10 flex overflow-x-auto border-t border-white/10 bg-spine lg:hidden">
           {navItems.map(({ to, label, Icon }) => (
             <NavLink
               key={to}

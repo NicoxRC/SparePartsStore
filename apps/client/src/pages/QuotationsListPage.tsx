@@ -79,7 +79,7 @@ export function QuotationsListPage() {
               }}
               className={`rounded-full border px-3 py-1.5 text-sm ${
                 isActive
-                  ? 'border-ink bg-ink text-white'
+                  ? 'border-ink bg-ink text-paper'
                   : 'border-line bg-paper text-steel hover:bg-mist'
               }`}
             >
