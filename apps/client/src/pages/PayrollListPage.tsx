@@ -59,7 +59,7 @@ export function PayrollListPage() {
               Todavía no se ha enviado ningún período de nómina.
             </Alert>
           ) : (
-            <div className="overflow-x-auto rounded border border-line bg-white">
+            <div className="overflow-x-auto rounded border border-line bg-paper">
               <table className="min-w-full divide-y divide-line text-sm">
                 <thead className="bg-canvas text-left text-xs font-medium uppercase tracking-wide text-fog">
                   <tr>

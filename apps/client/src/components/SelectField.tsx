@@ -17,7 +17,7 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectFieldProps>(
         <select
           ref={ref}
           id={selectId}
-          className={`min-h-12 w-full rounded-sm border bg-white px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:min-h-11 sm:py-2.5 sm:text-sm ${
+          className={`min-h-12 w-full border bg-paper px-4 py-3 text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:min-h-11 sm:py-2.5 sm:text-sm ${
             error ? 'border-rust' : 'border-line-2'
           } ${className}`}
           aria-invalid={Boolean(error)}

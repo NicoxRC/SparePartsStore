@@ -79,8 +79,8 @@ export function QuotationsListPage() {
               }}
               className={`rounded-full border px-3 py-1.5 text-sm ${
                 isActive
-                  ? 'border-ink bg-ink text-white'
-                  : 'border-line bg-white text-steel hover:bg-mist'
+                  ? 'border-ink bg-ink text-paper'
+                  : 'border-line bg-paper text-steel hover:bg-mist'
               }`}
             >
               {filter.label}
@@ -100,7 +100,7 @@ export function QuotationsListPage() {
           {quotationsQuery.data.data.length === 0 ? (
             <Alert variant="info">No hay cotizaciones para este filtro.</Alert>
           ) : (
-            <div className="divide-y divide-line rounded border border-line bg-white">
+            <div className="divide-y divide-line rounded border border-line bg-paper">
               {quotationsQuery.data.data.map((quotation) => {
                 const personName = [
                   quotation.customerFirstName,

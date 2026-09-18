@@ -271,7 +271,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
         <Alert variant="info">Esta cotización fue cancelada; el stock ya fue devuelto.</Alert>
       )}
 
-      <section className="flex flex-col gap-3 rounded border border-line bg-white p-4 sm:p-6">
+      <section className="flex flex-col gap-3 rounded border border-line bg-paper p-4 sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
         <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
           <div>
@@ -296,7 +296,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
         </dl>
       </section>
 
-      <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+      <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Productos</h2>
 
         {isOpen && (
@@ -326,7 +326,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
             </div>
 
             {hasActiveProductSearch && productsQuery.data && (
-              <div className="max-h-64 overflow-y-auto rounded-sm border border-line bg-white">
+              <div className="max-h-64 overflow-y-auto rounded-sm border border-line bg-paper">
                 {productsQuery.data.data.length === 0 ? (
                   <p className="px-4 py-3 text-sm text-fog">Sin resultados.</p>
                 ) : (
@@ -387,7 +387,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         <input
                           type="number"
                           min={1}
-                          className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
+                          className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
                           value={item.quantity}
                           onChange={(e) =>
                             updateItemField(index, { quantity: Number(e.target.value) || 1 })
@@ -402,7 +402,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         <input
                           type="number"
                           min={0}
-                          className="w-20 rounded-sm border border-line-2 bg-white px-2 py-1"
+                          className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
                           value={item.taxRate}
                           onChange={(e) =>
                             updateItemField(index, { taxRate: Number(e.target.value) || 0 })
@@ -421,7 +421,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                           type="number"
                           min={0}
                           placeholder="0"
-                          className="w-24 rounded-sm border border-line-2 bg-white px-2 py-1"
+                          className="w-24 rounded-sm border border-line-2 bg-paper px-2 py-1"
                           value={item.discount || ''}
                           onChange={(e) =>
                             updateItemField(index, { discount: Number(e.target.value) || 0 })
@@ -449,9 +449,11 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           </div>
         )}
 
-        <p className="text-right text-lg font-semibold text-ink">
-          Total: ${total.toLocaleString('es-CO')}
-        </p>
+        <div className="flex justify-end">
+          <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
+            Total: ${total.toLocaleString('es-CO')}
+          </p>
+        </div>
 
         {isOpen && canUpdate && (
           <div className="flex justify-end">
@@ -469,7 +471,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
       </section>
 
       {isOpen && canInvoice && (
-        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+        <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Facturar</h2>
             {!isInvoicePanelOpen && (

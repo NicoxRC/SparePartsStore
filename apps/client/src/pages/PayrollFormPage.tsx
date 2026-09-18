@@ -133,7 +133,7 @@ export function PayrollFormPage() {
         className="flex flex-col gap-6"
         noValidate
       >
-        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+        <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
             Período
           </h2>
@@ -197,7 +197,7 @@ export function PayrollFormPage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+        <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
               Devengos
@@ -248,7 +248,7 @@ export function PayrollFormPage() {
           ))}
         </section>
 
-        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+        <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
               Deducciones
@@ -295,7 +295,7 @@ export function PayrollFormPage() {
           ))}
         </section>
 
-        <section className="flex flex-col gap-4 rounded border border-line bg-white p-4 sm:p-6">
+        <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
             Empleado
           </h2>
@@ -402,14 +402,14 @@ export function PayrollFormPage() {
           </div>
         </section>
 
-        <section className="flex flex-col gap-2 rounded border border-line bg-white p-4 sm:p-6">
+        <section className="flex flex-col gap-2 rounded border border-line bg-paper p-4 sm:p-6">
           <label htmlFor="notes" className="text-sm font-medium text-steel">
             Notas (opcional, una por línea)
           </label>
           <textarea
             id="notes"
             rows={3}
-            className="w-full rounded-sm border border-line px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:text-sm"
+            className="w-full rounded-sm border border-line px-4 py-3 text-base text-ink focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink sm:text-sm"
             {...register('notes')}
           />
         </section>

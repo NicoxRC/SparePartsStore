@@ -54,7 +54,7 @@ function CorrectCountedCashCell({ register }: { register: CashRegisterResponse }
           min={0}
           value={value}
           onChange={(e) => setValue(e.target.value)}
-          className="w-24 rounded-sm border border-line bg-white px-2 py-1 text-right text-sm text-gray-900 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
+          className="w-24 rounded-sm border border-line bg-paper px-2 py-1 text-right text-sm text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
         />
         <button
           type="button"
@@ -103,7 +103,7 @@ export function CashRegisterHistoryPage() {
           {historyQuery.data.data.length === 0 ? (
             <Alert variant="info">Todavía no se ha abierto ninguna caja.</Alert>
           ) : (
-            <div className="overflow-x-auto rounded border border-line bg-white">
+            <div className="overflow-x-auto rounded border border-line bg-paper">
               <table className="min-w-full divide-y divide-line text-sm">
                 <thead className="bg-canvas text-left text-xs font-medium uppercase tracking-wide text-fog">
                   <tr>

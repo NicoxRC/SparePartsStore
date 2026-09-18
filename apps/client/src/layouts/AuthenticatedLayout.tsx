@@ -13,6 +13,7 @@ import {
   IconTag,
   IconUsers,
 } from '../components/icons';
+import { ThemeToggle } from '../components/ThemeToggle';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 
@@ -70,7 +71,7 @@ export function AuthenticatedLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-canvas lg:flex-row">
       {/* Desktop sidebar */}
-      <aside className="hidden w-60 shrink-0 flex-col bg-ink lg:flex">
+      <aside className="relative hidden w-60 shrink-0 flex-col bg-spine lg:flex">
         <div className="flex h-16 items-center border-b border-white/10 px-6">
           <img src={logo} alt="La Casa de los Repuestos" className="h-8 w-auto" />
         </div>
@@ -104,21 +105,30 @@ export function AuthenticatedLayout() {
               <span className="text-xs uppercase tracking-wide text-fog">{roleLabel}</span>
             </p>
           )}
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="min-h-10 w-full rounded-sm px-3 py-2 text-left text-sm font-medium text-fog hover:bg-white/5 hover:text-white active:bg-white/10"
-          >
-            Salir
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="min-h-10 flex-1 px-3 py-2 text-left text-sm font-medium text-fog hover:bg-white/5 hover:text-white active:bg-white/10"
+            >
+              Salir
+            </button>
+            <ThemeToggle className="flex min-h-10 min-w-10 items-center justify-center text-fog hover:bg-white/5 hover:text-white active:bg-white/10" />
+          </div>
         </div>
+        {/* The ledger's own binding — a punched seam where the cover meets the pages. */}
+        <div
+          aria-hidden="true"
+          className="perforated-divider-vertical absolute inset-y-0 right-0"
+        />
       </aside>
 
       <div className="flex min-h-screen flex-1 flex-col">
         {/* Mobile / tablet top bar */}
-        <header className="sticky top-0 z-10 flex h-14 items-center justify-between border-b border-line bg-white px-4 lg:hidden">
+        <header className="sticky top-0 z-10 flex h-14 items-center justify-between bg-paper px-4 lg:hidden relative">
+          <div className="perforated-divider absolute inset-x-0 bottom-0" aria-hidden="true" />
           <div className="flex items-center gap-3">
-            <div className="overflow-hidden rounded-sm bg-ink px-2 py-1.5">
+            <div className="overflow-hidden rounded-sm bg-spine px-2 py-1.5">
               <img src={logo} alt="La Casa de los Repuestos" className="h-6 w-auto" />
             </div>
             {user && (
@@ -127,13 +137,16 @@ export function AuthenticatedLayout() {
               </p>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => void logout()}
-            className="min-h-10 min-w-10 rounded-sm px-3 py-2 text-sm font-medium text-steel hover:bg-mist active:bg-line"
-          >
-            Salir
-          </button>
+          <div className="flex items-center gap-1">
+            <ThemeToggle className="flex min-h-10 min-w-10 items-center justify-center rounded-sm text-steel hover:bg-mist active:bg-line" />
+            <button
+              type="button"
+              onClick={() => void logout()}
+              className="min-h-10 min-w-10 rounded-sm px-3 py-2 text-sm font-medium text-steel hover:bg-mist active:bg-line"
+            >
+              Salir
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 px-4 py-4 pb-20 lg:px-8 lg:py-8 lg:pb-8">
@@ -143,7 +156,7 @@ export function AuthenticatedLayout() {
         </main>
 
         {/* Mobile bottom tab bar */}
-        <nav className="fixed bottom-0 left-0 right-0 z-10 flex overflow-x-auto border-t border-white/10 bg-ink lg:hidden">
+        <nav className="fixed bottom-0 left-0 right-0 z-10 flex overflow-x-auto border-t border-white/10 bg-spine lg:hidden">
           {navItems.map(({ to, label, Icon }) => (
             <NavLink
               key={to}

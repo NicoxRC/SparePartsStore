@@ -23,7 +23,7 @@ export function Toast({ message, onDismiss, duration = 4000, action }: ToastProp
   return (
     <div
       role="status"
-      className="fixed inset-x-4 bottom-20 z-50 mx-auto flex max-w-md items-center justify-between gap-3 rounded-sm border border-ok-line bg-ok-tint px-4 py-3 text-sm text-ok shadow-lg lg:bottom-6"
+      className="fixed inset-x-4 bottom-20 z-50 mx-auto flex max-w-md items-center justify-between gap-3 border border-ok-line bg-ok-tint px-4 py-3 text-sm text-ok shadow-lg lg:bottom-6"
     >
       <span>{message}</span>
       <div className="flex shrink-0 items-center gap-3">

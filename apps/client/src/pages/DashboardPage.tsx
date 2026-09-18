@@ -24,7 +24,7 @@ function KpiCard({
     amber: 'bg-amber-tint text-amber',
     indigo: 'bg-indigo-tint text-indigo',
     rust: 'bg-rust-tint text-rust-2',
-    neutral: 'bg-white text-ink',
+    neutral: 'bg-paper text-ink',
   };
 
   return (
@@ -32,7 +32,7 @@ function KpiCard({
       className={`flex flex-col gap-1 rounded border border-line p-4 ${toneClasses[tone]}`}
     >
       <span className="text-xs font-medium uppercase tracking-wide opacity-80">{label}</span>
-      <span className="text-2xl font-bold">{value}</span>
+      <span className="font-mono text-2xl font-bold">{value}</span>
       {hint && <span className="text-xs opacity-80">{hint}</span>}
     </div>
   );
@@ -42,7 +42,7 @@ function SalesTrendChart({ days }: { days: { date: string; total: number }[] }) 
   const max = Math.max(...days.map((day) => day.total), 1);
 
   return (
-    <div className="rounded border border-line bg-white p-4 sm:p-6">
+    <div className="rounded border border-line bg-paper p-4 sm:p-6">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
         Ventas últimos 7 días
       </h2>
@@ -120,7 +120,7 @@ export function DashboardPage() {
 
       <SalesTrendChart days={summary.salesLast7Days} />
 
-      <div className="rounded border border-line bg-white p-4 sm:p-6">
+      <div className="rounded border border-line bg-paper p-4 sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
           Productos agotados
         </h2>

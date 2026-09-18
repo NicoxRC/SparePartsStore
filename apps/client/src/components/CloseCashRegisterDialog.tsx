@@ -46,7 +46,7 @@ export function CloseCashRegisterDialog({
     const isSquared = discrepancy === 0;
     return createPortal(
       <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-        <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+        <div className="w-full max-w-sm rounded bg-paper p-5 shadow-lg">
           <h2 className="text-lg font-semibold text-ink">Reporte de cierre</h2>
 
           <dl className="mt-3 flex flex-col gap-1.5 text-sm">
@@ -128,12 +128,16 @@ export function CloseCashRegisterDialog({
               </dd>
             </div>
             <div
-              className={`flex items-center justify-between rounded-sm px-3 py-2 ${
-                isSquared ? 'bg-ok-tint' : 'bg-rust-tint'
+              className={`flex items-center justify-between px-3 py-2 ${
+                isSquared ? '' : 'bg-rust-tint'
               }`}
             >
-              <dt className={isSquared ? 'text-ok' : 'text-rust'}>
-                {isSquared ? 'Caja cuadrada' : 'Desfase'}
+              <dt>
+                {isSquared ? (
+                  <span className="stamp text-ok">Caja cuadrada</span>
+                ) : (
+                  <span className="text-rust">Desfase</span>
+                )}
               </dt>
               <dd
                 className={`font-mono font-semibold ${isSquared ? 'text-ok' : 'text-rust'}`}
@@ -170,7 +174,7 @@ export function CloseCashRegisterDialog({
 
   return createPortal(
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-      <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+      <div className="w-full max-w-sm rounded bg-paper p-5 shadow-lg">
         <h2 className="text-lg font-semibold text-ink">¿Cerrar la caja del día?</h2>
 
         <dl className="mt-3 flex flex-col gap-2 text-sm">
@@ -204,7 +208,7 @@ export function CloseCashRegisterDialog({
             placeholder="Cuenta el efectivo físico"
             value={countedCash}
             onChange={(e) => setCountedCash(e.target.value)}
-            className="min-h-12 w-full rounded-sm border border-line bg-white px-4 py-3 text-base text-gray-900 placeholder:text-gray-400 focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
+            className="min-h-12 w-full rounded-sm border border-line bg-paper px-4 py-3 text-base text-ink placeholder:text-fog focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30 sm:min-h-11 sm:py-2.5 sm:text-sm"
           />
         </div>
 

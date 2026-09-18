@@ -34,7 +34,7 @@ export function CatalogsPage() {
           <Link
             key={to}
             to={to}
-            className="flex items-center gap-4 rounded border border-line bg-white p-4 transition-colors hover:border-fog"
+            className="flex items-center gap-4 rounded border border-line bg-paper p-4 transition-colors hover:border-fog"
           >
             <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm bg-canvas text-ink">
               <Icon className="h-6 w-6" />

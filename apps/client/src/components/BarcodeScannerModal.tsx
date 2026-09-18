@@ -54,7 +54,7 @@ export function BarcodeScannerModal({ onScanned, onClose }: BarcodeScannerModalP
   return createPortal(
     <div className="fixed inset-0 z-40 flex flex-col items-center justify-center bg-black/80 p-4">
       <div className="w-full max-w-sm overflow-hidden rounded bg-black shadow-lg">
-        <div className="flex items-center justify-between bg-ink px-4 py-3">
+        <div className="flex items-center justify-between bg-spine px-4 py-3">
           <span className="text-sm font-semibold text-white">Escanear código de barras</span>
           <button
             type="button"

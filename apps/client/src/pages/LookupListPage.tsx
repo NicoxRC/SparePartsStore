@@ -91,7 +91,7 @@ export function LookupListPage({
               {listQuery.data.data.map((item) => (
                 <div
                   key={item.id}
-                  className="flex flex-col gap-2 rounded border border-line bg-white p-4"
+                  className="flex flex-col gap-2 rounded border border-line bg-paper p-4"
                 >
                   <div>
                     <p className="truncate text-base font-semibold text-ink">
@@ -125,7 +125,7 @@ export function LookupListPage({
 
       {itemPendingDelete && (
         <div className="fixed inset-0 z-20 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-          <div className="w-full max-w-sm rounded bg-white p-5 shadow-lg">
+          <div className="w-full max-w-sm rounded bg-paper p-5 shadow-lg">
             <h2 className="text-lg font-semibold text-ink">
               Eliminar {itemLabelSingular}
             </h2>

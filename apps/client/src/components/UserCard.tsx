@@ -25,7 +25,7 @@ export function UserCard({
   isDeleting,
 }: UserCardProps) {
   return (
-    <div className="flex h-full flex-col rounded border border-line bg-white p-4 transition-colors hover:border-fog">
+    <div className="flex h-full flex-col rounded border border-line bg-paper p-4 transition-colors hover:border-fog">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-ink">

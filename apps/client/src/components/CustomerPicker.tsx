@@ -70,7 +70,7 @@ export function CustomerPicker({
           onChange={(e) => onSearchQueryChange(e.target.value)}
         />
         {searchQuery.length > 0 && customersQuery.data && (
-          <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-sm border border-line bg-white shadow-lg">
+          <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-sm border border-line bg-paper shadow-lg">
             {customersQuery.data.data.length === 0 ? (
               <p className="px-4 py-3 text-sm text-fog">Sin resultados.</p>
             ) : (

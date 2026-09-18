@@ -154,7 +154,7 @@ export function SearchableSelect({
             setHighlightedIndex(0);
           }}
           onKeyDown={handleKeyDown}
-          className={`min-h-12 w-full rounded-sm border bg-white px-4 py-3 pr-9 text-base text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink disabled:bg-canvas disabled:text-fog sm:min-h-11 sm:py-2.5 sm:text-sm ${
+          className={`min-h-12 w-full rounded-sm border bg-paper px-4 py-3 pr-9 text-base text-ink placeholder:text-fog focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink disabled:bg-canvas disabled:text-fog sm:min-h-11 sm:py-2.5 sm:text-sm ${
             error ? 'border-rust' : 'border-line-2'
           }`}
           aria-invalid={Boolean(error)}
@@ -168,7 +168,7 @@ export function SearchableSelect({
           <ul
             id={`${fieldId}-listbox`}
             role="listbox"
-            className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-sm border border-line bg-white py-1 shadow-lg"
+            className="absolute z-20 mt-1 max-h-60 w-full overflow-auto rounded-sm border border-line bg-paper py-1 shadow-lg"
           >
             {clearLabel && (
               <li
@@ -177,7 +177,7 @@ export function SearchableSelect({
                 onClick={() => handleSelect('')}
                 className={`cursor-pointer px-4 py-2.5 text-sm ${
                   safeHighlightedIndex === 0 ? 'bg-mist' : ''
-                } ${value === '' ? 'font-semibold text-ink' : 'text-gray-900'}`}
+                } ${value === '' ? 'font-semibold text-ink' : 'text-ink'}`}
               >
                 {clearLabel}
               </li>
@@ -201,7 +201,7 @@ export function SearchableSelect({
                   onClick={() => handleSelect(option.id)}
                   className={`cursor-pointer px-4 py-2.5 text-sm ${
                     safeHighlightedIndex === optionIndex ? 'bg-mist' : ''
-                  } ${value === option.id ? 'font-semibold text-ink' : 'text-gray-900'}`}
+                  } ${value === option.id ? 'font-semibold text-ink' : 'text-ink'}`}
                 >
                   {option.name}
                 </li>

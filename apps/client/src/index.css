@@ -1,18 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Special+Elite&family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap');
 @import 'tailwindcss';
 
 @theme {
-  /* Neutrals — graphite/steel, no warm "friendly" cream */
-  --color-ink: #111214; /* primary text, dark surfaces (sidebar, headers) */
-  --color-ink-2: #26282c; /* hover state on ink surfaces */
-  --color-ink-3: #050506; /* active/pressed state on ink surfaces */
-  --color-steel: #4b5160; /* secondary text */
-  --color-fog: #8b92a0; /* tertiary/meta text, placeholders */
-  --color-line: #dcdfe3; /* borders, dividers */
-  --color-line-2: #adb3bd; /* stronger border for interactive form controls — border-line is too close to canvas to read as an edge */
-  --color-mist: #e8e7e3; /* hover background on light surfaces */
-  --color-canvas: #f1f0ed; /* page background */
+  --font-sans: 'Archivo', ui-sans-serif, system-ui, sans-serif;
+  /* The store's own talonario, typed on a carbon-copy pad — reserved for
+     amounts, references, document numbers and stamps (data/measurement,
+     not a generic "technical" costume). */
+  --font-mono: 'Special Elite', ui-monospace, 'SFMono-Regular', monospace;
 
-  /* Brand accent — taken from the logo's red, used sparingly */
+  /* Invoice-paper world, quiet register (confirmed direction: "Talonario,
+     más suave") — warm cream stock, near-black typewriter ink, a cool
+     violet-gray carbon smudge underneath. The carbon tint runs cool
+     specifically because it sits against a warm ground — that contrast is
+     what actually reads as "the copy underneath," not a matched hue. */
+  --color-ink: #1a1815; /* primary text — typewriter-ribbon black, faint warm cast */
+  --color-ink-2: #2b2823; /* hover state on ink surfaces */
+  --color-ink-3: #0d0c0a; /* active/pressed state on ink surfaces */
+  --color-steel: #5a5348; /* secondary text */
+  --color-fog: #8c8371; /* tertiary/meta text, placeholders */
+  --color-line: #e6ddc6; /* borders, dividers — aged paper edge, quiet register */
+  --color-line-2: #b8a97e; /* stronger border for interactive form controls */
+  --color-mist: #f0e9d5; /* hover background on light surfaces, quiet register */
+  --color-canvas: #f7f3ea; /* page background — invoice cream, quiet register */
+  --color-paper: #fdfbf5; /* the form surface itself — lighter than canvas, quiet register */
+
+  --color-carbon: #5c5568; /* carbon-copy smudge ink */
+  --color-carbon-tint: #eeeaec; /* duplicate/completed-row wash, quiet register */
+
+  /* The ledger's spine — sidebar/bottom-nav surface. Deliberately fixed
+     (not overridden in dark mode below): the binding of the ledger is
+     always dark leather, day or night, so its white/fog nav text never
+     has to flip. Do not use for page or form surfaces — those are what
+     actually go light/dark. */
+  --color-spine: #1a1815;
+
+  /* Brand accent — the logo's red. Reserved specifically for the rubber
+     stamp mark (accepted/paid/confirmed) and the one active callout —
+     never a background wash. */
   --color-signal: #c8231f;
   --color-signal-2: #a01c19;
 
@@ -20,27 +44,130 @@
   --color-rust: #9a3226; /* destructive actions */
   --color-rust-2: #7e2a20;
   --color-rust-3: #611f18;
-  --color-rust-tint: #f3e2de;
-  --color-rust-line: #e9c9c0;
+  --color-rust-tint: #f0ddd2;
+  --color-rust-line: #e2c2a8;
 
   --color-ok: #2f6b45;
-  --color-ok-tint: #e7efe9;
-  --color-ok-line: #cfe6d7;
+  --color-ok-tint: #e6ecd8;
+  --color-ok-line: #cddab0;
 
   --color-amber: #a8711a;
-  --color-amber-tint: #f5ecda;
+  --color-amber-tint: #f2e6cc;
 
-  --color-indigo: #465372;
-  --color-indigo-tint: #e7eaf0;
+  --color-indigo: #4b5568;
+  --color-indigo-tint: #e4e2d5;
 
-  --color-info-tint: #e9eaec;
+  --color-info-tint: #e6e0cf;
+}
+
+/* Dark mode — the same talonario world at night: a warm, dark ledger-cover
+   surface instead of a bright invoice sheet, cream ink instead of black
+   ink. The carbon tint stays a *cool* patch against the warm dark ground,
+   same logic as the light mode — a duplicate copy always reads cool
+   against whichever warm ground it sits on. Toggled by ThemeToggle via
+   `data-theme` on <html>, persisted in localStorage; see main.tsx for the
+   pre-paint script that avoids a flash of the wrong theme. */
+:root[data-theme='dark'] {
+  --color-ink: #f1e9d6; /* primary text — cream ink on dark ledger cover */
+  --color-ink-2: #e2d7bd; /* hover state on ink surfaces */
+  --color-ink-3: #ffffff; /* active/pressed state on ink surfaces */
+  --color-steel: #c2b393; /* secondary text */
+  --color-fog: #8f8267; /* tertiary/meta text, placeholders */
+  --color-line: #4a4232; /* borders, dividers */
+  --color-line-2: #6b6047; /* stronger border for interactive form controls */
+  --color-mist: #2e291d; /* hover background */
+  --color-canvas: #211d16; /* page background — dark ledger-cover brown */
+  --color-paper: #2b261c; /* the form surface itself — lighter than canvas */
+
+  --color-carbon: #7a7590; /* carbon-copy smudge ink, lightened to read on dark */
+  --color-carbon-tint: #34303e; /* duplicate/completed-row wash — cool patch on warm dark ground */
+
+  /* Brightened so the stamp still reads as ink, not mud, against a dark ground. */
+  --color-signal: #e2453d;
+  --color-signal-2: #ff6a5e;
+
+  --color-rust: #c85d4f;
+  --color-rust-2: #e2453d;
+  --color-rust-3: #ff6a5e;
+  --color-rust-tint: #3a2620;
+  --color-rust-line: #5c372c;
+
+  --color-ok: #6fae82;
+  --color-ok-tint: #223226;
+  --color-ok-line: #33482f;
+
+  --color-amber: #d1a24c;
+  --color-amber-tint: #362c1c;
+
+  --color-indigo: #a9b4c9;
+  --color-indigo-tint: #262a35;
+
+  --color-info-tint: #2c2820;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--color-canvas);
+}
+
+/* A perforated tear-line — a real punch-row from the subject's own
+   talonario, used as a structural section divider instead of a plain
+   hairline or a shadowed card edge. Never used as an all-over texture. */
+.perforated-divider {
+  height: 1px;
+  border: none;
+  background-image: radial-gradient(circle, var(--color-line-2) 1px, transparent 1.3px);
+  background-size: 10px 1px;
+  background-repeat: repeat-x;
+}
+
+.perforated-divider-vertical {
+  width: 1px;
+  background-image: radial-gradient(circle, rgb(255 255 255 / 0.18) 1px, transparent 1.3px);
+  background-size: 1px 10px;
+  background-repeat: repeat-y;
+}
+
+/* The rubber-stamp mark — accepted/paid/confirmed states land like an
+   actual ink stamp on the form, not a pill badge. Reserve for the
+   emotionally load-bearing "sealed" moments (DIAN accepted, caja
+   cuadrada), not every status. Quiet register: no tilt. */
+.stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  border: 2px solid currentColor;
+  border-radius: 4px;
+  padding: 0.2rem 0.65rem;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-signal);
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 25%, transparent);
+}
+
+/* The carbon-copy wash — a completed/historical/read-only row sits on the
+   cool duplicate-copy tint instead of the warm form ground. */
+.carbon-row {
+  background-color: var(--color-carbon-tint);
+}
+
+/* The old ledger convention: a single rule under a subtotal, a doubled
+   rule under the total a pagar. */
+.total-rule {
+  border-bottom: 3px double var(--color-ink);
 }
 
 /* Printable tickets (PrintTicket component) — rendered as a sibling of
    #root via a portal, hidden on screen, shown (and everything else
-   hidden) only when actually printing. */
+   hidden) only when actually printing. Always prints in the light/paper
+   register regardless of the active on-screen theme — a physical
+   receipt has no "dark mode." */
 .print-ticket {
   display: none;
+  color: #1a1815;
+  background: #fff;
 }
 
 @media print {
