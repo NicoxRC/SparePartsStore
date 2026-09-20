@@ -227,8 +227,11 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
 
   const handleDiscountValueChange = (value: string) => {
     const amount = Math.min(total, Math.max(0, Number(value) || 0));
+    // Not rounded — see the identical comment on InvoiceFormPage's version:
+    // rounding to 2 decimals here crushes small/partial typed amounts down
+    // to 0%, silently resetting the field mid-keystroke.
     const pct = total > 0 ? (amount / total) * 100 : 0;
-    setDiscountPercentage(Math.round(pct * 100) / 100);
+    setDiscountPercentage(pct);
   };
 
   const handleSaveItems = async () => {

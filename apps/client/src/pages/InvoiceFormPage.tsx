@@ -398,8 +398,13 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
 
   const handleDiscountValueChange = (value: string, rawTotal: number) => {
     const amount = Math.min(rawTotal, Math.max(0, Number(value) || 0));
+    // Not rounded — rounding to e.g. 2 decimals here crushes small/partial
+    // amounts down to 0% while typing (typing "1" of "10000" against a
+    // 32000 total is 0.003125%, which rounds to 0.00 and silently resets
+    // the field to empty). Keeping full precision lets discountValue's
+    // Math.round() below reproduce exactly what was typed.
     const pct = rawTotal > 0 ? (amount / rawTotal) * 100 : 0;
-    setValue('discountPercentage', Math.round(pct * 100) / 100);
+    setValue('discountPercentage', pct);
   };
 
   // The customer is always saved to the local address book — best effort:
