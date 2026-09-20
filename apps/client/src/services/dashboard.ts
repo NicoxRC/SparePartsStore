@@ -20,7 +20,6 @@ export interface DashboardSummary {
   openQuotationsTotal: number;
   openQuotationsCount: number;
   totalProducts: number;
-  totalInventoryValue: number;
   outOfStockCount: number;
   outOfStockProducts: LowStockProduct[];
 }

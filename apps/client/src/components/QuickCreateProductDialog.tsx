@@ -5,7 +5,6 @@ import { Alert } from './Alert';
 import { Button } from './Button';
 import { CurrencyField } from './CurrencyField';
 import { SearchableSelect } from './SearchableSelect';
-import { SelectField } from './SelectField';
 import { TextField } from './TextField';
 import { useCreateProduct } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
@@ -42,7 +41,6 @@ export function QuickCreateProductDialog({
       reference: initialReference,
       description: '',
       salePrice: 0,
-      saleType: 'normal',
       departmentId: '',
       groupId: '',
       brandId: '',
@@ -56,7 +54,6 @@ export function QuickCreateProductDialog({
       reference: values.reference,
       description: values.description,
       salePrice: values.salePrice,
-      saleType: values.saleType,
       stock: values.quantity,
       departmentId: values.departmentId,
       groupId: values.groupId,
@@ -125,15 +122,6 @@ export function QuickCreateProductDialog({
               {...register('quantity')}
             />
           </div>
-
-          <SelectField
-            label="Tipo de venta"
-            error={errors.saleType?.message}
-            {...register('saleType')}
-          >
-            <option value="normal">Normal</option>
-            <option value="neto">Neto</option>
-          </SelectField>
 
           <Controller
             name="departmentId"

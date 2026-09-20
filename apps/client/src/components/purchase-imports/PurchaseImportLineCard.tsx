@@ -12,7 +12,7 @@ import {
   useUpdatePurchaseImportItem,
 } from '../../hooks/usePurchaseImports';
 import { getApiErrorMessage } from '../../lib/errors';
-import { formatMoney, lineElementId } from '../../lib/purchaseImports';
+import { lineElementId } from '../../lib/purchaseImports';
 import type { ProductResponse } from '../../services/products';
 import type {
   PurchaseImportItem,
@@ -80,10 +80,6 @@ export function PurchaseImportLineCard({ importId, item, isHighlighted }: Purcha
       </div>
 
       <LineFieldsForm item={item} onPatch={patch} />
-
-      {item.unitCost !== null && (
-        <p className="text-xs text-fog">Costo en factura: {formatMoney(item.unitCost)}</p>
-      )}
 
       {item.product ? (
         <LinkedProductSummary

@@ -41,10 +41,6 @@ export function ProductCard({
 
       <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-steel">
         <div>
-          <dt className="text-xs uppercase tracking-wide text-fog">Costo</dt>
-          <dd className="font-mono">{currencyFormatter.format(product.cost)}</dd>
-        </div>
-        <div>
           <dt className="text-xs uppercase tracking-wide text-fog">Stock</dt>
           <dd className="font-mono">{product.stock}</dd>
         </div>

@@ -2,12 +2,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Controller, useForm } from 'react-hook-form';
 import { CurrencyField } from '../CurrencyField';
 import { SearchableSelect } from '../SearchableSelect';
-import { SelectField } from '../SelectField';
 import {
   newProductPriceSchema,
   type NewProductPriceValues,
 } from '../../lib/schemas/purchaseImport';
-import type { SaleType } from '../../services/products';
 import type {
   PurchaseImportItem,
   UpdatePurchaseImportItemInput,
@@ -89,16 +87,6 @@ export function NewProductFields({ item, onPatch }: NewProductFieldsProps) {
           />
         )}
       />
-
-      <SelectField
-        label="Tipo de venta"
-        id={`line-sale-type-${item.id}`}
-        value={newProduct.saleType}
-        onChange={(e) => onPatch({ saleType: e.target.value as SaleType })}
-      >
-        <option value="normal">Normal</option>
-        <option value="neto">Neto</option>
-      </SelectField>
 
       <label className="flex min-h-11 items-center gap-2 text-sm text-steel">
         <input

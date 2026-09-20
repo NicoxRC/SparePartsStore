@@ -1,5 +1,5 @@
 import { api } from '../lib/api';
-import type { PaginatedResponse, SaleType } from './products';
+import type { PaginatedResponse } from './products';
 
 export type PurchaseImportStatus = 'draft' | 'confirmed' | 'discarded';
 
@@ -47,7 +47,6 @@ export interface PurchaseImportNewProduct {
   groupId: string | null;
   brandId: string | null;
   salePrice: number | null;
-  saleType: SaleType;
   taxExempt: boolean;
 }
 
@@ -59,8 +58,6 @@ export interface PurchaseImportItem {
   /** Read-only original from the XML. */
   xmlQuantity: number;
   quantity: number | null;
-  /** Supplier's unit cost — display only, never stored as the product cost. */
-  unitCost: number | null;
   status: LineStatus;
   product: PurchaseImportLinkedProduct | null;
   newProduct: PurchaseImportNewProduct;
@@ -92,7 +89,6 @@ export interface UpdatePurchaseImportItemInput {
   groupId?: string | null;
   brandId?: string | null;
   salePrice?: number | null;
-  saleType?: SaleType;
   taxExempt?: boolean;
 }
 

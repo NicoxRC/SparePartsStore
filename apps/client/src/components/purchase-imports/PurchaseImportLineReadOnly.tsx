@@ -1,6 +1,6 @@
 import { IssueBadges } from './IssueBadges';
 import { LineStatusChip } from './LineStatusChip';
-import { formatMoney, formatQuantity, lineElementId } from '../../lib/purchaseImports';
+import { formatQuantity, lineElementId } from '../../lib/purchaseImports';
 import type { PurchaseImportItem } from '../../services/purchaseImports';
 
 interface PurchaseImportLineReadOnlyProps {
@@ -38,7 +38,6 @@ export function PurchaseImportLineReadOnly({
       <p className="font-mono text-xs text-steel">
         Cantidad: {item.quantity === null ? '—' : formatQuantity(item.quantity)}
         {item.quantity !== item.xmlQuantity && ` (factura: ${formatQuantity(item.xmlQuantity)})`}
-        {item.unitCost !== null && ` · Costo en factura: ${formatMoney(item.unitCost)}`}
       </p>
 
       {item.product && (

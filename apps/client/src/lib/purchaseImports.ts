@@ -31,16 +31,6 @@ export const ISSUE_LABEL: Record<LineIssue | 'NO_LINES', string> = {
   NO_LINES: 'Sin líneas',
 };
 
-const moneyFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 2,
-});
-
-export function formatMoney(amount: number): string {
-  return moneyFormatter.format(amount);
-}
-
 export function formatQuantity(quantity: number): string {
   return quantity.toLocaleString('es-CO', { maximumFractionDigits: 4 });
 }

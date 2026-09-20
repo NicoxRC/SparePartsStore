@@ -1,6 +1,5 @@
 import { api } from '../lib/api';
 
-export type SaleType = 'normal' | 'neto';
 
 export interface ProductLookupRef {
   id: string;
@@ -11,9 +10,7 @@ export interface ProductResponse {
   id: string;
   reference: string;
   description: string;
-  cost: number;
   salePrice: number;
-  saleType: SaleType;
   stock: number;
   taxExempt: boolean;
   department: ProductLookupRef;
@@ -50,7 +47,6 @@ export interface ProductInput {
   reference: string;
   description: string;
   salePrice: number;
-  saleType: SaleType;
   stock: number;
   departmentId: string;
   groupId: string;
