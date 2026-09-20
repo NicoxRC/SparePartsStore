@@ -1,7 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { CustomerPurchaseHistory } from '../components/CustomerPurchaseHistory';
@@ -27,7 +26,15 @@ export function CustomerFormPage() {
   const navigate = useNavigate();
   const { has } = usePermissions();
   const canUpdate = has('customers.update');
-  const [tab, setTab] = useState<Tab>('data');
+  // Derived straight from the URL (not local state) so it's always correct
+  // regardless of navigation: the "Editar" button links here with no
+  // ?tab=, landing on Datos; clicking a customer's card elsewhere links
+  // here with ?tab=history — see CustomerCard.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: Tab = searchParams.get('tab') === 'history' ? 'history' : 'data';
+  const setTab = (next: Tab) => {
+    setSearchParams(next === 'history' ? { tab: 'history' } : {}, { replace: true });
+  };
 
   const customerQuery = useCustomer(id);
   const updateMutation = useUpdateCustomer(id ?? '');
