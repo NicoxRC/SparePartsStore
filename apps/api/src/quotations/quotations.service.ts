@@ -8,7 +8,10 @@ import { Repository } from 'typeorm';
 import { CashRegisterService } from '../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { escapeLike } from '../common/utils/escape-like.util';
-import { computeLineAmounts } from '../common/utils/invoice-math.util';
+import {
+  computeLineAmounts,
+  resolveTaxRate,
+} from '../common/utils/invoice-math.util';
 import { InventoryService } from '../inventory/inventory.service';
 import { CreateInvoiceDto } from '../invoicing/invoices/dto/create-invoice.dto';
 import { InvoiceResponseDto } from '../invoicing/invoices/dto/invoice-response.dto';
@@ -238,7 +241,7 @@ export class QuotationsService {
         quotation: { id: quotation.id } as Quotation,
         product: { id: product.id } as Product,
         quantity: itemDto.quantity,
-        taxRate: itemDto.taxRate,
+        taxRate: resolveTaxRate(product),
         discount: itemDto.discount ?? null,
         unitPrice: Number(product.salePrice),
       }),
@@ -249,7 +252,7 @@ export class QuotationsService {
       newLines.map(({ itemDto, product }) => ({
         product,
         quantity: itemDto.quantity,
-        taxRate: itemDto.taxRate,
+        taxRate: resolveTaxRate(product),
         discount: itemDto.discount,
         unitPrice: Number(product.salePrice),
       })),
@@ -376,7 +379,7 @@ export class QuotationsService {
         return {
           product,
           quantity: itemDto.quantity,
-          taxRate: itemDto.taxRate,
+          taxRate: resolveTaxRate(product),
           discount: itemDto.discount,
           unitPrice: Number(product.salePrice),
         };

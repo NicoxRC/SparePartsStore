@@ -49,6 +49,12 @@ export class Product extends BaseEntity {
   @Column({ type: 'int', default: 0 })
   stock: number;
 
+  // Drives whether IVA is calculated for this product at all — see
+  // common/utils/invoice-math.util.ts's resolveTaxRate(). Not user-editable
+  // per-line on an invoice/quotation anymore; this flag is the only source.
+  @Column({ name: 'tax_exempt', type: 'boolean', default: false })
+  taxExempt: boolean;
+
   @ManyToOne(() => Department, { nullable: false })
   @JoinColumn({ name: 'department_id' })
   department: Department;

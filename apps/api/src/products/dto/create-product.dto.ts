@@ -1,9 +1,11 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   IsUUID,
   Min,
@@ -46,4 +48,8 @@ export class CreateProductDto {
 
   @IsUUID()
   brandId: string;
+
+  @IsOptional()
+  @IsBoolean()
+  taxExempt?: boolean;
 }

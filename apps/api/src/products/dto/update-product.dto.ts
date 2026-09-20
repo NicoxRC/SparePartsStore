@@ -1,5 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsEnum,
   IsInt,
   IsNotEmpty,
@@ -55,4 +56,8 @@ export class UpdateProductDto {
   @IsOptional()
   @IsUUID()
   brandId?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  taxExempt?: boolean;
 }
