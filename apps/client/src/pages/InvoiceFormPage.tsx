@@ -292,10 +292,22 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     remove: removeItem,
   } = useFieldArray({ control, name: 'items' });
 
+  // "Tipo de pago" (DEBITO/CREDITO) is DIAN's forma de pago — contado vs.
+  // venta a crédito — not a card-network choice, and Dataico requires it on
+  // every invoice regardless of payment method. Outside of tarjeta this
+  // store always sells de contado, so it's set automatically instead of
+  // asking; the selector only shows up for CARD, where it's a real choice.
+  useEffect(() => {
+    if (paymentMeans !== 'CARD') {
+      setValue('paymentMeansType', 'DEBITO');
+    }
+  }, [paymentMeans, setValue]);
+
   const customerPartyType = useWatch({ control, name: 'customerPartyType' });
   const customerIdentification = useWatch({ control, name: 'customerIdentification' });
   const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
   const customerDepartment = useWatch({ control, name: 'customerDepartment' });
+  const paymentMeans = useWatch({ control, name: 'paymentMeans' });
   const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
   const watchedItems = useWatch({ control, name: 'items' });
 
@@ -758,14 +770,16 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                   <option value="BANK_TRANSFER">Transferencia</option>
                   <option value="CARD">Tarjeta</option>
                 </SelectField>
-                <SelectField
-                  label="Tipo de pago"
-                  error={errors.paymentMeansType?.message}
-                  {...register('paymentMeansType')}
-                >
-                  <option value="DEBITO">Débito</option>
-                  <option value="CREDITO">Crédito</option>
-                </SelectField>
+                {paymentMeans === 'CARD' && (
+                  <SelectField
+                    label="Forma de pago"
+                    error={errors.paymentMeansType?.message}
+                    {...register('paymentMeansType')}
+                  >
+                    <option value="DEBITO">Contado</option>
+                    <option value="CREDITO">A crédito</option>
+                  </SelectField>
+                )}
                 {paymentMeansType === 'CREDITO' && (
                   <TextField
                     label="Fecha de pago"

@@ -495,20 +495,30 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                 <SelectField
                   label="Medio de pago"
                   value={paymentMeans}
-                  onChange={(e) => setPaymentMeans(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setPaymentMeans(value);
+                    // "Tipo de pago" (contado/crédito) is only a real choice
+                    // for tarjeta — outside of that this store always sells
+                    // de contado. Dataico still requires the field, so it's
+                    // set automatically instead of asking.
+                    if (value !== 'CARD') setPaymentMeansType('DEBITO');
+                  }}
                 >
                   <option value="CASH">Efectivo</option>
                   <option value="BANK_TRANSFER">Transferencia</option>
                   <option value="CARD">Tarjeta</option>
                 </SelectField>
-                <SelectField
-                  label="Tipo de pago"
-                  value={paymentMeansType}
-                  onChange={(e) => setPaymentMeansType(e.target.value)}
-                >
-                  <option value="DEBITO">Débito</option>
-                  <option value="CREDITO">Crédito</option>
-                </SelectField>
+                {paymentMeans === 'CARD' && (
+                  <SelectField
+                    label="Forma de pago"
+                    value={paymentMeansType}
+                    onChange={(e) => setPaymentMeansType(e.target.value)}
+                  >
+                    <option value="DEBITO">Contado</option>
+                    <option value="CREDITO">A crédito</option>
+                  </SelectField>
+                )}
                 {paymentMeansType === 'CREDITO' && (
                   <TextField
                     label="Fecha de pago"
