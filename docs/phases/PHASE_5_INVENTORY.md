@@ -25,3 +25,7 @@ Every stock change is attributable to a user, a reason, and a timestamp; stock c
 ## Related documents
 
 - `docs/DATABASE.md` (`inventory_movements`), `docs/GLOSSARY.md`
+
+## Follow-up (Phase 16)
+
+`InventoryService.createMovement(dto, createdById, manager?)` now accepts an optional `EntityManager` so the purchase-import confirm can apply a whole invoice inside one transaction. The product read moved **inside** the transaction under a `pessimistic_write` row lock, which also closes the read-modify-write race two concurrent movements on the same product had before. Behavior for existing callers (invoices, quotations, notes) is unchanged. See `docs/phases/PHASE_16_PURCHASE_INVOICE_IMPORT.md`.

@@ -1,6 +1,6 @@
 # Phase 16 — Purchase invoice import (supplier XML to stock) (Backend + Client)
 
-**Status: Design — not started.** Local feature, **not a Dataico integration** (zero HTTP calls to Dataico). Branch: `feature/purchase-invoice-xml-import`.
+**Status: Backend done (API, migrations, tests); client built; parsing still unverified against a real supplier file — see Open question 1.** Local feature, **not a Dataico integration** (zero HTTP calls to Dataico). Branch: `feature/purchase-invoice-xml-import`.
 
 ## Goal
 
@@ -503,6 +503,14 @@ Hand-written, per `DATABASE.md`'s notes (the raw `migration:generate` diff carri
 5. `ConfirmPurchaseImportDialog` + result banner + read-only confirmed/discarded views.
 6. Nav entry + routes; manual test at phone width with a real XML (upload, edit, relink, bulk classification, confirm, re-upload -> duplicate message, discard -> re-upload allowed).
 7. `npm run lint`; self-check against `DEFINITION_OF_DONE.md`; PR once the whole phase is done (not mid-phase).
+
+## Implementation notes (deviations from the design above)
+
+- **`ProductsService.create`/`update` were silently dropping `taxExempt`** (the DTOs accepted it, the service never copied it onto the entity), so the product form's "Exento de IVA" checkbox never persisted. Fixed in the same commit that added `supplierId`, since new products from an import need it and those exact methods were being changed. Pre-existing bug, not caused by this phase.
+- The shared `normalizeProductReference` now also **trims** (the DTOs previously only uppercased). Strictly a fix; the purchase import needs it because it writes references without going through a DTO.
+- The parser maps any error thrown by `fast-xml-parser` (which itself refuses hostile tag names like `__proto__`) to `422 INVALID_XML` instead of letting it surface as a 500.
+- `PurchaseImport` carries plain `supplierId`/`confirmedById`/`discardedById` columns alongside its relations so status flips and the supplier filter are simple column writes.
+- Supplier tagging of an *existing* product uses a single `UPDATE products SET supplier_id` inside the confirm transaction, driven by the supplier loaded with the product in that same transaction ("fill the blank" only).
 
 ## Known risks / things to watch
 

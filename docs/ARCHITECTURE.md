@@ -61,8 +61,12 @@ apps/api/src/
 │
 ├── inventory/
 │   ├── inventory.controller.ts
-│   ├── inventory.service.ts
+│   ├── inventory.service.ts            # createMovement(dto, userId, manager?) — joins a caller's transaction when given an EntityManager
 │   └── entities/inventory-movement.entity.ts
+│
+├── suppliers/                           # Phase 16 — supplier find-or-create by NIT (no create/delete endpoint of its own), admin rename, open GET list
+│
+├── purchase-imports/                    # Phase 16 (not Dataico — no HTTP calls). Supplier-invoice XML → draft → confirm. Imports SuppliersModule/ProductsModule/InventoryModule (none import it back, so no circular dependency). xml/purchase-invoice-xml.parser.ts reads UBL with `fast-xml-parser` (rejects any DOCTYPE/ENTITY before parsing); upload is multipart via @nestjs/platform-express (memory storage, 5 MB cap). See DATABASE.md ("purchase_imports")
 │
 ├── invoicing/                           # NEW — Dataico integration, see "Invoicing module" below
 │
@@ -87,6 +91,10 @@ apps/api/src/
 ├── app.module.ts
 └── main.ts
 ```
+
+### Multi-step writes across modules — pass an `EntityManager`
+
+When one operation must span services (the purchase-import confirm creates products *and* records inventory movements, all or nothing), the callee takes an optional `EntityManager` and runs on it instead of opening its own transaction: `InventoryService.createMovement(dto, userId, manager?)` and `ProductsService.create(dto, userId, manager?)` are the two precedents. Without a manager they behave exactly as before, so existing callers are untouched. Prefer this over accepting a partial-failure risk (`QuotationsService`'s trade-off) when the batch can be large.
 
 ### Layering within each module
 

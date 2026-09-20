@@ -98,6 +98,7 @@ inventory_movements
 ### Relationships
 
 - A **product** belongs to exactly one **department**, one **group**, and one **brand** (all three `NOT NULL`, `onDelete: RESTRICT` — a lookup in active use can't be hard-removed, though in practice lookups are only ever soft-deleted anyway).
+- A **product** optionally belongs to one **supplier** (`supplier_id`, nullable, `RESTRICT`) — see `suppliers` below.
 - A **product** has many **inventory movements** (1:N), `onDelete: CASCADE` on the FK (a hard-deleted product takes its movements with it — soft-deleted products keep theirs, since soft-delete never touches other tables).
 - Every table's `created_by`/`updated_by` reference **users**, `onDelete: SET NULL`.
 
@@ -148,6 +149,7 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `department_id` | UUID, FK → `departments.id` | `NOT NULL`, `RESTRICT` |
 | `group_id` | UUID, FK → `product_groups.id` | `NOT NULL`, `RESTRICT` |
 | `brand_id` | UUID, FK → `brands.id` | `NOT NULL`, `RESTRICT` |
+| `supplier_id` | UUID, nullable, FK → `suppliers.id`, `RESTRICT` | Added Phase 16. Legacy and hand-created products have none. Set when a purchase import creates the product, and filled in on an existing product only if it is still `NULL` (never overwritten by a later import). Editable/clearable on the product form. Plain index `IDX_products_supplier_id`. No many-to-many `product_suppliers` table — one supplier per product. |
 | `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard |
 
@@ -183,7 +185,7 @@ Table names: `departments`, `product_groups` (entity class `Group`), `brands`.
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at` | TIMESTAMPTZ | `@CreateDateColumn` — **no `updated_at`, no `deleted_at`: this table is append-only.** |
 
-**Business logic (`InventoryService.createMovement`):** loads the product, computes `newStock = product.stock + quantity`, rejects with 400 if it would go negative ("Stock insuficiente..."), then inserts the movement row and updates `Product.stock` **in one DB transaction**. There is no endpoint to edit or delete a movement — a correction is made by recording a new, opposite movement.
+**Business logic (`InventoryService.createMovement`):** loads the product **inside the transaction under a `pessimistic_write` row lock** (so two concurrent movements on the same product can't both read the same stock and lose an update), computes `newStock = product.stock + quantity`, rejects with 400 if it would go negative ("Stock insuficiente..."), then inserts the movement row and updates `Product.stock`. It takes an optional `EntityManager`: without one it opens its own transaction (every existing caller), with one it runs inside the caller's — used by the purchase-import confirm so a whole invoice applies atomically. There is no endpoint to edit or delete a movement — a correction is made by recording a new, opposite movement.
 
 **Read behavior worth knowing:** `MovementResponseDto`'s `newStock` field is actually **the product's current stock at read time**, not a point-in-time snapshot of what stock became right after that specific movement. Every row for the same product shows the same (current) `newStock` when listed together. This is a known simplification, not a bug to silently "fix" without checking whether the UI relies on the current behavior — flag it if a future phase needs a true historical snapshot.
 
@@ -422,6 +424,62 @@ The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" 
 
 **Discount is no longer a per-line input** — there's one "Aplicar descuento" control (% or a COP value, each deriving the other) on the invoice/quotation form, applied once to the whole sale. The client prorates it into each line's flat `discount` before it's sent (`computeItemDiscount()` in `apps/client/src/lib/invoiceMath.ts`): the same percentage taken off every line's pre-tax subtotal is mathematically identical to taking it off the tax-inclusive grand total (tax is linear), so `computeLineAmounts()`/the `discount` column's stored shape didn't need to change at all — only where the per-line number comes from.
 
+### `suppliers`
+
+Added Phase 16 — a supplier, find-or-created from the supplier party of an uploaded purchase-invoice XML. See `docs/GLOSSARY.md` ("Proveedor") and `docs/phases/PHASE_16_PURCHASE_INVOICE_IMPORT.md`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `nit` | VARCHAR(20) | Digits only (dots/dashes stripped), **without** the check digit. Partial-unique among non-deleted rows (`UQ_suppliers_nit_active`). The supplier's identity — not editable. |
+| `dv` | VARCHAR(2), nullable | Check digit, informational. |
+| `name` | VARCHAR(255) | Taken from the XML **only on creation** (uppercased + trimmed); an existing supplier's name is never overwritten by a later upload, since an admin may have renamed it (`PATCH /api/suppliers/:id`, admin-only). |
+| `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard. There is no delete endpoint; `deleted_at` is kept only for convention/partial-index consistency. |
+
+`GET /api/suppliers` (name/NIT search, `{ data, meta }` like the lookup catalogs) is open to any authenticated role — nothing sensitive, and the Products filter needs it.
+
+### `purchase_imports` / `purchase_import_items`
+
+Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. Nothing touches stock or the catalog until the whole draft is confirmed.
+
+`purchase_imports`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `supplier_id` | UUID, FK → `suppliers.id`, `RESTRICT` | `NOT NULL` |
+| `invoice_number` | VARCHAR(50) | The UBL `cbc:ID` as-is (already includes the prefix), trimmed + uppercased. |
+| `issue_date` | DATE | |
+| `cufe` | VARCHAR(128), nullable | UBL `cbc:UUID`, lowercased. |
+| `source_filename` | VARCHAR(255) | Display only. **The raw XML is not stored** (an `AttachedDocument` can embed a multi-MB base64 PDF; nothing downstream needs it). |
+| `confirmed_at`, `discarded_at` | TIMESTAMPTZ, nullable | **State is derived, no status column** (same precedent as `quotations.invoiced_at`/`cancelled_at`): both `NULL` = draft; `confirmed_at` set = confirmed; `discarded_at` set = discarded. `CHK_purchase_imports_single_outcome` forbids both. |
+| `confirmed_by_id`, `discarded_by_id`, `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at` | TIMESTAMPTZ | **No `deleted_at`** — a documented exception to the `BaseEntity` convention: "discarded" *is* the removal state, so a soft delete would be a second way to say the same thing. |
+
+**Duplicate protection** is two partial unique indexes, both `WHERE discarded_at IS NULL` so a discard frees the invoice for re-upload: `(supplier_id, invoice_number)`, and `cufe` (where not null — catches the same document arriving bare vs. wrapped in an `AttachedDocument`). The upload also pre-checks both for a clean `409 PURCHASE_IMPORT_DUPLICATE` carrying `existingImportId`/`existingStatus`, and catches the DB unique violation as the race safety net (`isUniqueViolation()`).
+
+`purchase_import_items` (working data — no soft delete; the audit trail is the inventory movement):
+
+| Column | Type | Notes |
+|---|---|---|
+| `purchase_import_id` | UUID, FK → `purchase_imports.id`, `CASCADE` | `UNIQUE` with `line_number` |
+| `line_number` | INT | 1-based position in the document. |
+| `reference`, `description` | VARCHAR(100) / VARCHAR(255), nullable | Normalized with the same functions the product DTOs use (`products/product-normalize.util.ts`). Editable. |
+| `xml_quantity` | NUMERIC(14,4) | Exactly what the XML said; never edited. |
+| `quantity` | INT, nullable | Editable. Initialised from `xml_quantity` only when it is an integer > 0 — `products.stock` is an INT, so a fractional XML quantity leaves this `NULL` for the reviewer to type. |
+| `unit_cost` | NUMERIC(14,4), nullable | **Display-only** reference from the XML. Never written to `products.cost`, which is derived from `sale_price`/`sale_type` (see `products`). |
+| `product_id` | UUID, nullable, FK → `products.id`, `RESTRICT` | Set by the exact-reference auto-match, a manual link, or (after confirm) the created product. |
+| `match_type` | VARCHAR(10), nullable, `CHECK IN ('exact','manual')` | `NULL` = "new". `CHECK`: `match_type IS NULL OR product_id IS NOT NULL`. Line chip is derived from it: `exact` → *Existe*, `manual` → *Enlazado*, `NULL` → *Nuevo*. |
+| `new_department_id`, `new_group_id`, `new_brand_id` | UUID, nullable, FK → lookups, `RESTRICT` | Reviewer-supplied; only meaningful while `product_id` is `NULL` (the XML carries none of these). |
+| `new_sale_price` | NUMERIC(12,2), nullable | Integer ≥ 500 at confirm (same floor as `CreateProductDto`). |
+| `new_sale_type` | ENUM `sale_type` `NOT NULL` default `normal` | Reuses the existing enum. |
+| `new_tax_exempt` | BOOLEAN `NOT NULL` default `false` | |
+| `created_product` | BOOLEAN `NOT NULL` default `false` | Set at confirm when this line created its product. |
+| `created_at`, `updated_at` | TIMESTAMPTZ | |
+
+**Business logic (`PurchaseImportsService.confirm`):** one transaction — locks the header row (`pessimistic_write`, so a double tap or two reviewers can't apply twice), re-resolves every line against the catalog *as it is now* (a "new" line whose reference has appeared since upload is restocked and reported back as `relinked`; the typed price is discarded), runs the same pure `validateDraft()` the detail view uses and refuses with `400 PURCHASE_IMPORT_INVALID` + `problems[]` before writing anything, then per line in `line_number` order: creates the product if new (via `ProductsService.create(..., manager)` with **`stock: 0`**, so every unit of stock has a movement in the audit trail), adds the units through `InventoryService.createMovement(..., manager)` (`purchase`, notes `Compra proveedor … — factura … (importación XML)`), and fills `products.supplier_id` if the product had none. Any failure rolls back everything, including the status flip. Unlike `QuotationsService`, no partial-failure risk is accepted: a half-applied 80-line import is very hard to reconcile by hand.
+
 ## Migrations (chronological)
 
 | # | Migration | What it did |
@@ -451,6 +509,9 @@ The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" 
 | 23 | `AddCashReconciliationToCashRegisters` | Local enhancement (not a numbered phase). Adds `cash_registers.opening_amount` (`NOT NULL`, backfilled `0` then dropped as a default) and nullable `total_cash`/`total_card`/`total_transfer`/`expected_cash`/`counted_cash`/`cash_discrepancy`. Hand-written, same reason as the migrations above. |
 | 24 | `CreateCashMovements` | Local enhancement, alongside migration 23. `cash_movements` table (FK to `cash_registers` `CASCADE`, FK to `users` for the audit column, index on `cash_register_id`). Hand-written, same reason as the migrations above. |
 | 25 | `AddPermissionsToUsers` | Local enhancement (not a numbered phase). Adds `users.permissions text[] NOT NULL DEFAULT '{}'`, then backfills every existing `role = 'employee'` row with the full permission catalog (replicating today's coarse-employee behavior as a starting point) — see `GLOSSARY.md` ("Permisos"). Hand-written, same reason as the migrations above. |
+| 26 | `AddTaxExemptToProducts` | Local enhancement (not a numbered phase). Adds `products.tax_exempt BOOLEAN NOT NULL DEFAULT false` — every pre-existing product keeps charging IVA. *(Row added retroactively in Phase 16: the migration already existed but was never listed here.)* |
+| 27 | `CreateSuppliers` | Phase 16. `suppliers` table (audit FKs to `users`, partial unique index `UQ_suppliers_nit_active`), plus nullable `products.supplier_id` (FK `RESTRICT`) and `IDX_products_supplier_id`. Hand-written, same reason as the migrations above. |
+| 28 | `CreatePurchaseImports` | Phase 16. `purchase_imports` (FK to `suppliers` `RESTRICT`, audit FKs, single-outcome `CHECK`, both partial unique indexes, `created_at DESC` and `supplier_id` indexes) and `purchase_import_items` (FK to `purchase_imports` `CASCADE`, FKs to `products`/lookups `RESTRICT`, `match_type` `CHECK`s, reuses the existing `sale_type` enum, unique `(purchase_import_id, line_number)`). Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 
