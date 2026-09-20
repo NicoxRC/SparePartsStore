@@ -113,6 +113,15 @@ export function IconIdCard(props: IconProps) {
   );
 }
 
+export function IconInbox(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M3.5 13.5 6 5h12l2.5 8.5" />
+      <path d="M3.5 13.5V19h17v-5.5h-5l-1 2h-5l-1-2Z" />
+    </svg>
+  );
+}
+
 export function IconStore(props: IconProps) {
   return (
     <svg {...base} {...props}>

@@ -68,3 +68,19 @@ export function getApiErrorMessage(
   }
   return fallback;
 }
+
+/** HTTP status of an Axios error response, or undefined when there was none (network failure, non-Axios error). */
+export function getApiErrorStatus(error: unknown): number | undefined {
+  return isAxiosError(error) ? error.response?.status : undefined;
+}
+
+/**
+ * The raw JSON body of an Axios error response, for callers that need the
+ * extra fields some API exceptions carry beyond `message` (e.g. `code`,
+ * `existingImportId`, `problems`). Narrow each field before using it.
+ */
+export function getApiErrorBody(error: unknown): Record<string, unknown> | undefined {
+  if (!isAxiosError(error)) return undefined;
+  const data: unknown = error.response?.data;
+  return data && typeof data === 'object' ? (data as Record<string, unknown>) : undefined;
+}

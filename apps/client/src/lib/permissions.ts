@@ -51,6 +51,15 @@ export const PERMISSION_SCOPES = [
     ],
   },
   {
+    scope: 'purchase_imports',
+    label: 'Compras (factura de proveedor)',
+    actions: [
+      { code: 'purchase_imports.view', label: 'Ver' },
+      { code: 'purchase_imports.create', label: 'Cargar y editar' },
+      { code: 'purchase_imports.confirm', label: 'Confirmar' },
+    ],
+  },
+  {
     scope: 'invoices',
     label: 'Facturas / Venta',
     actions: [

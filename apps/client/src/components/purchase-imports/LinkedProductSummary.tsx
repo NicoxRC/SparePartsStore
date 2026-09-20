@@ -1,0 +1,39 @@
+import { Button } from '../Button';
+import type { PurchaseImportItem } from '../../services/purchaseImports';
+
+interface LinkedProductSummaryProps {
+  item: PurchaseImportItem;
+  onChangeProduct: () => void;
+  onUnlink: () => void;
+}
+
+export function LinkedProductSummary({ item, onChangeProduct, onUnlink }: LinkedProductSummaryProps) {
+  const { product } = item;
+  if (!product) return null;
+
+  const added = item.quantity !== null && item.quantity > 0 ? item.quantity : 0;
+
+  return (
+    <div className="flex flex-col gap-3 rounded-sm border border-line bg-canvas p-3">
+      <div>
+        <p className="text-sm text-ink">
+          <span className="font-mono font-medium">{product.reference}</span> — {product.description}
+        </p>
+        <p className="mt-1 font-mono text-xs text-steel">
+          stock {product.stock}
+          {added > 0 && ` → ${product.stock + added}`}
+        </p>
+      </div>
+      <div className="flex gap-2">
+        <Button type="button" variant="secondary" className="flex-1" onClick={onChangeProduct}>
+          Cambiar producto
+        </Button>
+        {item.status === 'manual' && (
+          <Button type="button" variant="secondary" className="flex-1" onClick={onUnlink}>
+            Quitar enlace
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
