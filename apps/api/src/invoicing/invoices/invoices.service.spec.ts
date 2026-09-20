@@ -44,6 +44,7 @@ describe('InvoicesService', () => {
     description: 'Filtro de aceite',
     salePrice: 50000,
     stock: 10,
+    taxExempt: false,
   } as unknown as Product;
 
   const baseDto: CreateInvoiceDto = {
@@ -60,7 +61,7 @@ describe('InvoicesService', () => {
     customerCity: '001',
     customerAddressLine: 'CL 1 # 2-3',
     customerEmail: 'cliente@acme.com',
-    items: [{ productId: 'prod-1', quantity: 2, taxRate: 19 }],
+    items: [{ productId: 'prod-1', quantity: 2 }],
   };
 
   beforeEach(() => {
@@ -250,9 +251,7 @@ describe('InvoicesService', () => {
       await service.create(
         {
           ...baseDto,
-          items: [
-            { productId: 'prod-1', quantity: 2, taxRate: 19, discount: 20000 },
-          ],
+          items: [{ productId: 'prod-1', quantity: 2, discount: 20000 }],
         },
         'user-1',
       );
@@ -288,11 +287,16 @@ describe('InvoicesService', () => {
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
-    it('leaves price untouched at taxRate 0 — it only flags the "excluida" label, not a calculation', async () => {
+    it('leaves price untouched for a tax-exempt product — it only flags the "excluida" label, not a calculation', async () => {
+      productsService.findOne.mockResolvedValue({
+        ...product,
+        taxExempt: true,
+      });
+
       await service.create(
         {
           ...baseDto,
-          items: [{ productId: 'prod-1', quantity: 2, taxRate: 0 }],
+          items: [{ productId: 'prod-1', quantity: 2 }],
         },
         'user-1',
       );

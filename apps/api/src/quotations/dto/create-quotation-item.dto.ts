@@ -2,6 +2,11 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsNumber, IsOptional, IsUUID, Min } from 'class-validator';
 
+/**
+ * No `taxRate` field — same reasoning as CreateInvoiceItemDto: IVA is
+ * never client-supplied, QuotationsService derives it from
+ * `Product.taxExempt` via `resolveTaxRate()`.
+ */
 export class CreateQuotationItemDto {
   @ApiProperty({
     description:
@@ -15,12 +20,6 @@ export class CreateQuotationItemDto {
   @IsInt()
   @Min(1)
   quantity: number;
-
-  @ApiProperty({ example: 19 })
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  taxRate: number;
 
   @ApiPropertyOptional({
     example: 20000,

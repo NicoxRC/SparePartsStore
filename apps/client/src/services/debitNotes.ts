@@ -29,7 +29,6 @@ export interface DebitNotesQuery {
 export interface CreateDebitNoteItemInput {
   productId: string;
   quantity: number;
-  taxRate: number;
 }
 
 export interface CreateDebitNoteInput {

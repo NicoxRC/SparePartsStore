@@ -5,6 +5,20 @@ export interface LineAmounts {
   total: number;
 }
 
+/** The store's one standard IVA rate — see resolveTaxRate(). */
+export const STANDARD_TAX_RATE = 19;
+
+/**
+ * The only source of a line's tax rate, everywhere an invoice/quotation/
+ * note item is resolved — never client-supplied anymore (confirmed
+ * directly: IVA must always be calculated the same way, not left to
+ * whoever's filling out the form). `Product.taxExempt` is the one flag
+ * that overrides the standard rate down to 0.
+ */
+export function resolveTaxRate(product: { taxExempt: boolean }): number {
+  return product.taxExempt ? 0 : STANDARD_TAX_RATE;
+}
+
 /**
  * Shared by InvoicesService and QuotationsService. `grossUnitPrice` is
  * confirmed IVA-inclusive (what the customer actually pays per unit) —

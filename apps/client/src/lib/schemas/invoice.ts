@@ -7,10 +7,12 @@ export const invoiceItemFormSchema = z.object({
   price: z.number(),
   stock: z.number(),
   quantity: z.coerce.number().int().min(1, 'Cantidad mínima 1.'),
-  taxRate: z.coerce.number().min(0, 'Debe ser mayor o igual a 0.'),
-  // Fixed COP amount, not a percentage — taken off this line's pre-tax
-  // subtotal before IVA is calculated. Local-only, see create-invoice-item.dto.ts.
-  discount: z.coerce.number().min(0, 'Debe ser mayor o igual a 0.').optional(),
+  // Derived from the product's taxExempt flag when added (see
+  // handleAddProduct) — never a user input, not sent to the backend
+  // either (IVA is always server-derived, see create-invoice-item.dto.ts).
+  // Kept on the item only so computeItemTotal() can compute this line's
+  // total and show the "Exenta" badge.
+  taxRate: z.number(),
 });
 
 // Kept as a plain object schema, separate from the `.superRefine()`-wrapped
@@ -47,6 +49,14 @@ const invoiceFormObjectSchema = z.object({
 
   items: z.array(invoiceItemFormSchema).min(1, 'Agrega al menos un producto.'),
   notes: z.string().optional().or(z.literal('')),
+  // Whole-sale discount, entered once instead of per line (see
+  // "Aplicar descuento" on the review step) — prorated across items at
+  // submit time via computeItemDiscount(), never sent as its own field.
+  discountPercentage: z.coerce
+    .number()
+    .min(0, 'Debe ser mayor o igual a 0.')
+    .max(100, 'Máximo 100%.')
+    .optional(),
 });
 
 export const invoiceFormSchema = invoiceFormObjectSchema.superRefine((values, ctx) => {

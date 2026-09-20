@@ -1,7 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsNumber, IsUUID, Min } from 'class-validator';
+import { IsInt, IsUUID, Min } from 'class-validator';
 
+/**
+ * No `taxRate` field — IVA is never client-supplied, same reasoning as
+ * CreateInvoiceItemDto: CreditNotesService derives it from
+ * `Product.taxExempt` via `resolveTaxRate()`.
+ */
 export class CreateCreditNoteItemDto {
   @ApiProperty({
     description:
@@ -15,14 +20,4 @@ export class CreateCreditNoteItemDto {
   @IsInt()
   @Min(1)
   quantity: number;
-
-  @ApiProperty({
-    example: 19,
-    description:
-      'IVA percentage for this line — same convention as invoice items.',
-  })
-  @Type(() => Number)
-  @IsNumber()
-  @Min(0)
-  taxRate: number;
 }

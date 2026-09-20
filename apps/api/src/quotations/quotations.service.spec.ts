@@ -50,6 +50,7 @@ describe('QuotationsService', () => {
     description: 'Filtro de aceite',
     salePrice: 50000,
     stock: 10,
+    taxExempt: false,
   } as unknown as Product;
 
   const productB = {
@@ -58,6 +59,7 @@ describe('QuotationsService', () => {
     description: 'Bujía',
     salePrice: 20000,
     stock: 10,
+    taxExempt: false,
   } as unknown as Product;
 
   const baseDto: CreateQuotationDto = {
@@ -71,7 +73,7 @@ describe('QuotationsService', () => {
     customerCity: '001',
     customerAddressLine: 'CL 1 # 2-3',
     customerEmail: 'cliente@acme.com',
-    items: [{ productId: 'prod-a', quantity: 2, taxRate: 19 }],
+    items: [{ productId: 'prod-a', quantity: 2 }],
   };
 
   /** A saved-and-reloaded open quotation with one existing line (2x productA). */
@@ -258,13 +260,25 @@ describe('QuotationsService', () => {
       const savedItems = quotationItemsRepository.save.mock.calls[0][0];
       expect(savedItems[0].unitPrice).toBe(50000);
     });
+
+    it("derives taxRate from the product's taxExempt flag, never trusting client input", async () => {
+      productsService.findOne.mockResolvedValue({
+        ...productA,
+        taxExempt: true,
+      });
+
+      await service.create(baseDto, 'user-1');
+
+      const savedItems = quotationItemsRepository.save.mock.calls[0][0];
+      expect(savedItems[0].taxRate).toBe(0);
+    });
   });
 
   describe('updateItems', () => {
     const dto: UpdateQuotationItemsDto = {
       items: [
-        { productId: 'prod-a', quantity: 5, taxRate: 19 },
-        { productId: 'prod-b', quantity: 1, taxRate: 19 },
+        { productId: 'prod-a', quantity: 5 },
+        { productId: 'prod-b', quantity: 1 },
       ],
     };
 
@@ -297,7 +311,7 @@ describe('QuotationsService', () => {
     it('returns the full amount to stock when a line is removed entirely', async () => {
       await service.updateItems(
         'q-1',
-        { items: [{ productId: 'prod-b', quantity: 1, taxRate: 19 }] },
+        { items: [{ productId: 'prod-b', quantity: 1 }] },
         'user-1',
       );
 
@@ -342,11 +356,31 @@ describe('QuotationsService', () => {
     it("does not touch a line whose quantity didn't change", async () => {
       await service.updateItems(
         'q-1',
-        { items: [{ productId: 'prod-a', quantity: 2, taxRate: 19 }] },
+        { items: [{ productId: 'prod-a', quantity: 2 }] },
         'user-1',
       );
 
       expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
+    it("derives taxRate from the product's taxExempt flag, ignoring any old stored value", async () => {
+      productsService.findOne.mockImplementation((id: string) =>
+        Promise.resolve(
+          id === 'prod-b' ? productB : { ...productA, taxExempt: true },
+        ),
+      );
+
+      await service.updateItems(
+        'q-1',
+        { items: [{ productId: 'prod-a', quantity: 2 }] },
+        'user-1',
+      );
+
+      const savedItems = quotationItemsRepository.save.mock.calls[0][0];
+      const lineA = savedItems.find(
+        (item: QuotationItem) => item.product.id === 'prod-a',
+      );
+      expect(lineA?.taxRate).toBe(0);
     });
   });
 

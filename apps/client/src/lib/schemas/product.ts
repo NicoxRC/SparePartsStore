@@ -27,6 +27,7 @@ export const productFormSchema = z.object({
   departmentId: z.string().min(1, 'El departamento es obligatorio.'),
   groupId: z.string().min(1, 'El grupo es obligatorio.'),
   brandId: z.string().min(1, 'La marca es obligatoria.'),
+  taxExempt: z.boolean().optional(),
 });
 
 /** Shape of the raw form fields (before Zod coercion, e.g. salePrice as string). */

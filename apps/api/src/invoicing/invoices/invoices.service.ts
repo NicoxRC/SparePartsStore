@@ -8,7 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-document-type.enum';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
-import { computeLineAmounts } from '../../common/utils/invoice-math.util';
+import {
+  computeLineAmounts,
+  resolveTaxRate,
+} from '../../common/utils/invoice-math.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
@@ -362,17 +365,18 @@ export class InvoicesService {
 
         const grossUnitPrice =
           itemDto.unitPriceOverride ?? Number(product.salePrice);
+        const taxRate = resolveTaxRate(product);
         const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
           grossUnitPrice,
           itemDto.quantity,
-          itemDto.taxRate,
+          taxRate,
           itemDto.discount ?? 0,
         );
 
         return {
           product,
           quantity: itemDto.quantity,
-          taxRate: itemDto.taxRate,
+          taxRate,
           unitPrice,
           taxBase,
           taxAmount,

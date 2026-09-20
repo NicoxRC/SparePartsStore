@@ -29,7 +29,6 @@ export interface CreditNotesQuery {
 export interface CreateCreditNoteItemInput {
   productId: string;
   quantity: number;
-  taxRate: number;
 }
 
 export interface CreateCreditNoteInput {

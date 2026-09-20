@@ -8,7 +8,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
-import { computeLineAmounts } from '../../common/utils/invoice-math.util';
+import {
+  computeLineAmounts,
+  resolveTaxRate,
+} from '../../common/utils/invoice-math.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
 import { InventoryService } from '../../inventory/inventory.service';
@@ -242,16 +245,17 @@ export class DebitNotesService {
           );
         }
 
+        const taxRate = resolveTaxRate(product);
         const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
           Number(product.salePrice),
           itemDto.quantity,
-          itemDto.taxRate,
+          taxRate,
         );
 
         return {
           product,
           quantity: itemDto.quantity,
-          taxRate: itemDto.taxRate,
+          taxRate,
           unitPrice,
           taxBase,
           taxAmount,

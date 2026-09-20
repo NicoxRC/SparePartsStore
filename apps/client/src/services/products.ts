@@ -15,6 +15,7 @@ export interface ProductResponse {
   salePrice: number;
   saleType: SaleType;
   stock: number;
+  taxExempt: boolean;
   department: ProductLookupRef;
   group: ProductLookupRef;
   brand: ProductLookupRef;
@@ -52,6 +53,7 @@ export interface ProductInput {
   departmentId: string;
   groupId: string;
   brandId: string;
+  taxExempt?: boolean;
 }
 
 export async function getProducts(

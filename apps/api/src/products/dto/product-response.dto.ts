@@ -14,6 +14,7 @@ export class ProductResponseDto {
   salePrice: number;
   saleType: SaleType;
   stock: number;
+  taxExempt: boolean;
   department: ProductLookupRef;
   group: ProductLookupRef;
   brand: ProductLookupRef;
@@ -29,6 +30,7 @@ export class ProductResponseDto {
     dto.salePrice = product.salePrice;
     dto.saleType = product.saleType;
     dto.stock = product.stock;
+    dto.taxExempt = product.taxExempt;
     dto.department = {
       id: product.department.id,
       name: product.department.name,

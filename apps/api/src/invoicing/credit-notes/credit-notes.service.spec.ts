@@ -46,6 +46,7 @@ describe('CreditNotesService', () => {
     description: 'Filtro de aceite',
     salePrice: 50000,
     stock: 10,
+    taxExempt: false,
   } as unknown as Product;
 
   const dataicoCustomer = {
@@ -78,7 +79,7 @@ describe('CreditNotesService', () => {
 
   const baseDto: CreateCreditNoteDto = {
     invoiceId: 'inv-1',
-    items: [{ productId: 'prod-1', quantity: 1, taxRate: 19 }],
+    items: [{ productId: 'prod-1', quantity: 1 }],
   };
 
   beforeEach(() => {
@@ -248,11 +249,16 @@ describe('CreditNotesService', () => {
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
-    it('sends an empty taxes array at taxRate 0', async () => {
+    it('sends an empty taxes array for a tax-exempt product', async () => {
+      productsService.findOne.mockResolvedValue({
+        ...product,
+        taxExempt: true,
+      });
+
       await service.create(
         {
           ...baseDto,
-          items: [{ productId: 'prod-1', quantity: 1, taxRate: 0 }],
+          items: [{ productId: 'prod-1', quantity: 1 }],
         },
         'user-1',
       );
