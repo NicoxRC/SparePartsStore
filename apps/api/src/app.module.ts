@@ -12,6 +12,7 @@ import { GroupsModule } from './groups/groups.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { InvoicingModule } from './invoicing/invoicing.module';
 import { ProductsModule } from './products/products.module';
+import { PurchaseImportsModule } from './purchase-imports/purchase-imports.module';
 import { QuotationsModule } from './quotations/quotations.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { UsersModule } from './users/users.module';
@@ -48,6 +49,7 @@ import { UsersModule } from './users/users.module';
     QuotationsModule,
     DashboardModule,
     SuppliersModule,
+    PurchaseImportsModule,
   ],
 })
 export class AppModule {}
