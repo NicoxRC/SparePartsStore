@@ -646,43 +646,54 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                         <th className="px-3 py-2">Producto</th>
                         <th className="px-3 py-2">Precio</th>
                         <th className="px-3 py-2">Cantidad</th>
+                        <th className="px-3 py-2">Total</th>
                         <th className="px-3 py-2" />
                       </tr>
                     </thead>
                     <tbody>
-                      {itemFields.map((field, index) => (
-                        <tr key={field.id} className="border-b border-dotted border-line-2">
-                          <td className="px-3 py-2">
-                            {field.reference} — {field.description}
-                            {Number(watchedItems[index]?.taxRate) === 0 && (
-                              <span className="ml-2 text-xs font-medium text-fog">
-                                Exenta
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 font-mono">
-                            ${field.price.toLocaleString('es-CO')}
-                          </td>
-                          <td className="w-24 px-3 py-2">
-                            <input
-                              type="number"
-                              min={1}
-                              max={field.stock}
-                              className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
-                              {...register(`items.${index}.quantity`)}
-                            />
-                          </td>
-                          <td className="px-3 py-2">
-                            <button
-                              type="button"
-                              onClick={() => removeItem(index)}
-                              className="text-sm font-medium text-rust hover:underline"
-                            >
-                              Quitar
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      {itemFields.map((field, index) => {
+                        const item = watchedItems[index];
+                        return (
+                          <tr key={field.id} className="border-b border-dotted border-line-2">
+                            <td className="px-3 py-2">
+                              {field.reference} — {field.description}
+                              {Number(item?.taxRate) === 0 && (
+                                <span className="ml-2 text-xs font-medium text-fog">
+                                  Exenta
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-3 py-2 font-mono">
+                              ${field.price.toLocaleString('es-CO')}
+                            </td>
+                            <td className="w-24 px-3 py-2">
+                              <input
+                                type="number"
+                                min={1}
+                                max={field.stock}
+                                className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
+                                {...register(`items.${index}.quantity`)}
+                              />
+                            </td>
+                            <td className="px-3 py-2 font-mono">
+                              $
+                              {computeItemTotal({
+                                ...item,
+                                discount: computeItemDiscount(item, discountPercentage),
+                              }).toLocaleString('es-CO')}
+                            </td>
+                            <td className="px-3 py-2">
+                              <button
+                                type="button"
+                                onClick={() => removeItem(index)}
+                                className="text-sm font-medium text-rust hover:underline"
+                              >
+                                Quitar
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -859,7 +870,11 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                       )}
                     </span>
                     <span className="font-mono">
-                      ${computeItemTotal(item).toLocaleString('es-CO')}
+                      $
+                      {computeItemTotal({
+                        ...item,
+                        discount: computeItemDiscount(item, discountPercentage),
+                      }).toLocaleString('es-CO')}
                     </span>
                   </li>
                 ))}

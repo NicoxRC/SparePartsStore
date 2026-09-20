@@ -411,6 +411,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                   <th className="px-3 py-2">Producto</th>
                   <th className="px-3 py-2">Precio</th>
                   <th className="px-3 py-2">Cantidad</th>
+                  <th className="px-3 py-2">Total</th>
                   {isOpen && <th className="px-3 py-2" />}
                 </tr>
               </thead>
@@ -438,6 +439,13 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                       ) : (
                         item.quantity
                       )}
+                    </td>
+                    <td className="px-3 py-2 font-mono">
+                      $
+                      {computeItemTotal({
+                        ...item,
+                        discount: computeItemDiscount(item, discountPercentage),
+                      }).toLocaleString('es-CO')}
                     </td>
                     {isOpen && (
                       <td className="px-3 py-2">
