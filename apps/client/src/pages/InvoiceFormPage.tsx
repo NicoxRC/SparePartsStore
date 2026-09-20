@@ -342,6 +342,17 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     setCustomerSearchQuery('');
   };
 
+  // Mirrors whatever's typed into the "Buscar cliente guardado" box into
+  // the actual customerIdentification field, so a document number typed
+  // there is immediately usable for "Buscar en DIAN" too — without this,
+  // a customer with no local match left that field untouched and the DIAN
+  // button stayed disabled/unhelpful even though the user had typed a
+  // valid identification.
+  const handleCustomerSearchQueryChange = (value: string) => {
+    setCustomerSearchQuery(value);
+    setValue('customerIdentification', value);
+  };
+
   const handleDepartmentChange = (departmentCode: string) => {
     const cities = DANE_CITIES.filter(
       (city) => city.departmentCode === departmentCode,
@@ -706,7 +717,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
               errors={errors}
               customerPartyType={customerPartyType}
               customerSearchQuery={customerSearchQuery}
-              onCustomerSearchQueryChange={setCustomerSearchQuery}
+              onCustomerSearchQueryChange={handleCustomerSearchQueryChange}
               customerIdentification={customerIdentification}
               customerIdentificationType={customerIdentificationType}
               customerDepartment={customerDepartment}

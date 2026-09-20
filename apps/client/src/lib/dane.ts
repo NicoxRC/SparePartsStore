@@ -64,6 +64,8 @@ export const DANE_CITIES: DaneCity[] = [
   { code: '001', name: 'Pasto', departmentCode: '52' }, // store's own city
   { code: '001', name: 'Bogotá D.C.', departmentCode: '11' },
   { code: '001', name: 'Medellín', departmentCode: '05' },
+  { code: '001', name: 'Cali', departmentCode: '76' },
+  { code: '001', name: 'Mocoa', departmentCode: '86' }, // Putumayo's capital
 ];
 
 export const DEFAULT_DANE_DEPARTMENT_CODE = '52'; // Nariño
