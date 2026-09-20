@@ -26,7 +26,7 @@ Phases 1–6 are **already built** — documented here retrospectively so the ro
 
 ## Phase 4 — Products
 
-**Done.** Full CRUD, reverse cost-from-sale-price calculation (normal/neto), reference uniqueness check, barcode scanner writing into the reference field. See `docs/phases/PHASE_4_PRODUCTS.md`.
+**Done.** Full CRUD, reference uniqueness check (a reverse cost-from-sale-price calculation, normal/neto, was built here and later removed — see Phase 16), barcode scanner writing into the reference field. See `docs/phases/PHASE_4_PRODUCTS.md`.
 
 ## Phase 5 — Inventory movements
 

@@ -4,9 +4,13 @@
 
 ## Goal
 
-Bulk-load stock from the XML of an electronic invoice a **supplier** issued to this store (DIAN UBL 2.1). Someone uploads the XML; it becomes a **draft** of lines (reference, description, quantity, unit cost). **Nothing touches stock or the catalog until a human reviews and confirms the whole draft.** Lines whose reference already exists in the catalog are reviewed and, on confirm, increase stock; lines that don't exist are completed by the reviewer (department, group, brand, sale price...) and the product is created **at confirm time**. Products are permanently linked to their supplier so the catalog can be filtered by supplier.
+Bulk-load stock from the XML of an electronic invoice a **supplier** issued to this store (DIAN UBL 2.1). Someone uploads the XML; it becomes a **draft** of lines (reference, description, quantity). **Nothing touches stock or the catalog until a human reviews and confirms the whole draft.** Lines whose reference already exists in the catalog are reviewed and, on confirm, increase stock; lines that don't exist are completed by the reviewer (department, group, brand, sale price...) and the product is created **at confirm time**. Products are permanently linked to their supplier so the catalog can be filtered by supplier.
 
 Relationship to other phases: independent of Phases 7-15. It does **not** reopen Phase 11 ("Eventos de recepción" — acknowledging/accepting supplier invoices toward DIAN stays out of scope); this phase only reads a supplier's invoice locally to receive stock. No DIAN event is ever sent.
+
+## Change of scope after the first implementation (decided by the human)
+
+**The draft keeps only reference, description and quantity from the XML; everything else is completed by the user, and the system never suggests a price.** Consequently: the XML's unit cost (`unit_cost`, "Costo en factura", the pre-IVA price question) is **gone** — the draft stores no price at all — and the whole product model dropped its derived `cost` and its `sale_type`, leaving only `sale_price` (see `RemoveCostAndSaleTypeFromProducts`, `docs/DATABASE.md`). Wherever this document below still mentions `unit_cost`, `saleType`/`new_sale_type`, D1 or Open question 2, that part is **superseded** by this paragraph.
 
 ## Decisions already made by the human (not re-litigated)
 
@@ -19,7 +23,7 @@ Relationship to other phases: independent of Phases 7-15. It does **not** reopen
 
 | # | Default | Why |
 |---|---|---|
-| D1 | The unit cost in the XML is stored on the draft line as **display-only reference** (`unit_cost`); it is never written to `products.cost` (cost is derived from `sale_price`/`sale_type`) and there is **no auto-suggested sale price** in v1. | Whether this store's "cost" equals the supplier's pre-IVA unit price is a business assumption nobody has confirmed (see Open question 2). |
+| D1 | ~~The unit cost in the XML is display-only.~~ **Superseded:** the draft stores no XML price at all; the reviewer types every sale price. | See "Change of scope" above. |
 | D2 | `products.supplier_id` is set **on creation**, and on an existing product **only if it is currently NULL** ("fill the blank"), never overwritten. A product restocked from a different supplier keeps its original supplier. | Overwriting would make the supplier filter unstable; filling blanks tags the legacy catalog for free. Wrong tags are fixable on the product form (D3). |
 | D3 | `supplierId` is an optional field on the product create/update DTOs and a select on the product form; `null` on update clears it. | Only way to correct a wrong supplier tag; costs one select. |
 | D4 | Confirm is **fully atomic** (one DB transaction: created products + movements + status flip). Achieved by letting `InventoryService.createMovement` and `ProductsService.create` accept an optional `EntityManager`. The `QuotationsService` "accept partial failure" trade-off is **not** used here. | A partially applied 80-line import is very hard to reconcile by hand; a quotation touches a few lines. |
@@ -84,12 +88,10 @@ Constraints / indexes:
 | `description` | VARCHAR(255), nullable | Truncated to 255 on parse. Editable. Used as the new product's description. |
 | `xml_quantity` | NUMERIC(14,4) NOT NULL | Exactly what the XML said; never edited. |
 | `quantity` | INT, nullable | Editable. Initialised to `xml_quantity` when it is an integer > 0, else NULL (D7). |
-| `unit_cost` | NUMERIC(14,4), nullable | `PriceAmount / BaseQuantity` from the XML (pre-IVA, to verify). Display-only (D1). |
 | `product_id` | UUID, nullable, FK -> `products.id`, `RESTRICT` | Set by auto-match, manual link, or (after confirm) the created product. |
 | `match_type` | VARCHAR(10), nullable, CHECK IN (`'exact'`,`'manual'`) | NULL = "new". CHECK: `match_type IS NULL OR product_id IS NOT NULL`. |
 | `new_department_id`, `new_group_id`, `new_brand_id` | UUID, nullable, FK -> lookups, `RESTRICT` | Reviewer-supplied; only meaningful while `product_id` is NULL. |
 | `new_sale_price` | NUMERIC(12,2), nullable | Must be an integer >= 500 at confirm (same rule as `CreateProductDto`). |
-| `new_sale_type` | ENUM `sale_type` NOT NULL DEFAULT `'normal'` | Reuses the existing Postgres enum. |
 | `new_tax_exempt` | BOOLEAN NOT NULL DEFAULT false | |
 | `created_product` | BOOLEAN NOT NULL DEFAULT false | Set at confirm when this line created its product (drives the "Creado" chip on a confirmed import). |
 | `created_at`, `updated_at` | TIMESTAMPTZ | No soft delete: the line is working data; the audit trail is the inventory movement. |
@@ -162,7 +164,7 @@ em.transaction(async (em) => {
   5. For each line in line_number order:
        - existing product P:  productId = P.id
        - new line:  P = productsService.create({ reference, description, salePrice,
-                    saleType, stock: 0, departmentId, groupId, brandId, taxExempt,
+                    stock: 0, departmentId, groupId, brandId, taxExempt,
                     supplierId }, userId, em)
                     (stock 0: the movement below is what adds the units, so every unit
                     of stock has a movement in the audit trail)
@@ -237,7 +239,6 @@ Also new dev dependency: `@types/multer` (for `Express.Multer.File`; `multer` it
 | quantity | `cbc:InvoicedQuantity` | **must per line** | Decimal string. Integer > 0 -> `quantity`. Otherwise `quantity = NULL`, `xml_quantity` kept (D7). Unit code ignored. |
 | description | `cac:Item/cbc:Description` (first if repeated) -> `cac:Item/cbc:Name` | optional | Truncated to 255. |
 | reference | `cac:Item/cac:SellersItemIdentification/cbc:ID` -> `cac:Item/cac:StandardItemIdentification/cbc:ID` | optional | Trim + uppercase; >100 chars -> NULL. The Standard id may be a GTIN or a taxpayer-scheme code; it is only a fallback, no separate column. |
-| unit cost | `cac:Price/cbc:PriceAmount` / `cac:Price/cbc:BaseQuantity` (default 1) | optional | Parsed as decimal; unparsable -> NULL. Free-of-charge lines (0) are kept. |
 
 Everything else (taxes, totals, allowances, payment means, addresses, currency) is deliberately ignored.
 
@@ -249,7 +250,7 @@ Everything else (taxes, totals, allowances, payment means, addresses, currency) 
 - Missing optional pieces never fail the upload; they surface as line `issues` in the draft, which is where a human fixes them.
 - Errors are `UnprocessableEntityException({ message, code })`; `message` is Spanish-facing for the reviewer, `code` is stable for the client.
 
-Parser output type: `{ invoiceNumber, issueDate, cufe | null, supplier: { nit, dv | null, name }, lines: [{ lineNumber, reference | null, description | null, xmlQuantity, quantity | null, unitCost | null }] }`.
+Parser output type: `{ invoiceNumber, issueDate, cufe | null, supplier: { nit, dv | null, name }, lines: [{ lineNumber, reference | null, description | null, xmlQuantity, quantity | null }] }`.
 
 ## API contract
 
@@ -329,12 +330,11 @@ interface PurchaseImportItem {
   description: string | null;
   xmlQuantity: number;          // read-only original
   quantity: number | null;
-  unitCost: number | null;      // display only, pre-IVA (verify)
   status: LineStatus;
   product: { id: string; reference: string; description: string; stock: number } | null;
   newProduct: {                 // meaningful while product === null
     departmentId: string | null; groupId: string | null; brandId: string | null;
-    salePrice: number | null; saleType: 'normal' | 'neto'; taxExempt: boolean;
+    salePrice: number | null; taxExempt: boolean;
   };
   createdProduct: boolean;      // true on confirmed imports for lines that created their product
   issues: LineIssue[];          // always [] on confirmed/discarded imports
@@ -345,7 +345,7 @@ interface UpdatePurchaseImportItemDto {
   reference?: string; description?: string; quantity?: number;
   productId?: string | null;    // uuid = manual link; null = remove manual link + re-match
   departmentId?: string | null; groupId?: string | null; brandId?: string | null;
-  salePrice?: number | null; saleType?: 'normal' | 'neto'; taxExempt?: boolean;
+  salePrice?: number | null; taxExempt?: boolean;
 }
 
 interface ConfirmPurchaseImportResponse {
@@ -383,7 +383,7 @@ apps/client/src/
 │   ├── UploadPurchaseImportButton.tsx     # hidden <input type="file" accept=".xml,text/xml,application/xml">, client-side size/extension check, duplicate-409 alert with link
 │   ├── PurchaseImportLineCard.tsx         # one mobile card per line: chip, inline edit, issues
 │   ├── LineStatusChip.tsx                 # Existe / Enlazado / Nuevo
-│   ├── NewProductFields.tsx               # department/group/brand selects, price, saleType, taxExempt
+│   ├── NewProductFields.tsx               # department/group/brand selects, price, taxExempt
 │   ├── ProductPickerDialog.tsx            # search + pick an existing product (relink)
 │   ├── ApplyClassificationDialog.tsx      # bulk dept/group/brand for the new lines
 │   └── ConfirmPurchaseImportDialog.tsx    # summary + confirm, shows problems[] / relinked[] on result
@@ -410,9 +410,8 @@ Mutation invalidation: line edits/deletes/apply/discard invalidate `['purchase-i
 - **Line card** (`PurchaseImportLineCard`):
   - Top row: line number, **status chip** — `Existe` (exact match), `Enlazado` (manual), `Nuevo` — plus issue badges in the warning colour.
   - Editable on blur (PATCH per field, per-card spinner, no whole-page reload): reference (mono, uppercased), description, **quantity** (number input `inputMode="numeric"`, select-on-focus; shows "Factura: 1.5" when `xmlQuantity` differs).
-  - Muted "Costo en factura: $X" (read-only, D1).
   - `Existe`/`Enlazado`: product summary "REF — Descripción · stock N -> N+qty" (live preview), buttons "Cambiar producto" (opens `ProductPickerDialog`) and, for `Enlazado`, "Quitar enlace".
-  - `Nuevo`: expandable "Datos del producto nuevo" (`NewProductFields`) with department/group/brand `SearchableSelect`, `CurrencyField` for the sale price, "Tipo de venta", "Exento de IVA". Also a "Enlazar a producto existente" button (same picker) for the case where the reference differs from what's in the catalog.
+  - `Nuevo`: expandable "Datos del producto nuevo" (`NewProductFields`) with department/group/brand `SearchableSelect`, `CurrencyField` for the sale price, "Exento de IVA". Also a "Enlazar a producto existente" button (same picker) for the case where the reference differs from what's in the catalog.
   - "Quitar línea" (delete) with a confirm tap — for freight/labor/non-stock lines.
 - **Sticky bottom bar** above the mobile nav: summary + **Confirmar**, disabled while `readyToConfirm` is false (tap shows the count of blocking issues and scrolls to the first). Confirm dialog states plainly: "Se crearán X productos y se sumará stock a Y (Z unidades)".
 - After confirm: result banner (with `relinked` notes) and the page becomes read-only (`Creado`/`Existente` chips from `createdProduct`, no editors). Confirmed/discarded imports render read-only always.
@@ -442,7 +441,7 @@ Mutation invalidation: line edits/deletes/apply/discard invalidate `['purchase-i
 ## Open questions for the human
 
 1. **Real sample XML files (blocking for sign-off, not for starting).** Please share 1-2 real invoices as your suppliers actually send them (ideally one that arrives as a bare `Invoice` and one as an `AttachedDocument` if you receive both, with any sensitive data you prefer to redact). Every path in the parsing spec is written from the public standard and needs verifying against these before the phase is done; supplier-specific quirks (where they put their product code, multiple description lines, free-of-charge lines) only show up in real files.
-2. **How is the "cost" on a product related to the supplier's invoice price?** The app derives `cost = salePrice / 1.65` (or `/1.30` for neto). If that "cost" is meant to equal what the supplier charges (before IVA), a "precio sugerido" button on new lines (`unit cost x factor`, plus/minus IVA treatment) would save the reviewer a lot of typing; if not, it would be misleading. v1 only shows the supplier's unit cost read-only. Non-blocking.
+2. ~~How is the app's "cost" related to the supplier's price?~~ **Moot** — cost was removed from the product model.
 3. **Do suppliers' invoices reach the shop as a bare `.xml` file, or inside a `.zip` (typical for DIAN emails, with the PDF alongside)?** If zipped, the user must extract on the phone first; supporting `.zip` upload is a small addition (an extra dependency plus picking the XML inside) but was left out until this is confirmed.
 
 ## Migration plan
@@ -487,7 +486,7 @@ Hand-written, per `DATABASE.md`'s notes (the raw `migration:generate` diff carri
 
 **Unit tests required** (`TESTING.md`: every branch, edge cases, errors; TypeORM mocked, no real DB/HTTP):
 
-- `purchase-invoice-xml.parser.spec.ts`: bare Invoice; `AttachedDocument` with CDATA inner; with entity-escaped inner; without inner invoice; `CreditNote`/`DebitNote`/other root rejected; malformed XML; empty file; `<!DOCTYPE`/`<!ENTITY` rejected in the outer and in the inner document; single `InvoiceLine` vs several; no lines; missing invoice number / issue date / supplier; NIT fallback `PartyTaxScheme` -> `PartyLegalEntity`; name fallback chain (`RegistrationName` -> legal entity -> `PartyName` -> `Person`); NIT normalization (dots/dashes) and DV from `schemeID`; CUFE as string and as object-with-attributes, and absent; quantity `"2.000000"` -> 2, `"1.5"` -> `quantity` NULL/`xmlQuantity` 1.5, `"0"`; reference from Sellers vs Standard vs none vs >100 chars; leading-zero reference and NIT preserved (`parseTagValue: false`); description repeated/`Name` fallback/truncation; unit cost with and without `BaseQuantity`, missing price; default-namespace and odd prefixes; BOM stripped; >500 lines.
+- `purchase-invoice-xml.parser.spec.ts`: bare Invoice; `AttachedDocument` with CDATA inner; with entity-escaped inner; without inner invoice; `CreditNote`/`DebitNote`/other root rejected; malformed XML; empty file; `<!DOCTYPE`/`<!ENTITY` rejected in the outer and in the inner document; single `InvoiceLine` vs several; no lines; missing invoice number / issue date / supplier; NIT fallback `PartyTaxScheme` -> `PartyLegalEntity`; name fallback chain (`RegistrationName` -> legal entity -> `PartyName` -> `Person`); NIT normalization (dots/dashes) and DV from `schemeID`; CUFE as string and as object-with-attributes, and absent; quantity `"2.000000"` -> 2, `"1.5"` -> `quantity` NULL/`xmlQuantity` 1.5, `"0"`; reference from Sellers vs Standard vs none vs >100 chars; leading-zero reference and NIT preserved (`parseTagValue: false`); description repeated/`Name` fallback/truncation; default-namespace and odd prefixes; BOM stripped; >500 lines.
 - `purchase-imports` validator spec: each issue code, linked vs unlinked applicability, duplicate-new-reference flags both lines, `NO_LINES`, `readyToConfirm` true/false.
 - `purchase-imports.service.spec.ts`: **upload** (new supplier / existing supplier keeps its name; duplicate by supplier+number -> 409 with `existingImportId`/`existingStatus`; duplicate by CUFE; unique-violation race -> same 409; discarded duplicate allowed; auto-match sets `exact` and leaves others new; >500 lines); **updateItem** (non-draft 409; reference edit re-matches an unlinked line; manual link kept on reference edit; manual link to missing/soft-deleted product; `productId: null` re-matches; quantity/price bounds; unknown lookup id 404; normalization applied); **deleteItem**; **applyClassification** (only new lines, only NULL fields, never overwrites, empty body 400); **discard** (draft ok; confirmed/discarded 409); **list** (status derivation per filter, supplier filter, search escaping, draft ordering); **confirm** (not found; confirmed/discarded -> 409; header locked; validation failure returns all `problems[]` and writes nothing; empty draft; happy path mixing new + existing lines with `stock: 0` creation then movement per line, all using the same `manager`; notes text; supplier assigned only to products with NULL supplier and never overwritten; unlinked line whose reference now exists -> restocked and listed in `relinked`; linked product soft-deleted -> problem; duplicate new references -> problem; product-create unique violation -> 409 `PRODUCT_REFERENCE_TAKEN` with `confirmed_at` never set; movement failure propagates and `confirmed_at` never set; response counts).
 - `suppliers.service.spec.ts`: `findOrCreateByNit` (found / created / unique-violation race / NIT normalized), `update` (name normalization, 404), `findAll` (search escaped, pagination).

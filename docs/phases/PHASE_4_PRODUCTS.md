@@ -1,6 +1,6 @@
 # Phase 4 — Products
 
-**Status: Done** (barcode scanning and the sale-type/reverse-cost model were added slightly later, in the same domain — documented here rather than as separate phases).
+**Status: Done — the sale-type / reverse-cost model below was later REMOVED (see the follow-up at the end).** (barcode scanning and the sale-type/reverse-cost model were added slightly later, in the same domain — documented here rather than as separate phases).
 
 ## Goal
 
@@ -22,3 +22,7 @@ A product can be created/edited/searched/filtered/soft-deleted from a phone in t
 ## Related documents
 
 - `docs/DATABASE.md` (`products` table, cost calculation), `docs/GLOSSARY.md` ("Barcode scanning", "Sale type")
+
+## Follow-up (Phase 16): cost and sale type removed
+
+The `cost` column, the `saleType` field and the reverse-cost calculation described above no longer exist. The store only enters the sale price, so `RemoveCostAndSaleTypeFromProducts` dropped `products.cost`, `products.sale_type` and the `sale_type` enum, and the dashboard's cost-based inventory value went with them. Kept here as the historical record of what was built. See `docs/DATABASE.md`.

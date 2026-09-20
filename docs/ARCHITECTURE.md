@@ -79,7 +79,7 @@ apps/api/src/
 │   ├── decorators/                      # @Roles(), @RequirePermission(), @Public(), @SkipPasswordCheck(), @CurrentUser()
 │   ├── dto/                             # PaginatedResponseDto, PaginationMetaDto
 │   ├── entities/base.entity.ts          # id/createdAt/updatedAt/deletedAt shared base
-│   ├── enums/                           # UserRole, SaleType, MovementType
+│   ├── enums/                           # UserRole, MovementType
 │   ├── guards/                          # JwtAuthGuard, RolesGuard, PermissionsGuard, LocalAuthGuard, JwtRefreshAuthGuard
 │   └── utils/                           # isUniqueViolation(), ILIKE-escaping helper
 │

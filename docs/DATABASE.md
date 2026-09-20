@@ -45,9 +45,9 @@ users                          products
 │ id (PK)               │       │ id (PK)                  │
 │ email                 │       │ reference                │
 │ password_hash         │       │ description              │
-│ first_name            │       │ cost                      │
+│ first_name            │       │ tax_exempt                │
 │ last_name             │       │ sale_price                │
-│ role                  │       │ sale_type                 │
+│ role                  │       │ supplier_id (FK)          │
 │ is_active             │       │ stock                     │
 │ must_change_password  │       │ department_id (FK)───────┼──┐
 │ last_login_at         │       │ group_id (FK)─────────────┼──┼──┐
@@ -109,7 +109,6 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | Enum | Values | Notes |
 |---|---|---|
 | `UserRole` (`user_role`) | `admin`, `employee`, `auditor` | `auditor` added later via `AddAuditorRole` migration — Postgres enum values can be added but never removed, see that migration's `down()`. |
-| `SaleType` (`sale_type`) | `normal`, `neto` | Drives the reverse cost calculation — see `products` below. |
 | `MovementType` (`movement_type`) | `initial`, `purchase`, `adjustment` | `initial` is never produced by any endpoint — it only exists because the `CreateInventoryMovements` migration backfilled one `initial` movement per pre-existing product with stock > 0. See `inventory_movements` below. |
 
 ## Tables
@@ -141,9 +140,7 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `id` | UUID | PK |
 | `reference` | VARCHAR(100) | uppercased at the DTO layer; partial-unique among non-deleted rows; doubles as the barcode-scanner target field (see `GLOSSARY.md` "Barcode scanning") — there is no separate barcode column |
 | `description` | VARCHAR(255) | capitalized (first letter upper, rest lower) at the DTO layer |
-| `cost` | NUMERIC(12,2) | **derived, not entered directly** — see calculation below |
-| `sale_price` | NUMERIC(12,2) | the actual source-of-truth price entered by the user |
-| `sale_type` | ENUM `sale_type` | default `normal`; selects which factor derives `cost` |
+| `sale_price` | NUMERIC(12,2) | The only price on a product, **always typed in by the user** — never suggested or derived by the system (not even by a purchase import). Includes IVA, see `GLOSSARY.md`. |
 | `stock` | INT | default `0`; the live/current stock count — see `inventory_movements` for how it changes |
 | `tax_exempt` | BOOLEAN | default `false` — every product existing before this column was added keeps charging IVA. The only source of a line's tax rate on an invoice/quotation/credit-debit-note item: `resolveTaxRate()` (`common/utils/invoice-math.util.ts`) derives `0` or the standard `19` from this flag alone — `taxRate` was removed from every item DTO, it's never client-supplied anymore. |
 | `department_id` | UUID, FK → `departments.id` | `NOT NULL`, `RESTRICT` |
@@ -153,7 +150,7 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard |
 
-**Cost calculation (reverse markup):** `cost = round(salePrice / COST_FACTORS[saleType])`, with `COST_FACTORS = { normal: 1.65, neto: 1.30 }`. The sale price is what staff actually enter; cost is back-computed from it, not the other way around. Recalculated automatically whenever `salePrice` or `saleType` changes (create or update) — never edited directly.
+**No cost, no sale type:** a product used to carry a derived `cost` (`round(sale_price / 1.65)`, or `/ 1.30` for `sale_type = neto`). Both columns — and the `sale_type` Postgres enum — were removed by `RemoveCostAndSaleTypeFromProducts`: the store only ever enters the sale price. Nothing in the app tracks what a part cost the store any more, so the admin dashboard no longer shows a cost-based inventory value either.
 
 **Read behavior worth knowing:** `findAll`/`findOne` deliberately use `.withDeleted()` on the department/group/brand joins (while still filtering `products.deletedAt IS NULL` on the product itself) so a product's classification still displays correctly even if that lookup was later soft-deleted/deactivated.
 
@@ -466,14 +463,12 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | `purchase_import_id` | UUID, FK → `purchase_imports.id`, `CASCADE` | `UNIQUE` with `line_number` |
 | `line_number` | INT | 1-based position in the document. |
 | `reference`, `description` | VARCHAR(100) / VARCHAR(255), nullable | Normalized with the same functions the product DTOs use (`products/product-normalize.util.ts`). Editable. |
-| `xml_quantity` | NUMERIC(14,4) | Exactly what the XML said; never edited. |
+| `xml_quantity` | NUMERIC(14,4) | Exactly what the XML said; never edited. The draft keeps **only reference, description and quantity** from the XML (plus the supplier and invoice header) — the XML's prices are not stored anywhere. |
 | `quantity` | INT, nullable | Editable. Initialised from `xml_quantity` only when it is an integer > 0 — `products.stock` is an INT, so a fractional XML quantity leaves this `NULL` for the reviewer to type. |
-| `unit_cost` | NUMERIC(14,4), nullable | **Display-only** reference from the XML. Never written to `products.cost`, which is derived from `sale_price`/`sale_type` (see `products`). |
 | `product_id` | UUID, nullable, FK → `products.id`, `RESTRICT` | Set by the exact-reference auto-match, a manual link, or (after confirm) the created product. |
 | `match_type` | VARCHAR(10), nullable, `CHECK IN ('exact','manual')` | `NULL` = "new". `CHECK`: `match_type IS NULL OR product_id IS NOT NULL`. Line chip is derived from it: `exact` → *Existe*, `manual` → *Enlazado*, `NULL` → *Nuevo*. |
 | `new_department_id`, `new_group_id`, `new_brand_id` | UUID, nullable, FK → lookups, `RESTRICT` | Reviewer-supplied; only meaningful while `product_id` is `NULL` (the XML carries none of these). |
-| `new_sale_price` | NUMERIC(12,2), nullable | Integer ≥ 500 at confirm (same floor as `CreateProductDto`). |
-| `new_sale_type` | ENUM `sale_type` `NOT NULL` default `normal` | Reuses the existing enum. |
+| `new_sale_price` | NUMERIC(12,2), nullable | Typed by the reviewer — the system never suggests it. Integer ≥ 500 at confirm (same floor as `CreateProductDto`). |
 | `new_tax_exempt` | BOOLEAN `NOT NULL` default `false` | |
 | `created_product` | BOOLEAN `NOT NULL` default `false` | Set at confirm when this line created its product. |
 | `created_at`, `updated_at` | TIMESTAMPTZ | |
@@ -490,7 +485,7 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 4 | `AddProductLookupForeignKeys` | Backfills lookups from distinct existing string values, adds/populates FK columns on `products`, sets them `NOT NULL` + `RESTRICT`, drops the old varchar columns. |
 | 5 | `AddStockToProducts` | Adds `products.stock INT NOT NULL DEFAULT 0`. |
 | 6 | `AddMustChangePasswordToUsers` | Adds `users.must_change_password BOOLEAN NOT NULL DEFAULT false`. |
-| 7 | `AddSaleTypeToProducts` | `sale_type` enum, adds `products.sale_type` default `normal`. |
+| 7 | `AddSaleTypeToProducts` | `sale_type` enum, adds `products.sale_type` default `normal`. *(Later removed by migration 29.)* |
 | 8 | `AddAuditorRole` | `ALTER TYPE user_role ADD VALUE 'auditor'` — irreversible `down()` (Postgres can't drop enum values). |
 | 9 | `CreateInventoryMovements` | `movement_type` enum, `inventory_movements` table (FKs, indexes on `product_id` and `created_at DESC`), backfills one `initial` movement per pre-existing product with stock > 0. |
 | 10 | `CreateDianResolutions` | Phase 8. `dian_resolution_document_type` enum (`invoice`, `support_docs`), `dian_resolutions` table (FK to `users`, indexes on `(document_type, prefix)` and `created_at DESC`). |
@@ -511,7 +506,8 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 25 | `AddPermissionsToUsers` | Local enhancement (not a numbered phase). Adds `users.permissions text[] NOT NULL DEFAULT '{}'`, then backfills every existing `role = 'employee'` row with the full permission catalog (replicating today's coarse-employee behavior as a starting point) — see `GLOSSARY.md` ("Permisos"). Hand-written, same reason as the migrations above. |
 | 26 | `AddTaxExemptToProducts` | Local enhancement (not a numbered phase). Adds `products.tax_exempt BOOLEAN NOT NULL DEFAULT false` — every pre-existing product keeps charging IVA. *(Row added retroactively in Phase 16: the migration already existed but was never listed here.)* |
 | 27 | `CreateSuppliers` | Phase 16. `suppliers` table (audit FKs to `users`, partial unique index `UQ_suppliers_nit_active`), plus nullable `products.supplier_id` (FK `RESTRICT`) and `IDX_products_supplier_id`. Hand-written, same reason as the migrations above. |
-| 28 | `CreatePurchaseImports` | Phase 16. `purchase_imports` (FK to `suppliers` `RESTRICT`, audit FKs, single-outcome `CHECK`, both partial unique indexes, `created_at DESC` and `supplier_id` indexes) and `purchase_import_items` (FK to `purchase_imports` `CASCADE`, FKs to `products`/lookups `RESTRICT`, `match_type` `CHECK`s, reuses the existing `sale_type` enum, unique `(purchase_import_id, line_number)`). Hand-written, same reason as the migrations above. |
+| 28 | `CreatePurchaseImports` | Phase 16. `purchase_imports` (FK to `suppliers` `RESTRICT`, audit FKs, single-outcome `CHECK`, both partial unique indexes, `created_at DESC` and `supplier_id` indexes) and `purchase_import_items` (FK to `purchase_imports` `CASCADE`, FKs to `products`/lookups `RESTRICT`, `match_type` `CHECK`s, unique `(purchase_import_id, line_number)`). Hand-written, same reason as the migrations above. |
+| 29 | `RemoveCostAndSaleTypeFromProducts` | Drops `products.cost`, `products.sale_type` and the `sale_type` enum — the store now enters only the sale price. **Not fully reversible:** `down()` restores the columns with `sale_type = 'normal'` and a cost recomputed at the `normal` factor, not the original values. Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

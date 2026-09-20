@@ -44,8 +44,8 @@ This is the one place this project's convention **differs from a typical NestJS 
 |---|---|---|
 | Variables, functions | camelCase | `calculateCost`, `getProducts` |
 | Classes, interfaces, types, React components | PascalCase | `ProductsService`, `CreateProductDto`, `ProductFormPage` |
-| Constants (true constants) | UPPER_SNAKE_CASE | `COST_FACTORS`, `MAX_RETRY_ATTEMPTS` |
-| Enums | PascalCase name, **UPPER_SNAKE_CASE members** | `enum SaleType { NORMAL = 'normal', NETO = 'neto' }` — see `UserRole`, `MovementType` in `common/enums/` for the existing precedent |
+| Constants (true constants) | UPPER_SNAKE_CASE | `MAX_INVOICE_LINES`, `MAX_RETRY_ATTEMPTS` |
+| Enums | PascalCase name, **UPPER_SNAKE_CASE members** | `enum MovementType { INITIAL = 'initial', PURCHASE = 'purchase', ADJUSTMENT = 'adjustment' }` — see `UserRole`, `MovementType` in `common/enums/` for the existing precedent |
 | Interfaces | No `I` prefix | `JwtPayload`, not `IJwtPayload` |
 | Boolean variables | prefixed `is`/`has`/`should`/`must` | `isActive`, `mustChangePassword` |
 
@@ -68,8 +68,9 @@ export class CreateProductDto {
   @Min(500)
   salePrice: number;
 
-  @IsEnum(SaleType)
-  saleType: SaleType;
+  @IsOptional()
+  @IsBoolean()
+  taxExempt?: boolean;
 
   @IsUUID()
   departmentId: string;
