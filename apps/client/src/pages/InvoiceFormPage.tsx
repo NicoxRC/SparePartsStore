@@ -292,6 +292,14 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     remove: removeItem,
   } = useFieldArray({ control, name: 'items' });
 
+  const customerPartyType = useWatch({ control, name: 'customerPartyType' });
+  const customerIdentification = useWatch({ control, name: 'customerIdentification' });
+  const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
+  const customerDepartment = useWatch({ control, name: 'customerDepartment' });
+  const paymentMeans = useWatch({ control, name: 'paymentMeans' });
+  const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
+  const watchedItems = useWatch({ control, name: 'items' });
+
   // "Tipo de pago" (DEBITO/CREDITO) is DIAN's forma de pago — contado vs.
   // venta a crédito — not a card-network choice, and Dataico requires it on
   // every invoice regardless of payment method. Outside of tarjeta this
@@ -302,14 +310,6 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
       setValue('paymentMeansType', 'DEBITO');
     }
   }, [paymentMeans, setValue]);
-
-  const customerPartyType = useWatch({ control, name: 'customerPartyType' });
-  const customerIdentification = useWatch({ control, name: 'customerIdentification' });
-  const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
-  const customerDepartment = useWatch({ control, name: 'customerDepartment' });
-  const paymentMeans = useWatch({ control, name: 'paymentMeans' });
-  const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
-  const watchedItems = useWatch({ control, name: 'items' });
 
   const hasActiveProductSearch =
     productQuery.trim().length > 0 || Boolean(filterDepartmentId) || Boolean(filterGroupId);
