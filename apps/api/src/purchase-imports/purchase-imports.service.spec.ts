@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { Brand } from '../brands/entities/brand.entity';
-import { SaleType } from '../common/enums/sale-type.enum';
 import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
 import { InventoryService } from '../inventory/inventory.service';
@@ -42,7 +41,6 @@ const parsed: ParsedPurchaseInvoice = {
       description: 'Filtro',
       xmlQuantity: 2,
       quantity: 2,
-      unitCost: 100,
     },
     {
       lineNumber: 2,
@@ -50,7 +48,6 @@ const parsed: ParsedPurchaseInvoice = {
       description: 'Bujia',
       xmlQuantity: 1,
       quantity: 1,
-      unitCost: 50,
     },
     {
       lineNumber: 3,
@@ -58,7 +55,6 @@ const parsed: ParsedPurchaseInvoice = {
       description: 'Sin codigo',
       xmlQuantity: 1,
       quantity: 1,
-      unitCost: null,
     },
   ],
 };
@@ -76,7 +72,6 @@ function item(overrides: Partial<PurchaseImportItem> = {}): PurchaseImportItem {
     description: 'Filtro',
     xmlQuantity: 2,
     quantity: 2,
-    unitCost: 100,
     productId: null,
     product: null,
     matchType: null,
@@ -84,7 +79,6 @@ function item(overrides: Partial<PurchaseImportItem> = {}): PurchaseImportItem {
     newGroupId: 'grp',
     newBrandId: 'brd',
     newSalePrice: 1500,
-    newSaleType: SaleType.NORMAL,
     newTaxExempt: false,
     createdProduct: false,
     ...overrides,
@@ -556,7 +550,6 @@ describe('PurchaseImportsService', () => {
         quantity: 5,
         description: 'Nueva',
         salePrice: 2000,
-        saleType: SaleType.NETO,
         taxExempt: true,
       });
 
@@ -566,7 +559,6 @@ describe('PurchaseImportsService', () => {
           quantity: 5,
           description: 'Nueva',
           newSalePrice: 2000,
-          newSaleType: SaleType.NETO,
           newTaxExempt: true,
         },
       );

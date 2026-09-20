@@ -13,7 +13,6 @@ export interface ParsedInvoiceLine {
   xmlQuantity: number;
   /** Integer > 0, or null when the reviewer has to type it. */
   quantity: number | null;
-  unitCost: number | null;
 }
 
 export interface ParsedPurchaseInvoice {
@@ -317,25 +316,12 @@ export class PurchaseInvoiceXmlParser {
       ? normalizeProductReference(rawReference)
       : null;
 
-    const price = parseDecimal(text(path(line, 'Price', 'PriceAmount')));
-    const baseQuantity = parseDecimal(
-      text(path(line, 'Price', 'BaseQuantity')),
-    );
-    const unitCost =
-      price === null
-        ? null
-        : Math.round(
-            (price / (baseQuantity && baseQuantity > 0 ? baseQuantity : 1)) *
-              10000,
-          ) / 10000;
-
     return {
       lineNumber,
       reference: reference && reference.length <= 100 ? reference : null,
       description: description ? description.slice(0, 255) : null,
       xmlQuantity,
       quantity,
-      unitCost,
     };
   }
 

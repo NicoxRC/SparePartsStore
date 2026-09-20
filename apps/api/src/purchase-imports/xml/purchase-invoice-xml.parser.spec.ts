@@ -504,43 +504,5 @@ describe('PurchaseInvoiceXmlParser', () => {
         expect(parsed.description).toHaveLength(255);
       });
     });
-
-    describe('unit cost', () => {
-      it('reads the price', () => {
-        expect(
-          parse(invoice({ lines: line({ price: '10000.50' }) })).lines[0]
-            .unitCost,
-        ).toBe(10000.5);
-      });
-
-      it('divides by BaseQuantity', () => {
-        expect(
-          parse(invoice({ lines: line({ price: '1000', baseQuantity: '4' }) }))
-            .lines[0].unitCost,
-        ).toBe(250);
-      });
-
-      it('ignores a zero/invalid BaseQuantity', () => {
-        expect(
-          parse(invoice({ lines: line({ price: '1000', baseQuantity: '0' }) }))
-            .lines[0].unitCost,
-        ).toBe(1000);
-      });
-
-      it('keeps a free-of-charge line at 0', () => {
-        expect(
-          parse(invoice({ lines: line({ price: '0' }) })).lines[0].unitCost,
-        ).toBe(0);
-      });
-
-      it('is null when the price is missing or unparsable', () => {
-        expect(
-          parse(invoice({ lines: line({ price: null }) })).lines[0].unitCost,
-        ).toBeNull();
-        expect(
-          parse(invoice({ lines: line({ price: 'n/a' }) })).lines[0].unitCost,
-        ).toBeNull();
-      });
-    });
   });
 });

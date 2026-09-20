@@ -8,7 +8,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Brand } from '../../brands/entities/brand.entity';
-import { SaleType } from '../../common/enums/sale-type.enum';
 import { Department } from '../../departments/entities/department.entity';
 import { Group } from '../../groups/entities/group.entity';
 import { Product } from '../../products/entities/product.entity';
@@ -60,17 +59,6 @@ export class PurchaseImportItem {
   @Column({ type: 'int', nullable: true })
   quantity: number | null;
 
-  /** Display-only: never written to `products.cost` (cost is derived from the sale price). */
-  @Column({
-    name: 'unit_cost',
-    type: 'numeric',
-    precision: 14,
-    scale: 4,
-    nullable: true,
-    transformer: decimalTransformer,
-  })
-  unitCost: number | null;
-
   @Column({ name: 'product_id', type: 'uuid', nullable: true })
   productId: string | null;
 
@@ -112,15 +100,6 @@ export class PurchaseImportItem {
     transformer: decimalTransformer,
   })
   newSalePrice: number | null;
-
-  @Column({
-    name: 'new_sale_type',
-    type: 'enum',
-    enum: SaleType,
-    enumName: 'sale_type',
-    default: SaleType.NORMAL,
-  })
-  newSaleType: SaleType;
 
   @Column({ name: 'new_tax_exempt', type: 'boolean', default: false })
   newTaxExempt: boolean;

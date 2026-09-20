@@ -1,5 +1,4 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { SaleType } from '../../common/enums/sale-type.enum';
 import { PurchaseImportItem } from '../entities/purchase-import-item.entity';
 import { PurchaseImport } from '../entities/purchase-import.entity';
 import { LineIssue, LINE_ISSUES } from '../purchase-import-validation';
@@ -75,7 +74,6 @@ export class PurchaseImportNewProductDto {
   @ApiProperty({ nullable: true, type: String }) groupId: string | null;
   @ApiProperty({ nullable: true, type: String }) brandId: string | null;
   @ApiProperty({ nullable: true, type: Number }) salePrice: number | null;
-  @ApiProperty({ enum: SaleType }) saleType: SaleType;
   @ApiProperty() taxExempt: boolean;
 }
 
@@ -87,13 +85,6 @@ export class PurchaseImportItemDto {
   @ApiProperty({ description: 'Read-only original from the XML.' })
   xmlQuantity: number;
   @ApiProperty({ nullable: true, type: Number }) quantity: number | null;
-  @ApiProperty({
-    nullable: true,
-    type: Number,
-    description:
-      'Supplier unit cost, display only — never stored as products.cost.',
-  })
-  unitCost: number | null;
   @ApiProperty({ enum: ['existing', 'manual', 'new'] }) status: LineStatus;
   @ApiProperty({ nullable: true, type: PurchaseImportLinkedProductDto })
   product: PurchaseImportLinkedProductDto | null;
@@ -118,7 +109,6 @@ export class PurchaseImportItemDto {
     dto.description = item.description;
     dto.xmlQuantity = item.xmlQuantity;
     dto.quantity = item.quantity;
-    dto.unitCost = item.unitCost;
     dto.status =
       item.matchType === 'exact'
         ? 'existing'
@@ -138,7 +128,6 @@ export class PurchaseImportItemDto {
       groupId: item.newGroupId,
       brandId: item.newBrandId,
       salePrice: item.newSalePrice,
-      saleType: item.newSaleType,
       taxExempt: item.newTaxExempt,
     };
     dto.createdProduct = item.createdProduct;

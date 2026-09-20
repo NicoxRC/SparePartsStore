@@ -2,7 +2,6 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
   IsBoolean,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsOptional,
@@ -11,7 +10,6 @@ import {
   MaxLength,
   Min,
 } from 'class-validator';
-import { SaleType } from '../../common/enums/sale-type.enum';
 import {
   normalizeProductDescription,
   normalizeProductReference,
@@ -72,11 +70,6 @@ export class UpdatePurchaseImportItemDto {
   @IsInt()
   @Min(MIN_NEW_PRODUCT_SALE_PRICE)
   salePrice?: number | null;
-
-  @ApiPropertyOptional({ enum: SaleType })
-  @IsOptional()
-  @IsEnum(SaleType)
-  saleType?: SaleType;
 
   @IsOptional()
   @IsBoolean()

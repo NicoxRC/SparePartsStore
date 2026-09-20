@@ -8,7 +8,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, IsNull, Repository } from 'typeorm';
 import { Brand } from '../brands/entities/brand.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { SaleType } from '../common/enums/sale-type.enum';
 import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
 import { Department } from '../departments/entities/department.entity';
@@ -172,7 +171,6 @@ export class PurchaseImportsService {
         description: line.description,
         xmlQuantity: line.xmlQuantity,
         quantity: line.quantity,
-        unitCost: line.unitCost,
         productId,
         matchType: productId ? 'exact' : null,
       });
@@ -329,7 +327,6 @@ export class PurchaseImportsService {
     if (dto.reference !== undefined) patch.reference = dto.reference;
     if (dto.description !== undefined) patch.description = dto.description;
     if (dto.quantity !== undefined) patch.quantity = dto.quantity;
-    if (dto.saleType !== undefined) patch.newSaleType = dto.saleType;
     if (dto.taxExempt !== undefined) patch.newTaxExempt = dto.taxExempt;
     if (dto.salePrice !== undefined) patch.newSalePrice = dto.salePrice;
 
@@ -667,7 +664,6 @@ export class PurchaseImportsService {
           reference: normalizeProductReference(item.reference as string),
           description: normalizeProductDescription(item.description as string),
           salePrice: item.newSalePrice as number,
-          saleType: item.newSaleType ?? SaleType.NORMAL,
           stock: 0,
           departmentId: item.newDepartmentId as string,
           groupId: item.newGroupId as string,
