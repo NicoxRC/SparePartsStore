@@ -8,7 +8,6 @@ import { CashRegisterModule } from './cash-register/cash-register.module';
 import { CustomersModule } from './customers/customers.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { DepartmentsModule } from './departments/departments.module';
-import { ExportModule } from './export/export.module';
 import { GroupsModule } from './groups/groups.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { InvoicingModule } from './invoicing/invoicing.module';
@@ -42,7 +41,6 @@ import { UsersModule } from './users/users.module';
     DepartmentsModule,
     GroupsModule,
     BrandsModule,
-    ExportModule,
     InventoryModule,
     CashRegisterModule,
     InvoicingModule,

@@ -152,7 +152,7 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 
 **Cost calculation (reverse markup):** `cost = round(salePrice / COST_FACTORS[saleType])`, with `COST_FACTORS = { normal: 1.65, neto: 1.30 }`. The sale price is what staff actually enter; cost is back-computed from it, not the other way around. Recalculated automatically whenever `salePrice` or `saleType` changes (create or update) — never edited directly.
 
-**Read behavior worth knowing:** `findAll`/`findOne` deliberately use `.withDeleted()` on the department/group/brand joins (while still filtering `products.deletedAt IS NULL` on the product itself) so a product's classification still displays correctly even if that lookup was later soft-deleted/deactivated. The export module uses the same pattern.
+**Read behavior worth knowing:** `findAll`/`findOne` deliberately use `.withDeleted()` on the department/group/brand joins (while still filtering `products.deletedAt IS NULL` on the product itself) so a product's classification still displays correctly even if that lookup was later soft-deleted/deactivated.
 
 **History:** `department`/`group`/`line` originally existed as **plain varchar columns** (`CreateProductsTable` migration). `AddProductLookupForeignKeys` backfilled the three lookup tables from the distinct string values, added the FK columns, matched rows by code, set them `NOT NULL`, and **dropped the old varchar columns**. "Línea" was renamed to **"Marca" (brand)** in this same migration — there is no separate línea concept.
 
@@ -163,7 +163,7 @@ Identical shape across all three (Departamento / Grupo / Marca — see `GLOSSARY
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID | PK |
-| `code` | VARCHAR(50) | **Server-generated, not user-editable.** Next free positive integer as a string: `MAX(CAST(code AS INTEGER))` over rows matching `^[0-9]+$`, including soft-deleted ones (`.withDeleted()`), `+ 1`. Not exposed in any `*ResponseDto` — internal only, used by the export module. Numeric because the original values were imported from a legacy system (SICAF/Sisco). |
+| `code` | VARCHAR(50) | **Server-generated, not user-editable.** Next free positive integer as a string: `MAX(CAST(code AS INTEGER))` over rows matching `^[0-9]+$`, including soft-deleted ones (`.withDeleted()`), `+ 1`. Not exposed in any `*ResponseDto` — internal only. Numeric because the original values were imported from a legacy system (SICAF/Sisco), now retired (see `PROJECT_ROADMAP.md`). |
 | `name` | VARCHAR(150) | Uppercased + trimmed at the DTO layer |
 | `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard |

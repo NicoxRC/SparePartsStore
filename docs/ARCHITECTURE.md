@@ -64,10 +64,6 @@ apps/api/src/
 │   ├── inventory.service.ts
 │   └── entities/inventory-movement.entity.ts
 │
-├── export/
-│   ├── export.controller.ts
-│   └── export.service.ts               # legacy Sisco .xlsx export — being retired, see PROJECT_ROADMAP.md
-│
 ├── invoicing/                           # NEW — Dataico integration, see "Invoicing module" below
 │
 ├── quotations/                          # "cotizaciones" — store credit handed over before payment (not Dataico — no HTTP calls of its own). Decrements inventory on create/edit like a real sale; converts into a real Invoice via InvoicesModule (imported here) with an internal-only skip-stock-effects flag — see DATABASE.md ("quotations") and GLOSSARY.md ("Cotización")
@@ -220,7 +216,7 @@ Tailwind CSS utility classes directly in components. No CSS-in-JS, no separate p
 | API communication | REST, JSON | Simple, single frontend consumer |
 | Auth | JWT (access + refresh) | Stateless, works well with an SPA + separate API |
 | ORM | TypeORM + `SnakeNamingStrategy` | Mature NestJS integration; snake_case DB, camelCase TS automatically |
-| Invoicing | Dataico API | DIAN-compliant electronic invoicing; replaces the Sisco Excel-export workflow entirely |
+| Invoicing | Dataico API | DIAN-compliant electronic invoicing; the Sisco Excel-export workflow it replaced has been fully retired (see `PROJECT_ROADMAP.md`) |
 | Deployment (API) | Railway | Simple, affordable at current scale |
 | Deployment (Client) | Vercel | Zero-config static SPA hosting |
 
