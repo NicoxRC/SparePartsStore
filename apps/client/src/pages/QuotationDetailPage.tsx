@@ -227,8 +227,11 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
 
   const handleDiscountValueChange = (value: string) => {
     const amount = Math.min(total, Math.max(0, Number(value) || 0));
+    // Not rounded — see the identical comment on InvoiceFormPage's version:
+    // rounding to 2 decimals here crushes small/partial typed amounts down
+    // to 0%, silently resetting the field mid-keystroke.
     const pct = total > 0 ? (amount / total) * 100 : 0;
-    setDiscountPercentage(Math.round(pct * 100) / 100);
+    setDiscountPercentage(pct);
   };
 
   const handleSaveItems = async () => {
@@ -408,6 +411,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                   <th className="px-3 py-2">Producto</th>
                   <th className="px-3 py-2">Precio</th>
                   <th className="px-3 py-2">Cantidad</th>
+                  <th className="px-3 py-2">Total</th>
                   {isOpen && <th className="px-3 py-2" />}
                 </tr>
               </thead>
@@ -435,6 +439,13 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                       ) : (
                         item.quantity
                       )}
+                    </td>
+                    <td className="px-3 py-2 font-mono">
+                      $
+                      {computeItemTotal({
+                        ...item,
+                        discount: computeItemDiscount(item, discountPercentage),
+                      }).toLocaleString('es-CO')}
                     </td>
                     {isOpen && (
                       <td className="px-3 py-2">
