@@ -11,21 +11,25 @@ import {
   Min,
 } from 'class-validator';
 import { SaleType } from '../../common/enums/sale-type.enum';
+import {
+  normalizeProductDescription,
+  normalizeProductReference,
+} from '../product-normalize.util';
 
 export class UpdateProductDto {
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }: { value: string }) => value?.toUpperCase())
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? normalizeProductReference(value) : value,
+  )
   reference?: string;
 
   @IsOptional()
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }: { value: string }) =>
-    value
-      ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
-      : value,
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? normalizeProductDescription(value) : value,
   )
   description?: string;
 
@@ -60,4 +64,9 @@ export class UpdateProductDto {
   @IsOptional()
   @IsBoolean()
   taxExempt?: boolean;
+
+  /** `null` clears the supplier tag; omitted leaves it untouched. */
+  @IsOptional()
+  @IsUUID()
+  supplierId?: string | null;
 }

@@ -18,6 +18,7 @@ export class ProductResponseDto {
   department: ProductLookupRef;
   group: ProductLookupRef;
   brand: ProductLookupRef;
+  supplier: ProductLookupRef | null;
   createdAt: string;
   updatedAt: string;
 
@@ -43,6 +44,9 @@ export class ProductResponseDto {
       id: product.brand.id,
       name: product.brand.name,
     };
+    dto.supplier = product.supplier
+      ? { id: product.supplier.id, name: product.supplier.name }
+      : null;
     dto.createdAt = product.createdAt.toISOString();
     dto.updatedAt = product.updatedAt.toISOString();
     return dto;
