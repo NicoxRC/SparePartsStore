@@ -25,7 +25,11 @@ import {
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
-import { computeItemTotal } from '../lib/invoiceMath';
+import {
+  computeExclusiveSubtotal,
+  computeItemDiscount,
+  computeItemTotal,
+} from '../lib/invoiceMath';
 import type { ProductResponse } from '../services/products';
 import type {
   CreateQuotationItemInput,
@@ -66,8 +70,10 @@ interface EditableItem {
   /** Locked price shown in the editor — re-locked to the live price on save. */
   price: number;
   quantity: number;
+  /** Derived from the product's taxExempt flag when added — never a user
+   * input (see handleAddProduct). Kept for computeItemTotal()/the "Exenta"
+   * badge; never sent to the backend, which derives it itself. */
   taxRate: number;
-  discount: number;
 }
 
 function editableItemsFrom(items: QuotationItemResponse[]): EditableItem[] {
@@ -78,8 +84,25 @@ function editableItemsFrom(items: QuotationItemResponse[]): EditableItem[] {
     price: item.unitPrice,
     quantity: item.quantity,
     taxRate: item.taxRate,
-    discount: item.discount ?? 0,
   }));
+}
+
+/**
+ * A quotation loaded for editing may already have a discount baked into
+ * its items' stored `discount` (flat COP, per item — see
+ * QuotationItemResponse) from before this control existed, or from a
+ * previous edit. Reconstructs the equivalent global percentage so the
+ * "Aplicar descuento" control reflects what's already applied instead of
+ * silently resetting to 0 and wiping it out on the next save.
+ */
+function initialDiscountPercentageFrom(items: QuotationItemResponse[]): number {
+  const totalExclusive = items.reduce(
+    (sum, item) =>
+      sum + computeExclusiveSubtotal({ price: item.unitPrice, quantity: item.quantity, taxRate: item.taxRate }),
+    0,
+  );
+  const totalDiscount = items.reduce((sum, item) => sum + (item.discount ?? 0), 0);
+  return totalExclusive > 0 ? (totalDiscount / totalExclusive) * 100 : 0;
 }
 
 export function QuotationDetailPage() {
@@ -110,6 +133,9 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
 
   const [items, setItems] = useState<EditableItem[]>(() =>
     editableItemsFrom(quotation.items ?? []),
+  );
+  const [discountPercentage, setDiscountPercentage] = useState(() =>
+    initialDiscountPercentageFrom(quotation.items ?? []),
   );
   const [productQuery, setProductQuery] = useState('');
   const [filterDepartmentId, setFilterDepartmentId] = useState('');
@@ -167,8 +193,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           description: product.description,
           price: product.salePrice,
           quantity,
-          taxRate: DEFAULT_TAX_RATE,
-          discount: 0,
+          taxRate: product.taxExempt ? 0 : DEFAULT_TAX_RATE,
         },
       ];
     });
@@ -191,13 +216,26 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   };
 
   const total = items.reduce((sum, item) => sum + computeItemTotal(item), 0);
+  const discountValue = Math.round(total * (discountPercentage / 100));
+  const discountedTotal = total - discountValue;
+
+  // Both fields drive the same discountPercentage — see the identical
+  // pattern on InvoiceFormPage.
+  const handleDiscountPercentageChange = (value: string) => {
+    setDiscountPercentage(Math.min(100, Math.max(0, Number(value) || 0)));
+  };
+
+  const handleDiscountValueChange = (value: string) => {
+    const amount = Math.min(total, Math.max(0, Number(value) || 0));
+    const pct = total > 0 ? (amount / total) * 100 : 0;
+    setDiscountPercentage(Math.round(pct * 100) / 100);
+  };
 
   const handleSaveItems = async () => {
     const input: CreateQuotationItemInput[] = items.map((item) => ({
       productId: item.productId,
       quantity: item.quantity,
-      taxRate: item.taxRate,
-      discount: item.discount || undefined,
+      discount: computeItemDiscount(item, discountPercentage) || undefined,
     }));
     await updateItemsMutation.mutateAsync({
       id: quotation.id,
@@ -370,8 +408,6 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                   <th className="px-3 py-2">Producto</th>
                   <th className="px-3 py-2">Precio</th>
                   <th className="px-3 py-2">Cantidad</th>
-                  <th className="px-3 py-2">IVA %</th>
-                  <th className="px-3 py-2">Descuento</th>
                   {isOpen && <th className="px-3 py-2" />}
                 </tr>
               </thead>
@@ -380,6 +416,9 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                   <tr key={`${item.productId}-${index}`}>
                     <td className="px-3 py-2">
                       {item.reference} — {item.description}
+                      {item.taxRate === 0 && (
+                        <span className="ml-2 text-xs font-medium text-fog">Exenta</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">${item.price.toLocaleString('es-CO')}</td>
                     <td className="w-24 px-3 py-2">
@@ -395,40 +434,6 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         />
                       ) : (
                         item.quantity
-                      )}
-                    </td>
-                    <td className="w-24 px-3 py-2">
-                      {isOpen ? (
-                        <input
-                          type="number"
-                          min={0}
-                          className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
-                          value={item.taxRate}
-                          onChange={(e) =>
-                            updateItemField(index, { taxRate: Number(e.target.value) || 0 })
-                          }
-                        />
-                      ) : (
-                        item.taxRate
-                      )}
-                      {item.taxRate === 0 && (
-                        <span className="mt-1 block text-xs font-medium text-fog">Excluida</span>
-                      )}
-                    </td>
-                    <td className="w-28 px-3 py-2">
-                      {isOpen ? (
-                        <input
-                          type="number"
-                          min={0}
-                          placeholder="0"
-                          className="w-24 rounded-sm border border-line-2 bg-paper px-2 py-1"
-                          value={item.discount || ''}
-                          onChange={(e) =>
-                            updateItemField(index, { discount: Number(e.target.value) || 0 })
-                          }
-                        />
-                      ) : (
-                        item.discount || '—'
                       )}
                     </td>
                     {isOpen && (
@@ -449,10 +454,37 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           </div>
         )}
 
-        <div className="flex justify-end">
-          <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
-            Total: ${total.toLocaleString('es-CO')}
-          </p>
+        <div className="flex flex-col items-end gap-2">
+          {isOpen && (
+            <div className="grid grid-cols-2 gap-3 sm:w-72">
+              <TextField
+                label="Descuento %"
+                type="number"
+                min={0}
+                max={100}
+                value={discountPercentage || ''}
+                onChange={(e) => handleDiscountPercentageChange(e.target.value)}
+              />
+              <TextField
+                label="Valor a descontar"
+                type="number"
+                min={0}
+                max={total}
+                value={discountValue || ''}
+                onChange={(e) => handleDiscountValueChange(e.target.value)}
+              />
+            </div>
+          )}
+          <div className="flex items-baseline gap-2">
+            {discountPercentage > 0 && (
+              <span className="font-mono text-sm text-fog line-through">
+                ${total.toLocaleString('es-CO')}
+              </span>
+            )}
+            <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
+              Total: ${discountedTotal.toLocaleString('es-CO')}
+            </p>
+          </div>
         </div>
 
         {isOpen && canUpdate && (

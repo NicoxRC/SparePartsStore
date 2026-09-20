@@ -22,6 +22,8 @@ interface EditableItem {
   description: string;
   price: number;
   quantity: number;
+  /** Derived from the product's taxExempt flag when added — never a user
+   * input; not sent to the backend, which derives it itself. */
   taxRate: number;
 }
 
@@ -65,7 +67,7 @@ export function DebitNoteFormPage() {
           description: product.description,
           price: product.salePrice,
           quantity,
-          taxRate: DEFAULT_TAX_RATE,
+          taxRate: product.taxExempt ? 0 : DEFAULT_TAX_RATE,
         },
       ];
     });
@@ -96,7 +98,6 @@ export function DebitNoteFormPage() {
       items: items.map((item) => ({
         productId: item.productId,
         quantity: item.quantity,
-        taxRate: item.taxRate,
       })),
     });
     navigate('/invoicing/invoices');
@@ -199,7 +200,6 @@ export function DebitNoteFormPage() {
                   <th className="px-3 py-2">Producto</th>
                   <th className="px-3 py-2">Precio</th>
                   <th className="px-3 py-2">Cantidad</th>
-                  <th className="px-3 py-2">IVA %</th>
                   <th className="px-3 py-2" />
                 </tr>
               </thead>
@@ -208,6 +208,9 @@ export function DebitNoteFormPage() {
                   <tr key={`${item.productId}-${index}`}>
                     <td className="px-3 py-2">
                       {item.reference} — {item.description}
+                      {item.taxRate === 0 && (
+                        <span className="ml-2 text-xs font-medium text-fog">Exenta</span>
+                      )}
                     </td>
                     <td className="px-3 py-2">${item.price.toLocaleString('es-CO')}</td>
                     <td className="w-24 px-3 py-2">
@@ -218,17 +221,6 @@ export function DebitNoteFormPage() {
                         value={item.quantity}
                         onChange={(e) =>
                           updateItemField(index, { quantity: Number(e.target.value) || 1 })
-                        }
-                      />
-                    </td>
-                    <td className="w-24 px-3 py-2">
-                      <input
-                        type="number"
-                        min={0}
-                        className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
-                        value={item.taxRate}
-                        onChange={(e) =>
-                          updateItemField(index, { taxRate: Number(e.target.value) || 0 })
                         }
                       />
                     </td>

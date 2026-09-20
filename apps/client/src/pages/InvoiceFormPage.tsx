@@ -37,7 +37,7 @@ import {
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
 import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
-import { computeItemTotal } from '../lib/invoiceMath';
+import { computeItemDiscount, computeItemTotal } from '../lib/invoiceMath';
 import {
   invoiceFormSchema,
   type InvoiceFormInput,
@@ -299,6 +299,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const paymentMeans = useWatch({ control, name: 'paymentMeans' });
   const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
   const watchedItems = useWatch({ control, name: 'items' });
+  const discountPercentage = Number(useWatch({ control, name: 'discountPercentage' })) || 0;
 
   // "Tipo de pago" (DEBITO/CREDITO) is DIAN's forma de pago — contado vs.
   // venta a crédito — not a card-network choice, and Dataico requires it on
@@ -375,8 +376,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
       price: product.salePrice,
       stock: product.stock,
       quantity,
-      taxRate: DEFAULT_TAX_RATE,
-      discount: 0,
+      taxRate: product.taxExempt ? 0 : DEFAULT_TAX_RATE,
     });
     setProductQuery('');
     setFilterDepartmentId('');
@@ -386,6 +386,20 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const handleProductCreated = (product: ProductResponse, quantity: number) => {
     handleAddProduct(product, quantity);
     setIsCreateProductOpen(false);
+  };
+
+  // Both fields drive the same discountPercentage — whichever one the user
+  // edits, the other is derived from it against the current pre-discount
+  // total (see computeItemDiscount/`rawTotal` below).
+  const handleDiscountPercentageChange = (value: string) => {
+    const pct = Math.min(100, Math.max(0, Number(value) || 0));
+    setValue('discountPercentage', pct);
+  };
+
+  const handleDiscountValueChange = (value: string, rawTotal: number) => {
+    const amount = Math.min(rawTotal, Math.max(0, Number(value) || 0));
+    const pct = rawTotal > 0 ? (amount / rawTotal) * 100 : 0;
+    setValue('discountPercentage', Math.round(pct * 100) / 100);
   };
 
   // The customer is always saved to the local address book — best effort:
@@ -476,11 +490,12 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
       customerAddressLine: values.customerAddressLine,
       customerEmail: values.customerEmail,
       customerPhone: values.customerPhone || undefined,
-      items: values.items.map(({ productId, quantity, taxRate, discount }) => ({
-        productId,
-        quantity: Number(quantity),
-        taxRate: Number(taxRate),
-        discount: Number(discount) || undefined,
+      items: values.items.map((item) => ({
+        productId: item.productId,
+        quantity: Number(item.quantity),
+        discount:
+          computeItemDiscount(item, Number(values.discountPercentage) || 0) ||
+          undefined,
       })),
       notes: values.notes || undefined,
     });
@@ -511,11 +526,12 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
       customerCity: values.customerCity,
       customerAddressLine: values.customerAddressLine,
       customerEmail: values.customerEmail,
-      items: values.items.map(({ productId, quantity, taxRate, discount }) => ({
-        productId,
-        quantity,
-        taxRate,
-        discount: discount || undefined,
+      items: values.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        discount:
+          computeItemDiscount(item, Number(values.discountPercentage) || 0) ||
+          undefined,
       })),
       notes: values.notes ? [values.notes] : undefined,
     });
@@ -529,6 +545,8 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   };
 
   const total = watchedItems.reduce((sum, item) => sum + computeItemTotal(item), 0);
+  const discountValue = Math.round(total * (discountPercentage / 100));
+  const discountedTotal = total - discountValue;
 
   return (
     <>
@@ -623,8 +641,6 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                         <th className="px-3 py-2">Producto</th>
                         <th className="px-3 py-2">Precio</th>
                         <th className="px-3 py-2">Cantidad</th>
-                        <th className="px-3 py-2">IVA %</th>
-                        <th className="px-3 py-2">Descuento</th>
                         <th className="px-3 py-2" />
                       </tr>
                     </thead>
@@ -633,6 +649,11 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                         <tr key={field.id} className="border-b border-dotted border-line-2">
                           <td className="px-3 py-2">
                             {field.reference} — {field.description}
+                            {Number(watchedItems[index]?.taxRate) === 0 && (
+                              <span className="ml-2 text-xs font-medium text-fog">
+                                Exenta
+                              </span>
+                            )}
                           </td>
                           <td className="px-3 py-2 font-mono">
                             ${field.price.toLocaleString('es-CO')}
@@ -644,28 +665,6 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                               max={field.stock}
                               className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
                               {...register(`items.${index}.quantity`)}
-                            />
-                          </td>
-                          <td className="w-24 px-3 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              className="w-20 border border-line-2 bg-canvas px-2 py-1 font-mono"
-                              {...register(`items.${index}.taxRate`)}
-                            />
-                            {Number(watchedItems[index]?.taxRate) === 0 && (
-                              <span className="mt-1 block text-xs font-medium text-fog">
-                                Excluida
-                              </span>
-                            )}
-                          </td>
-                          <td className="w-28 px-3 py-2">
-                            <input
-                              type="number"
-                              min={0}
-                              placeholder="0"
-                              className="w-24 border border-line-2 bg-canvas px-2 py-1 font-mono"
-                              {...register(`items.${index}.discount`)}
                             />
                           </td>
                           <td className="px-3 py-2">
@@ -684,10 +683,35 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                 </div>
               )}
 
-              <div className="flex justify-end">
-                <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
-                  Total: ${total.toLocaleString('es-CO')}
-                </p>
+              <div className="flex flex-col items-end gap-2">
+                <div className="grid grid-cols-2 gap-3 sm:w-72">
+                  <TextField
+                    label="Descuento %"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={discountPercentage || ''}
+                    onChange={(e) => handleDiscountPercentageChange(e.target.value)}
+                  />
+                  <TextField
+                    label="Valor a descontar"
+                    type="number"
+                    min={0}
+                    max={total}
+                    value={discountValue || ''}
+                    onChange={(e) => handleDiscountValueChange(e.target.value, total)}
+                  />
+                </div>
+                <div className="flex items-baseline gap-2">
+                  {discountPercentage > 0 && (
+                    <span className="font-mono text-sm text-fog line-through">
+                      ${total.toLocaleString('es-CO')}
+                    </span>
+                  )}
+                  <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
+                    Total: ${discountedTotal.toLocaleString('es-CO')}
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -835,9 +859,14 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                   </li>
                 ))}
               </ul>
-              <div className="flex justify-end">
+              <div className="flex items-baseline justify-end gap-2">
+                {discountPercentage > 0 && (
+                  <span className="font-mono text-sm text-fog line-through">
+                    ${total.toLocaleString('es-CO')}
+                  </span>
+                )}
                 <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
-                  Total: ${total.toLocaleString('es-CO')}
+                  Total: ${discountedTotal.toLocaleString('es-CO')}
                 </p>
               </div>
             </section>

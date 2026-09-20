@@ -26,7 +26,6 @@ export interface InvoicesQuery {
 export interface CreateInvoiceItemInput {
   productId: string;
   quantity: number;
-  taxRate: number;
   /** Fixed COP amount, not a percentage — see CreateInvoiceItemDto. */
   discount?: number;
 }

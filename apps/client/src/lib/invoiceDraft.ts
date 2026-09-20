@@ -46,6 +46,7 @@ export function createEmptyInvoiceDraft(): InvoiceDraft {
       customerEmail: '',
       items: [],
       notes: '',
+      discountPercentage: 0,
     },
   };
 }

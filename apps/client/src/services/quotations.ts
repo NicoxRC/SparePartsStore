@@ -52,7 +52,6 @@ export interface QuotationsQuery {
 export interface CreateQuotationItemInput {
   productId: string;
   quantity: number;
-  taxRate: number;
   discount?: number;
 }
 

@@ -53,6 +53,7 @@ export function ProductFormPage() {
       departmentId: '',
       groupId: '',
       brandId: '',
+      taxExempt: false,
     },
     values: productQuery.data
       ? {
@@ -64,6 +65,7 @@ export function ProductFormPage() {
           departmentId: productQuery.data.department.id,
           groupId: productQuery.data.group.id,
           brandId: productQuery.data.brand.id,
+          taxExempt: productQuery.data.taxExempt,
         }
       : undefined,
   });
@@ -215,6 +217,11 @@ export function ProductFormPage() {
           onFocus={(e) => e.target.select()}
           {...register('stock')}
         />
+
+        <label className="flex items-center gap-2 text-sm text-steel">
+          <input type="checkbox" {...register('taxExempt')} />
+          Exento de IVA
+        </label>
 
         {isEditMode && productQuery.data && (
           <div className="flex flex-col gap-1.5">

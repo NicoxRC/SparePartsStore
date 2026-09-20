@@ -144,6 +144,7 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `sale_price` | NUMERIC(12,2) | the actual source-of-truth price entered by the user |
 | `sale_type` | ENUM `sale_type` | default `normal`; selects which factor derives `cost` |
 | `stock` | INT | default `0`; the live/current stock count — see `inventory_movements` for how it changes |
+| `tax_exempt` | BOOLEAN | default `false` — every product existing before this column was added keeps charging IVA. The only source of a line's tax rate on an invoice/quotation/credit-debit-note item: `resolveTaxRate()` (`common/utils/invoice-math.util.ts`) derives `0` or the standard `19` from this flag alone — `taxRate` was removed from every item DTO, it's never client-supplied anymore. |
 | `department_id` | UUID, FK → `departments.id` | `NOT NULL`, `RESTRICT` |
 | `group_id` | UUID, FK → `product_groups.id` | `NOT NULL`, `RESTRICT` |
 | `brand_id` | UUID, FK → `brands.id` | `NOT NULL`, `RESTRICT` |
@@ -406,8 +407,8 @@ Local enhancement (not a numbered roadmap phase, and not a Dataico integration �
 | `quotation_id` | UUID, FK → `quotations.id`, `CASCADE` | |
 | `product_id` | UUID, FK → `products.id`, `RESTRICT` | |
 | `quantity` | INT | |
-| `tax_rate` | NUMERIC(5,2) | |
-| `discount` | NUMERIC(12,2), nullable | Same "flat COP amount, not a percentage" semantics as `CreateInvoiceItemDto.discount`. |
+| `tax_rate` | NUMERIC(5,2) | **Server-derived**, never client-supplied — `resolveTaxRate()` reads it straight off `products.tax_exempt` at the moment a line is added/edited (see the `products` table above). |
+| `discount` | NUMERIC(12,2), nullable | Same "flat COP amount, not a percentage" semantics as `CreateInvoiceItemDto.discount` — see the paragraph below on how the client computes it now. |
 | `unit_price` | NUMERIC(12,2) | **The locked price** — a snapshot of `products.sale_price` (gross, IVA-inclusive) taken when this row is created or last touched by an edit, confirmed with the human: the customer keeps the price they were quoted, even if the product's price changes before they come back to pay. |
 | `created_at`, `updated_at` | TIMESTAMPTZ | No soft delete — a row removed by an edit has no further use once the inventory movement it triggered (the real audit trail) is recorded. |
 
@@ -418,6 +419,8 @@ Local enhancement (not a numbered roadmap phase, and not a Dataico integration �
 - `cancel()` — only while open. One positive (return) movement per line, sets `cancelled_at`.
 
 The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" math (`InvoicesService.resolveItems()` and `QuotationsService` both need it) lives in `common/utils/invoice-math.util.ts`'s `computeLineAmounts()`.
+
+**Discount is no longer a per-line input** — there's one "Aplicar descuento" control (% or a COP value, each deriving the other) on the invoice/quotation form, applied once to the whole sale. The client prorates it into each line's flat `discount` before it's sent (`computeItemDiscount()` in `apps/client/src/lib/invoiceMath.ts`): the same percentage taken off every line's pre-tax subtotal is mathematically identical to taking it off the tax-inclusive grand total (tax is linear), so `computeLineAmounts()`/the `discount` column's stored shape didn't need to change at all — only where the per-line number comes from.
 
 ## Migrations (chronological)
 

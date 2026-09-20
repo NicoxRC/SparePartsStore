@@ -47,6 +47,7 @@ export function QuickCreateProductDialog({
       groupId: '',
       brandId: '',
       quantity: 1,
+      taxExempt: false,
     },
   });
 
@@ -60,6 +61,7 @@ export function QuickCreateProductDialog({
       departmentId: values.departmentId,
       groupId: values.groupId,
       brandId: values.brandId,
+      taxExempt: values.taxExempt,
     });
     onCreated(product, values.quantity);
   };
@@ -178,6 +180,11 @@ export function QuickCreateProductDialog({
               />
             )}
           />
+
+          <label className="flex items-center gap-2 text-sm text-steel">
+            <input type="checkbox" {...register('taxExempt')} />
+            Exento de IVA
+          </label>
 
           <div className="mt-1 flex gap-2">
             <Button type="button" variant="secondary" onClick={onClose}>
