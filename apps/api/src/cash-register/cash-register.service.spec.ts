@@ -321,6 +321,59 @@ describe('CashRegisterService', () => {
     });
   });
 
+  describe('reopen', () => {
+    it("nulls closedAt/closedBy and every total close() had frozen on today's register", async () => {
+      const closedToday: CashRegister = {
+        ...openRegister,
+        closedAt: new Date('2026-09-16T23:00:00.000Z'),
+        closedBy: { id: 'user-1' } as CashRegister['closedBy'],
+        totalAmount: 150000,
+        totalOwed: 40000,
+        totalCash: 100000,
+        totalCard: 0,
+        totalTransfer: 50000,
+        expectedCash: 150000,
+        countedCash: 149000,
+        cashDiscrepancy: -1000,
+      };
+      cashRegisterRepository.findOne
+        .mockResolvedValueOnce(closedToday)
+        .mockResolvedValueOnce({ ...openRegister });
+
+      await service.reopen();
+
+      const saved = cashRegisterRepository.save.mock
+        .calls[0][0] as CashRegister;
+      expect(saved.closedAt).toBeNull();
+      expect(saved.closedBy).toBeNull();
+      expect(saved.totalAmount).toBeNull();
+      expect(saved.totalOwed).toBeNull();
+      expect(saved.totalCash).toBeNull();
+      expect(saved.totalCard).toBeNull();
+      expect(saved.totalTransfer).toBeNull();
+      expect(saved.expectedCash).toBeNull();
+      expect(saved.countedCash).toBeNull();
+      expect(saved.cashDiscrepancy).toBeNull();
+      // Untouched — a reopen never re-derives the original open.
+      expect(saved.openedAt).toEqual(closedToday.openedAt);
+      expect(saved.openingAmount).toBe(closedToday.openingAmount);
+    });
+
+    it('rejects with NotFoundException when nothing was opened today', async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.reopen()).rejects.toThrow(NotFoundException);
+      expect(cashRegisterRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('rejects with ConflictException when today is still open', async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce({ ...openRegister });
+
+      await expect(service.reopen()).rejects.toThrow(ConflictException);
+      expect(cashRegisterRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateCountedCash', () => {
     it('recomputes the discrepancy from the stored expectedCash on a closed register', async () => {
       cashRegisterRepository.findOne

@@ -21,6 +21,7 @@ import { TextField } from '../components/TextField';
 import { Toast } from '../components/Toast';
 import {
   useOpenCashRegister,
+  useReopenCashRegister,
   useTodayCashRegister,
 } from '../hooks/useCashRegister';
 import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
@@ -858,6 +859,7 @@ export function InvoiceFormPage() {
   const { has } = usePermissions();
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
+  const reopenCashRegisterMutation = useReopenCashRegister();
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
   const [openingAmount, setOpeningAmount] = useState('');
@@ -882,11 +884,41 @@ export function InvoiceFormPage() {
     const parsedOpeningAmount = parseFloat(openingAmount);
     const isValidOpeningAmount = !isNaN(parsedOpeningAmount) && parsedOpeningAmount >= 0;
     const previousClosingCash = cashRegisterQuery.data.previousClosingCash;
+    // A register row already exists for today (closedAt set) vs. none was
+    // ever opened — two different recoveries: reopen the mistakenly-closed
+    // one, or open a fresh one.
+    const closedToday = cashRegisterQuery.data.register !== null;
 
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
         <h1 className="text-xl font-bold tracking-tight text-ink">Caja cerrada</h1>
-        {has('cash_register.open') ? (
+        {closedToday ? (
+          has('cash_register.reopen') ? (
+            <>
+              <p className="text-sm text-steel">
+                La caja de hoy ya fue cerrada. Si fue un error, puedes reabrirla — se conservan
+                todas las ventas y movimientos del día.
+              </p>
+              {reopenCashRegisterMutation.isError && (
+                <Alert variant="error">
+                  {getApiErrorMessage(reopenCashRegisterMutation.error)}
+                </Alert>
+              )}
+              <Button
+                className="sm:w-auto sm:px-6"
+                isLoading={reopenCashRegisterMutation.isPending}
+                onClick={() => void reopenCashRegisterMutation.mutateAsync()}
+              >
+                Reabrir caja
+              </Button>
+            </>
+          ) : (
+            <p className="text-sm text-steel">
+              La caja de hoy ya fue cerrada. Pide a un administrador o a un compañero que la
+              reabra si fue un error.
+            </p>
+          )
+        ) : has('cash_register.open') ? (
           <>
             <p className="text-sm text-steel">
               La caja no está abierta hoy. Cuenta el efectivo en caja y ábrela para poder

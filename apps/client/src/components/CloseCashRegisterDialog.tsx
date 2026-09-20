@@ -193,7 +193,7 @@ export function CloseCashRegisterDialog({
         </dl>
         <p className="mt-3 text-sm text-steel">
           Lo adeudado no cuenta como recaudado — solo las cotizaciones abiertas hoy, no las de días
-          anteriores. Esta acción no se puede deshacer.
+          anteriores. Si cierras por error, alguien con permiso podrá reabrirla después.
         </p>
 
         <div className="mt-3 flex flex-col gap-1.5">
