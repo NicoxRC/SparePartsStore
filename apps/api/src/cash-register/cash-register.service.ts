@@ -128,6 +128,39 @@ export class CashRegisterService {
     return this.buildResponse(await this.findWithRelations(saved.id));
   }
 
+  /** Undoes an accidental close of today's register — nulls `closedAt`/
+   * `closedBy` and the totals `close()` had frozen, so the day resumes as
+   * open on the *same* row (invoices/quotations/movements are matched by
+   * date range or FK, never touched by this). Re-closing later recomputes
+   * everything from scratch. Only today's register can be reopened, same
+   * "today" scoping as the rest of this service. */
+  async reopen(): Promise<CashRegisterResponseDto> {
+    const today = getStoreToday();
+    const register = await this.cashRegisterRepository.findOne({
+      where: { registerDate: today },
+    });
+    if (!register) {
+      throw new NotFoundException('No hay una caja para hoy.');
+    }
+    if (register.closedAt === null) {
+      throw new ConflictException('La caja de hoy ya está abierta.');
+    }
+
+    register.closedAt = null;
+    register.closedBy = null;
+    register.totalAmount = null;
+    register.totalOwed = null;
+    register.totalCash = null;
+    register.totalCard = null;
+    register.totalTransfer = null;
+    register.expectedCash = null;
+    register.countedCash = null;
+    register.cashDiscrepancy = null;
+
+    const saved = await this.cashRegisterRepository.save(register);
+    return this.buildResponse(await this.findWithRelations(saved.id));
+  }
+
   /** Corrects a closed day's physical cash count — e.g. it was miscounted
    * or mistyped at close. Only `countedCash`/`cashDiscrepancy` change;
    * everything else about that day (invoices, movements, totals) stays

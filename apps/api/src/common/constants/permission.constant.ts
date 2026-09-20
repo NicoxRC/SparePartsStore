@@ -53,6 +53,7 @@ export const PERMISSIONS = [
   'cash_register.view',
   'cash_register.open',
   'cash_register.close',
+  'cash_register.reopen',
   'cash_register.movements.create',
   'cash_register.counted_cash.correct',
 ] as const;
@@ -116,6 +117,7 @@ const IMPLIES: Partial<Record<Permission, Permission[]>> = {
   'credit_notes.create': ['credit_notes.view', 'invoices.view'],
   'cash_register.open': ['cash_register.view'],
   'cash_register.close': ['cash_register.view'],
+  'cash_register.reopen': ['cash_register.view'],
   'cash_register.movements.create': ['cash_register.view'],
   'cash_register.counted_cash.correct': ['cash_register.view'],
 };

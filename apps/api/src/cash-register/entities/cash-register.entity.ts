@@ -22,10 +22,14 @@ const decimalTransformer = {
  * gates `InvoicesService.create` (no open register for today -> no new
  * invoice). `openedAt`/`closedAt` double as this row's own timestamps — a
  * generic `createdAt` would just duplicate `openedAt` — and there's no
- * `deletedAt`/remove endpoint since nothing references this table and a
- * day's register is never undone once closed. The one deliberate exception
- * to "closed is frozen" is `countedCash`/`cashDiscrepancy`, correctable
- * after close via `CashRegisterService.updateCountedCash` — see there.
+ * `deletedAt`/remove endpoint since nothing references this table. Closing
+ * is meant to be final, but a same-day close can be undone via
+ * `CashRegisterService.reopen()` if it was a mistake — it just nulls
+ * `closedAt`/`closedBy` and the frozen totals on this same row, never
+ * touching `movements` or the invoices/quotations tied to the day. The
+ * other exception to "closed is frozen" is `countedCash`/`cashDiscrepancy`,
+ * correctable after close via `CashRegisterService.updateCountedCash` —
+ * see there.
  */
 @Entity('cash_registers')
 export class CashRegister {

@@ -87,6 +87,11 @@ export async function closeCashRegister(
   return data;
 }
 
+export async function reopenCashRegister(): Promise<CashRegisterResponse> {
+  const { data } = await api.post<CashRegisterResponse>('/cash-register/reopen');
+  return data;
+}
+
 export async function updateCountedCash(
   id: string,
   countedCash: number,

@@ -69,6 +69,19 @@ export class CashRegisterController {
   }
 
   @ApiOperation({
+    summary:
+      "Reabrir caja — undo an accidental close of today's register, keeping all its data",
+  })
+  @ApiResponse({ status: 200, type: CashRegisterResponseDto })
+  @ApiResponse({ status: 404, description: 'No register for today' })
+  @ApiResponse({ status: 409, description: "Today's register is already open" })
+  @Post('reopen')
+  @RequirePermission('cash_register.reopen')
+  reopen(): Promise<CashRegisterResponseDto> {
+    return this.cashRegisterService.reopen();
+  }
+
+  @ApiOperation({
     summary: 'Corregir el efectivo contado de una caja ya cerrada.',
   })
   @ApiResponse({ status: 200, type: CashRegisterResponseDto })

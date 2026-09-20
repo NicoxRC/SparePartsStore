@@ -21,6 +21,7 @@ import { TextField } from '../components/TextField';
 import { Toast } from '../components/Toast';
 import {
   useOpenCashRegister,
+  useReopenCashRegister,
   useTodayCashRegister,
 } from '../hooks/useCashRegister';
 import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
@@ -295,8 +296,20 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const customerIdentification = useWatch({ control, name: 'customerIdentification' });
   const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
   const customerDepartment = useWatch({ control, name: 'customerDepartment' });
+  const paymentMeans = useWatch({ control, name: 'paymentMeans' });
   const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
   const watchedItems = useWatch({ control, name: 'items' });
+
+  // "Tipo de pago" (DEBITO/CREDITO) is DIAN's forma de pago — contado vs.
+  // venta a crédito — not a card-network choice, and Dataico requires it on
+  // every invoice regardless of payment method. Outside of tarjeta this
+  // store always sells de contado, so it's set automatically instead of
+  // asking; the selector only shows up for CARD, where it's a real choice.
+  useEffect(() => {
+    if (paymentMeans !== 'CARD') {
+      setValue('paymentMeansType', 'DEBITO');
+    }
+  }, [paymentMeans, setValue]);
 
   const hasActiveProductSearch =
     productQuery.trim().length > 0 || Boolean(filterDepartmentId) || Boolean(filterGroupId);
@@ -327,6 +340,17 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     setValue('customerAddressLine', customer.addressLine ?? '');
     setValue('customerEmail', customer.email);
     setCustomerSearchQuery('');
+  };
+
+  // Mirrors whatever's typed into the "Buscar cliente guardado" box into
+  // the actual customerIdentification field, so a document number typed
+  // there is immediately usable for "Buscar en DIAN" too — without this,
+  // a customer with no local match left that field untouched and the DIAN
+  // button stayed disabled/unhelpful even though the user had typed a
+  // valid identification.
+  const handleCustomerSearchQueryChange = (value: string) => {
+    setCustomerSearchQuery(value);
+    setValue('customerIdentification', value);
   };
 
   const handleDepartmentChange = (departmentCode: string) => {
@@ -693,7 +717,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
               errors={errors}
               customerPartyType={customerPartyType}
               customerSearchQuery={customerSearchQuery}
-              onCustomerSearchQueryChange={setCustomerSearchQuery}
+              onCustomerSearchQueryChange={handleCustomerSearchQueryChange}
               customerIdentification={customerIdentification}
               customerIdentificationType={customerIdentificationType}
               customerDepartment={customerDepartment}
@@ -757,14 +781,16 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                   <option value="BANK_TRANSFER">Transferencia</option>
                   <option value="CARD">Tarjeta</option>
                 </SelectField>
-                <SelectField
-                  label="Tipo de pago"
-                  error={errors.paymentMeansType?.message}
-                  {...register('paymentMeansType')}
-                >
-                  <option value="DEBITO">Débito</option>
-                  <option value="CREDITO">Crédito</option>
-                </SelectField>
+                {paymentMeans === 'CARD' && (
+                  <SelectField
+                    label="Forma de pago"
+                    error={errors.paymentMeansType?.message}
+                    {...register('paymentMeansType')}
+                  >
+                    <option value="DEBITO">Contado</option>
+                    <option value="CREDITO">A crédito</option>
+                  </SelectField>
+                )}
                 {paymentMeansType === 'CREDITO' && (
                   <TextField
                     label="Fecha de pago"
@@ -858,6 +884,7 @@ export function InvoiceFormPage() {
   const { has } = usePermissions();
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
+  const reopenCashRegisterMutation = useReopenCashRegister();
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
   const [openingAmount, setOpeningAmount] = useState('');
@@ -882,11 +909,41 @@ export function InvoiceFormPage() {
     const parsedOpeningAmount = parseFloat(openingAmount);
     const isValidOpeningAmount = !isNaN(parsedOpeningAmount) && parsedOpeningAmount >= 0;
     const previousClosingCash = cashRegisterQuery.data.previousClosingCash;
+    // A register row already exists for today (closedAt set) vs. none was
+    // ever opened — two different recoveries: reopen the mistakenly-closed
+    // one, or open a fresh one.
+    const closedToday = cashRegisterQuery.data.register !== null;
 
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
         <h1 className="text-xl font-bold tracking-tight text-ink">Caja cerrada</h1>
-        {has('cash_register.open') ? (
+        {closedToday ? (
+          has('cash_register.reopen') ? (
+            <>
+              <p className="text-sm text-steel">
+                La caja de hoy ya fue cerrada. Si fue un error, puedes reabrirla — se conservan
+                todas las ventas y movimientos del día.
+              </p>
+              {reopenCashRegisterMutation.isError && (
+                <Alert variant="error">
+                  {getApiErrorMessage(reopenCashRegisterMutation.error)}
+                </Alert>
+              )}
+              <Button
+                className="sm:w-auto sm:px-6"
+                isLoading={reopenCashRegisterMutation.isPending}
+                onClick={() => void reopenCashRegisterMutation.mutateAsync()}
+              >
+                Reabrir caja
+              </Button>
+            </>
+          ) : (
+            <p className="text-sm text-steel">
+              La caja de hoy ya fue cerrada. Pide a un administrador o a un compañero que la
+              reabra si fue un error.
+            </p>
+          )
+        ) : has('cash_register.open') ? (
           <>
             <p className="text-sm text-steel">
               La caja no está abierta hoy. Cuenta el efectivo en caja y ábrela para poder

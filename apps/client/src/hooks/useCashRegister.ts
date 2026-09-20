@@ -5,6 +5,7 @@ import {
   getCashRegisterHistory,
   getTodayCashRegister,
   openCashRegister,
+  reopenCashRegister,
   updateCountedCash,
   type CashRegisterQuery,
 } from '../services/cashRegister';
@@ -33,6 +34,17 @@ export function useCloseCashRegister() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: closeCashRegister,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TODAY_KEY });
+      void queryClient.invalidateQueries({ queryKey: HISTORY_KEY });
+    },
+  });
+}
+
+export function useReopenCashRegister() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: reopenCashRegister,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: TODAY_KEY });
       void queryClient.invalidateQueries({ queryKey: HISTORY_KEY });

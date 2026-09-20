@@ -88,6 +88,7 @@ export const PERMISSION_SCOPES = [
       { code: 'cash_register.view', label: 'Ver' },
       { code: 'cash_register.open', label: 'Abrir' },
       { code: 'cash_register.close', label: 'Cerrar' },
+      { code: 'cash_register.reopen', label: 'Reabrir' },
       { code: 'cash_register.movements.create', label: 'Registrar entrada/salida' },
       { code: 'cash_register.counted_cash.correct', label: 'Corregir efectivo contado' },
     ],

@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import type { CustomerResponse } from '../services/customers';
 import { Button } from './Button';
 
@@ -15,8 +15,21 @@ function customerLabel(customer: CustomerResponse): string {
 }
 
 export function CustomerCard({ customer, canDelete, onDelete, isDeleting }: CustomerCardProps) {
+  const navigate = useNavigate();
+
   return (
-    <div className="flex h-full flex-col rounded border border-line bg-paper p-4 transition-colors hover:border-fog">
+    <div
+      role="button"
+      tabIndex={0}
+      onClick={() => navigate(`/customers/${customer.id}/edit?tab=history`)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          navigate(`/customers/${customer.id}/edit?tab=history`);
+        }
+      }}
+      className="flex h-full cursor-pointer flex-col rounded border border-line bg-paper p-4 transition-colors hover:border-fog"
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
           <p className="truncate text-base font-semibold text-ink">
@@ -43,7 +56,10 @@ export function CustomerCard({ customer, canDelete, onDelete, isDeleting }: Cust
         </div>
       </dl>
 
-      <div className="mt-4 flex flex-wrap gap-2 sm:mt-auto sm:pt-4">
+      <div
+        className="mt-4 flex flex-wrap gap-2 sm:mt-auto sm:pt-4"
+        onClick={(e) => e.stopPropagation()}
+      >
         <Link to={`/customers/${customer.id}/edit`} className="flex-1">
           <Button variant="secondary" type="button" className="w-full">
             Editar
