@@ -1,7 +1,6 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { EntityManager, Repository } from 'typeorm';
 import { Brand } from '../brands/entities/brand.entity';
-import { SaleType } from '../common/enums/sale-type.enum';
 import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
@@ -46,7 +45,6 @@ describe('ProductsService', () => {
     reference: 'REF-1',
     description: 'Filtro',
     salePrice: 1650,
-    saleType: SaleType.NORMAL,
     stock: 0,
     departmentId: 'd-1',
     groupId: 'g-1',
@@ -75,14 +73,6 @@ describe('ProductsService', () => {
   });
 
   describe('create', () => {
-    it('derives cost from the sale price', async () => {
-      await service.create(dto, 'user-1');
-
-      expect(products.create).toHaveBeenCalledWith(
-        expect.objectContaining({ cost: 1000 }),
-      );
-    });
-
     it('persists taxExempt, defaulting to false', async () => {
       await service.create(dto, 'user-1');
       expect(products.create).toHaveBeenLastCalledWith(
@@ -172,7 +162,6 @@ describe('ProductsService', () => {
         id: 'p-1',
         reference: 'REF-1',
         salePrice: 1650,
-        saleType: SaleType.NORMAL,
         taxExempt: false,
         supplier: supplier as Supplier,
       };

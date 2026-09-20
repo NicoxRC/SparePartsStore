@@ -61,9 +61,6 @@ export class DashboardSummaryDto {
   @ApiProperty()
   totalProducts: number;
 
-  @ApiProperty({ description: 'Sum of cost * stock across every product.' })
-  totalInventoryValue: number;
-
   @ApiProperty()
   outOfStockCount: number;
 

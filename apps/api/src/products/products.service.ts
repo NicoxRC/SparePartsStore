@@ -6,7 +6,6 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { SaleType } from '../common/enums/sale-type.enum';
 import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
 import { Department } from '../departments/entities/department.entity';
@@ -18,11 +17,6 @@ import { ProductResponseDto } from './dto/product-response.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
-
-const COST_FACTORS: Record<SaleType, number> = {
-  [SaleType.NORMAL]: 1.65,
-  [SaleType.NETO]: 1.3,
-};
 
 @Injectable()
 export class ProductsService {
@@ -106,8 +100,6 @@ export class ProductsService {
       reference: dto.reference,
       description: dto.description,
       salePrice: dto.salePrice,
-      saleType: dto.saleType,
-      cost: this.calculateCost(dto.salePrice, dto.saleType),
       stock: dto.stock,
       taxExempt: dto.taxExempt ?? false,
       department,
@@ -284,11 +276,6 @@ export class ProductsService {
     if (dto.taxExempt !== undefined) product.taxExempt = dto.taxExempt;
 
     if (dto.salePrice !== undefined) product.salePrice = dto.salePrice;
-    if (dto.saleType !== undefined) product.saleType = dto.saleType;
-
-    if (dto.salePrice !== undefined || dto.saleType !== undefined) {
-      product.cost = this.calculateCost(product.salePrice, product.saleType);
-    }
 
     if (dto.stock !== undefined) product.stock = dto.stock;
 
@@ -308,9 +295,5 @@ export class ProductsService {
   async remove(id: string): Promise<void> {
     const product = await this.findOne(id);
     await this.productsRepository.softRemove(product);
-  }
-
-  private calculateCost(salePrice: number, saleType: SaleType): number {
-    return Math.round(salePrice / COST_FACTORS[saleType]);
   }
 }

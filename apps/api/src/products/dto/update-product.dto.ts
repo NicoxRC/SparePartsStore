@@ -1,7 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -10,7 +9,6 @@ import {
   IsUUID,
   Min,
 } from 'class-validator';
-import { SaleType } from '../../common/enums/sale-type.enum';
 import {
   normalizeProductDescription,
   normalizeProductReference,
@@ -38,10 +36,6 @@ export class UpdateProductDto {
   @IsNumber()
   @Min(500)
   salePrice?: number;
-
-  @IsOptional()
-  @IsEnum(SaleType)
-  saleType?: SaleType;
 
   @IsOptional()
   @Type(() => Number)
