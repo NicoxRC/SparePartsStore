@@ -19,6 +19,7 @@ export interface ProductResponse {
   department: ProductLookupRef;
   group: ProductLookupRef;
   brand: ProductLookupRef;
+  supplier: ProductLookupRef | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,6 +43,7 @@ export interface ProductsQuery {
   departmentId?: string;
   groupId?: string;
   brandId?: string;
+  supplierId?: string;
 }
 
 export interface ProductInput {
@@ -54,6 +56,8 @@ export interface ProductInput {
   groupId: string;
   brandId: string;
   taxExempt?: boolean;
+  /** `null` on update clears the supplier tag; omitted leaves it untouched. */
+  supplierId?: string | null;
 }
 
 export async function getProducts(

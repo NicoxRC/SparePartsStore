@@ -29,7 +29,11 @@ export function ProductsListPage() {
     departmentId: '',
     groupId: '',
     brandId: '',
+    supplierId: '',
   });
+  // The supplier select can't resolve a name from an id (no get-by-id
+  // endpoint), so the page remembers the picked name across show/hide.
+  const [supplierName, setSupplierName] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [productPendingDelete, setProductPendingDelete] =
     useState<ProductResponse | null>(null);
@@ -41,6 +45,7 @@ export function ProductsListPage() {
     ...(filters.departmentId ? { departmentId: filters.departmentId } : {}),
     ...(filters.groupId ? { groupId: filters.groupId } : {}),
     ...(filters.brandId ? { brandId: filters.brandId } : {}),
+    ...(filters.supplierId ? { supplierId: filters.supplierId } : {}),
   };
 
   const productsQuery = useProducts(query);
@@ -96,7 +101,7 @@ export function ProductsListPage() {
         </div>
 
         {showFilters && (
-          <div className="grid grid-cols-1 gap-2 rounded-sm border border-line bg-paper p-3 sm:grid-cols-3 sm:gap-3 sm:p-4">
+          <div className="grid grid-cols-1 gap-2 rounded-sm border border-line bg-paper p-3 sm:grid-cols-2 sm:gap-3 sm:p-4 lg:grid-cols-4">
             <SearchableSelect
               label="Departamento"
               resource="departments"
@@ -120,6 +125,18 @@ export function ProductsListPage() {
               onChange={(value) => updateFilter({ brandId: value })}
               placeholder="Todas"
               clearLabel="Todas"
+            />
+            <SearchableSelect
+              label="Proveedor"
+              resource="suppliers"
+              value={filters.supplierId ?? ''}
+              initialLabel={supplierName}
+              onChange={(value, label) => {
+                setSupplierName(label ?? '');
+                updateFilter({ supplierId: value });
+              }}
+              placeholder="Todos"
+              clearLabel="Todos"
             />
           </div>
         )}

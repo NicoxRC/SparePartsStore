@@ -60,6 +60,12 @@ export function ProductCard({
           <dt className="text-xs uppercase tracking-wide text-fog">Marca</dt>
           <dd className="truncate">{product.brand.name}</dd>
         </div>
+        {product.supplier && (
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-fog">Proveedor</dt>
+            <dd className="truncate">{product.supplier.name}</dd>
+          </div>
+        )}
       </dl>
 
       <div className="mt-4 flex gap-2 sm:mt-auto sm:pt-4">

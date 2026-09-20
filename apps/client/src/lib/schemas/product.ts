@@ -28,6 +28,8 @@ export const productFormSchema = z.object({
   groupId: z.string().min(1, 'El grupo es obligatorio.'),
   brandId: z.string().min(1, 'La marca es obligatoria.'),
   taxExempt: z.boolean().optional(),
+  /** Optional supplier tag; '' means none. */
+  supplierId: z.string().optional(),
 });
 
 /** Shape of the raw form fields (before Zod coercion, e.g. salePrice as string). */

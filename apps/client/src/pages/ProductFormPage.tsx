@@ -54,6 +54,7 @@ export function ProductFormPage() {
       groupId: '',
       brandId: '',
       taxExempt: false,
+      supplierId: '',
     },
     values: productQuery.data
       ? {
@@ -66,6 +67,7 @@ export function ProductFormPage() {
           groupId: productQuery.data.group.id,
           brandId: productQuery.data.brand.id,
           taxExempt: productQuery.data.taxExempt,
+          supplierId: productQuery.data.supplier?.id ?? '',
         }
       : undefined,
   });
@@ -100,12 +102,14 @@ export function ProductFormPage() {
 
   const onSubmit = async (values: ProductFormValues) => {
     if (referenceExists) return;
+    const { supplierId, ...fields } = values;
     try {
       if (isEditMode) {
-        await updateMutation.mutateAsync(values);
+        // Clearing the select sends null, which removes the supplier tag.
+        await updateMutation.mutateAsync({ ...fields, supplierId: supplierId || null });
         navigate('/products');
       } else {
-        await createMutation.mutateAsync(values);
+        await createMutation.mutateAsync({ ...fields, supplierId: supplierId || undefined });
         reset();
         setDebouncedRef('');
         setFeedback({ type: 'success', message: 'Producto creado correctamente.' });
@@ -279,6 +283,23 @@ export function ProductFormPage() {
             )}
           />
         </div>
+
+        <Controller
+          name="supplierId"
+          control={control}
+          render={({ field }) => (
+            <SearchableSelect
+              label="Proveedor (opcional)"
+              resource="suppliers"
+              value={field.value ?? ''}
+              initialLabel={productQuery.data?.supplier?.name}
+              onChange={(value) => field.onChange(value)}
+              placeholder="Sin proveedor"
+              clearLabel="Sin proveedor"
+              name={field.name}
+            />
+          )}
+        />
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button
