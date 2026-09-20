@@ -34,7 +34,7 @@ Phases 1–6 are **already built** — documented here retrospectively so the ro
 
 ## Phase 6 — Sisco Excel export
 
-**Done, and now being retired** (see Phase 14). `.xlsx` export matching the legacy SICAF/Sisco `ARTICULOS` import format. See `docs/phases/PHASE_6_SISCO_EXPORT.md`.
+**Done, and now retired** (see Phase 14). `.xlsx` export matching the legacy SICAF/Sisco `ARTICULOS` import format. See `docs/phases/PHASE_6_SISCO_EXPORT.md`.
 
 ---
 
@@ -78,9 +78,9 @@ Corresponds to Dataico's "4. Documento soporte" collection — self-issued docum
 
 ## Phase 14 — Retire Sisco export
 
-Once Phase 10 (or whichever invoicing phase first reaches production use) is live and trusted, remove the `export` module (`GET /export/articulos` and `ExportService`) and its Sisco-format `.xlsx` generation entirely — confirmed with the human as the intended end state (see the "Sisco" decision recorded in `GLOSSARY.md`). Don't remove it opportunistically as a "cleanup" inside an unrelated phase; this is its own deliberate phase so there's a clear point where Sisco was still the fallback and a clear point where it wasn't.
+**Done.** Removed the `export` module (`GET /export/articulos` and `ExportService`) and its Sisco-format `.xlsx` generation entirely, now that standard invoicing (Phase 10) is the store's live, trusted invoicing channel — confirmed with the human as the intended end state (see the "Sisco" decision recorded in `GLOSSARY.md`). Removal was full: backend module/controller/service, the `exceljs` dependency, the client's "Exportar" button/hook/service, and `docs/ARCHITECTURE.md`/`DATABASE.md`/`README.md` no longer describe it as current (kept historically in `docs/phases/PHASE_6_SISCO_EXPORT.md` and `docs/GLOSSARY.md`).
 
-**Exit criteria:** `export` module deleted, its route gone, `docs/ARCHITECTURE.md`/`DATABASE.md` updated to drop references to it as current, not just historical.
+**Exit criteria (met):** no `export` code, route, or UI remains; docs describe Dataico as the only invoicing channel with no lingering "current" references to Sisco.
 
 ## Phase 15 — Nómina Electrónica — **Done, currently hidden from the client nav**
 

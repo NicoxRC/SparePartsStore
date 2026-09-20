@@ -8,7 +8,6 @@ import { SearchableSelect } from '../components/SearchableSelect';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
-import { useExportArticulos } from '../hooks/useExport';
 import { usePermissions } from '../hooks/usePermissions';
 import { useDeleteProduct, useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
@@ -46,7 +45,6 @@ export function ProductsListPage() {
 
   const productsQuery = useProducts(query);
   const deleteMutation = useDeleteProduct();
-  const exportMutation = useExportArticulos();
 
   const updateFilter = (patch: Partial<ProductsQuery>) => {
     setFilters((prev) => ({ ...prev, ...patch, page: 1 }));
@@ -69,16 +67,6 @@ export function ProductsListPage() {
           Productos
         </h1>
         <div className="flex shrink-0 gap-2">
-          {isAdmin && (
-            <Button
-              type="button"
-              variant="secondary"
-              isLoading={exportMutation.isPending}
-              onClick={() => void exportMutation.mutateAsync()}
-            >
-              Exportar
-            </Button>
-          )}
           {canCreate && (
             <Link to="/products/new" className="shrink-0">
               <Button type="button">+ Nuevo</Button>
@@ -139,10 +127,6 @@ export function ProductsListPage() {
 
       {deleteMutation.isError && (
         <Alert variant="error">{getApiErrorMessage(deleteMutation.error)}</Alert>
-      )}
-
-      {exportMutation.isError && (
-        <Alert variant="error">{getApiErrorMessage(exportMutation.error)}</Alert>
       )}
 
       {productsQuery.isPending && <Spinner label="Cargando productos…" />}

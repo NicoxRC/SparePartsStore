@@ -10,7 +10,6 @@ Inventory management **and electronic invoicing** system for a spare parts store
 | Frontend | React + Vite + Tailwind CSS |
 | Auth | Passport.js + JWT (access + refresh tokens) |
 | Invoicing | Dataico API (electronic invoicing, DIAN) |
-| Excel export | exceljs (legacy Sisco format — being retired, see `docs/PROJECT_ROADMAP.md`) |
 | Deploy | Railway (backend + DB), Vercel (frontend) |
 | Local database | PostgreSQL via Docker |
 
