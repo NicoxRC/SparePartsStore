@@ -1134,6 +1134,7 @@ describe('PurchaseImportsService', () => {
           quantity: 6,
           productId: 'p-old',
           matchType: 'exact',
+          newSalePrice: null,
         }),
       ];
       linkedProducts = [{ id: 'p-old', deletedAt: null, supplier: null }];
@@ -1197,33 +1198,192 @@ describe('PurchaseImportsService', () => {
       });
     });
 
-    it("never changes an existing product's description or price, whatever the file said", async () => {
-      lines = [
+    describe('existing products: description and price', () => {
+      const linked = (overrides: Partial<PurchaseImportItem> = {}) =>
         item({
           productId: 'p-old',
           matchType: 'exact',
           description: 'Descripcion distinta del archivo',
-          newSalePrice: 99999,
-        }),
-      ];
-      linkedProducts = [{ id: 'p-old', deletedAt: null, supplier: null }];
+          newSalePrice: null,
+          ...overrides,
+        });
 
-      await service.confirm('imp-1', 'user-1');
+      beforeEach(() => {
+        linkedProducts = [
+          {
+            id: 'p-old',
+            reference: 'REF-OLD',
+            salePrice: 10000,
+            deletedAt: null,
+            supplier: { id: 'sup-1' } as Supplier,
+          },
+        ];
+      });
 
-      expect(productsService.create).not.toHaveBeenCalled();
-      const updatedEntities = (
-        manager.update.mock.calls as Array<[unknown]>
-      ).map(([entity]) => entity);
-      expect(updatedEntities).not.toContain(Product);
-      // The only raw write touching products is the supplier "fill the blank".
-      for (const [sql] of manager.query.mock.calls as Array<[string]>) {
-        expect(sql).toMatch(/SET "supplier_id"/);
-        expect(sql).not.toMatch(/description|sale_price/);
-      }
+      const priceUpdates = () =>
+        (manager.query.mock.calls as Array<[string, unknown[]]>).filter(
+          ([sql]) => /SET "sale_price"/.test(sql),
+        );
+
+      it("never changes an existing product's description, whatever the file said", async () => {
+        lines = [linked()];
+
+        await service.confirm('imp-1', 'user-1');
+
+        expect(productsService.create).not.toHaveBeenCalled();
+        const updatedEntities = (
+          manager.update.mock.calls as Array<[unknown]>
+        ).map(([entity]) => entity);
+        expect(updatedEntities).not.toContain(Product);
+        for (const [sql] of manager.query.mock.calls as Array<[string]>) {
+          expect(sql).not.toMatch(/description/);
+        }
+      });
+
+      it('keeps the current price when the line has none', async () => {
+        lines = [linked()];
+
+        const result = await service.confirm('imp-1', 'user-1');
+
+        expect(priceUpdates()).toHaveLength(0);
+        expect(result.pricesUpdated).toBe(0);
+        expect(result.priceChanges).toEqual([]);
+      });
+
+      it('keeps the current price when the typed one is the same', async () => {
+        lines = [linked({ newSalePrice: 10000 })];
+
+        const result = await service.confirm('imp-1', 'user-1');
+
+        expect(priceUpdates()).toHaveLength(0);
+        expect(result.pricesUpdated).toBe(0);
+      });
+
+      it('applies a different typed price and reports from -> to', async () => {
+        lines = [linked({ lineNumber: 3, newSalePrice: 12500 })];
+
+        const result = await service.confirm('imp-1', 'user-1');
+
+        expect(priceUpdates()).toEqual([
+          [
+            expect.stringContaining('"sale_price" = $1'),
+            [12500, 'user-1', 'p-old'],
+          ],
+        ]);
+        expect(result.pricesUpdated).toBe(1);
+        expect(result.priceChanges).toEqual([
+          {
+            lineNumber: 3,
+            reference: 'REF-OLD',
+            previousPrice: 10000,
+            newPrice: 12500,
+          },
+        ]);
+      });
+
+      it('also lets a price go down', async () => {
+        lines = [linked({ newSalePrice: 9000 })];
+
+        const result = await service.confirm('imp-1', 'user-1');
+
+        expect(result.priceChanges[0]).toMatchObject({
+          previousPrice: 10000,
+          newPrice: 9000,
+        });
+      });
+
+      it('records the price change in the movement notes, and still adds the stock', async () => {
+        lines = [linked({ quantity: 4, newSalePrice: 12500 })];
+
+        await service.confirm('imp-1', 'user-1');
+
+        const [dto] = inventoryService.createMovement.mock.calls[0] as [
+          { productId: string; quantity: number; notes: string },
+        ];
+        expect(dto).toMatchObject({ productId: 'p-old', quantity: 4 });
+        expect(dto.notes).toContain('Precio de venta: $10.000 → $12.500');
+      });
+
+      it('leaves the notes without a price when nothing changed', async () => {
+        lines = [linked()];
+
+        await service.confirm('imp-1', 'user-1');
+
+        const [dto] = inventoryService.createMovement.mock.calls[0] as [
+          { notes: string },
+        ];
+        expect(dto.notes).not.toContain('Precio de venta');
+      });
+
+      it('compares a second line of the same product against the already-updated price', async () => {
+        lines = [
+          linked({ id: 'a', lineNumber: 1, newSalePrice: 12000 }),
+          linked({ id: 'b', lineNumber: 2, newSalePrice: 12000 }),
+        ];
+
+        const result = await service.confirm('imp-1', 'user-1');
+
+        expect(result.pricesUpdated).toBe(1);
+      });
+
+      it('applies the price typed on a "new" line whose reference appeared before confirm', async () => {
+        lines = [
+          item({ lineNumber: 5, reference: 'JUST-ADDED', newSalePrice: 20000 }),
+        ];
+        referenceProducts = [
+          {
+            id: 'p-late',
+            reference: 'JUST-ADDED',
+            salePrice: 15000,
+            deletedAt: null,
+            supplier: { id: 'sup-1' } as Supplier,
+          },
+        ];
+
+        const result = await service.confirm('imp-1', 'user-1');
+
+        expect(productsService.create).not.toHaveBeenCalled();
+        expect(result.priceChanges).toEqual([
+          {
+            lineNumber: 5,
+            reference: 'JUST-ADDED',
+            previousPrice: 15000,
+            newPrice: 20000,
+          },
+        ]);
+      });
+
+      it('rejects an invalid typed price on a linked line and writes nothing', async () => {
+        lines = [linked({ newSalePrice: 100 })];
+
+        await expect(service.confirm('imp-1', 'user-1')).rejects.toMatchObject({
+          response: {
+            code: 'PURCHASE_IMPORT_INVALID',
+            problems: [
+              { itemId: 'item-1', lineNumber: 1, issue: 'INVALID_SALE_PRICE' },
+            ],
+          },
+        });
+        expect(inventoryService.createMovement).not.toHaveBeenCalled();
+      });
+
+      it('names the Excel origin in the notes of an Excel draft', async () => {
+        manager.findOne.mockResolvedValue(draftHeader({ source: 'excel' }));
+        lines = [linked()];
+
+        await service.confirm('imp-1', 'user-1');
+
+        const [dto] = inventoryService.createMovement.mock.calls[0] as [
+          { notes: string },
+        ];
+        expect(dto.notes).toContain('(importación Excel)');
+      });
     });
 
     it('never overwrites the supplier of an existing product', async () => {
-      lines = [item({ productId: 'p-old', matchType: 'exact' })];
+      lines = [
+        item({ productId: 'p-old', matchType: 'exact', newSalePrice: null }),
+      ];
       linkedProducts = [
         { id: 'p-old', deletedAt: null, supplier: { id: 'other' } as Supplier },
       ];
@@ -1236,8 +1396,20 @@ describe('PurchaseImportsService', () => {
 
     it('assigns the supplier once when two lines restock the same product', async () => {
       lines = [
-        item({ id: 'a', lineNumber: 1, productId: 'p', matchType: 'exact' }),
-        item({ id: 'b', lineNumber: 2, productId: 'p', matchType: 'manual' }),
+        item({
+          id: 'a',
+          lineNumber: 1,
+          productId: 'p',
+          matchType: 'exact',
+          newSalePrice: null,
+        }),
+        item({
+          id: 'b',
+          lineNumber: 2,
+          productId: 'p',
+          matchType: 'manual',
+          newSalePrice: null,
+        }),
       ];
       linkedProducts = [{ id: 'p', deletedAt: null, supplier: null }];
 
@@ -1256,6 +1428,7 @@ describe('PurchaseImportsService', () => {
           reference: 'JUST-ADDED',
           deletedAt: null,
           supplier: null,
+          salePrice: 1500,
         },
       ];
 

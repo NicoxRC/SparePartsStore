@@ -25,6 +25,7 @@ import { Supplier } from '../suppliers/entities/supplier.entity';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { ApplyClassificationDto } from './dto/apply-classification.dto';
 import {
+  ConfirmedPriceChangeDto,
   ConfirmPurchaseImportResponseDto,
   derivePurchaseImportStatus,
   PurchaseImportDetailDto,
@@ -62,6 +63,8 @@ interface DraftInput {
   supplier: { nit: string; dv: string | null; name: string | null };
   lines: ParsedInvoiceLine[];
 }
+
+const formatPrice = (price: number): string => price.toLocaleString('es-CO');
 
 export interface UploadedXmlFile {
   buffer: Buffer;
@@ -586,8 +589,11 @@ export class PurchaseImportsService {
         });
       }
 
-      const notes = `Compra proveedor ${supplier.name} — factura ${header.invoiceNumber} (importación XML)`;
+      const origin =
+        header.source === 'excel' ? 'importación Excel' : 'importación XML';
+      const baseNotes = `Compra proveedor ${supplier.name} — factura ${header.invoiceNumber} (${origin})`;
       const restocked = new Set<string>();
+      const priceChanges: ConfirmedPriceChangeDto[] = [];
       let createdProducts = 0;
       let unitsAdded = 0;
       let suppliersAssigned = 0;
@@ -596,10 +602,34 @@ export class PurchaseImportsService {
         // Validated above: every line has an integer quantity >= 1.
         const quantity = item.quantity as number;
         let productId: string;
+        let notes = baseNotes;
 
         if (product) {
           productId = product.id;
           restocked.add(product.id);
+
+          // A typed price on an existing product is a deliberate change (it
+          // may have gone up or down since the last purchase). Blank keeps
+          // the current one. The movement's notes record from -> to, since
+          // nothing else keeps a history of a product's price.
+          if (
+            item.newSalePrice !== null &&
+            item.newSalePrice !== product.salePrice
+          ) {
+            await manager.query(
+              'UPDATE "products" SET "sale_price" = $1, "updated_by_id" = $2, "updated_at" = now() WHERE "id" = $3',
+              [item.newSalePrice, userId, product.id],
+            );
+            priceChanges.push({
+              lineNumber: item.lineNumber,
+              reference: product.reference,
+              previousPrice: product.salePrice,
+              newPrice: item.newSalePrice,
+            });
+            notes = `${baseNotes} · Precio de venta: $${formatPrice(product.salePrice)} → $${formatPrice(item.newSalePrice)}`;
+            product.salePrice = item.newSalePrice;
+          }
+
           if (!product.supplier) {
             // "Fill the blank": an existing product keeps its original supplier.
             await manager.query(
@@ -654,6 +684,8 @@ export class PurchaseImportsService {
       response.restockedProducts = restocked.size;
       response.unitsAdded = unitsAdded;
       response.suppliersAssigned = suppliersAssigned;
+      response.pricesUpdated = priceChanges.length;
+      response.priceChanges = priceChanges;
       response.relinked = relinked;
       return response;
     });

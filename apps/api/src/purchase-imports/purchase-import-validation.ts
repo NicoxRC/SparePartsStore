@@ -12,13 +12,21 @@ export type LineIssue = (typeof LINE_ISSUES)[number];
 
 export const MIN_NEW_PRODUCT_SALE_PRICE = 500;
 
+export function isValidSalePrice(price: number): boolean {
+  return Number.isInteger(price) && price >= MIN_NEW_PRODUCT_SALE_PRICE;
+}
+
 export interface DraftLine {
   id: string;
   lineNumber: number;
   quantity: number | null;
   reference: string | null;
   description: string | null;
-  /** Set when the line is linked to an existing product (exact or manual). */
+  /**
+   * Set when the line is linked to an existing product (exact or manual).
+   * Then `newSalePrice` is an optional price CHANGE for that product;
+   * otherwise it is the price the new product will be created with.
+   */
   productId: string | null;
   /** The linked product was soft-deleted after the link was made. */
   linkedProductDeleted: boolean;
@@ -59,17 +67,17 @@ export function validateDraft(lines: DraftLine[]): DraftValidation {
 
     if (line.productId !== null) {
       if (line.linkedProductDeleted) issues.push('LINKED_PRODUCT_DELETED');
+      // Blank means "keep the product's current price"; a typed one must be valid.
+      if (line.newSalePrice !== null && !isValidSalePrice(line.newSalePrice)) {
+        issues.push('INVALID_SALE_PRICE');
+      }
     } else {
       if (!line.reference) issues.push('MISSING_REFERENCE');
       if (!line.description) issues.push('MISSING_DESCRIPTION');
       if (!line.newDepartmentId || !line.newGroupId || !line.newBrandId) {
         issues.push('MISSING_CLASSIFICATION');
       }
-      if (
-        line.newSalePrice === null ||
-        !Number.isInteger(line.newSalePrice) ||
-        line.newSalePrice < MIN_NEW_PRODUCT_SALE_PRICE
-      ) {
+      if (line.newSalePrice === null || !isValidSalePrice(line.newSalePrice)) {
         issues.push('INVALID_SALE_PRICE');
       }
       if (line.reference && (newReferenceCounts.get(line.reference) ?? 0) > 1) {

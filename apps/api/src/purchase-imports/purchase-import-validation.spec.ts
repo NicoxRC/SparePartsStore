@@ -121,6 +121,22 @@ describe('validateDraft', () => {
       expect(issuesOf(linkedLine())).toEqual([]);
     });
 
+    it.each([null, 500, 12500])(
+      'accepts %p as an optional price change',
+      (newSalePrice) => {
+        expect(issuesOf(linkedLine({ newSalePrice }))).toEqual([]);
+      },
+    );
+
+    it.each([100, 499, 1500.5, 0])(
+      'flags a typed price change of %p as INVALID_SALE_PRICE',
+      (newSalePrice) => {
+        expect(issuesOf(linkedLine({ newSalePrice }))).toEqual([
+          'INVALID_SALE_PRICE',
+        ]);
+      },
+    );
+
     it('flags a linked product that was soft-deleted', () => {
       expect(issuesOf(linkedLine({ linkedProductDeleted: true }))).toEqual([
         'LINKED_PRODUCT_DELETED',

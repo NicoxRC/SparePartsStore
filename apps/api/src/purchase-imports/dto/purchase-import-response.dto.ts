@@ -72,6 +72,8 @@ export class PurchaseImportLinkedProductDto {
   @ApiProperty() reference: string;
   @ApiProperty() description: string;
   @ApiProperty() stock: number;
+  @ApiProperty({ description: "The product's current sale price in the app." })
+  salePrice: number;
 }
 
 export class PurchaseImportNewProductDto {
@@ -126,6 +128,7 @@ export class PurchaseImportItemDto {
           reference: item.product.reference,
           description: item.product.description,
           stock: item.product.stock,
+          salePrice: item.product.salePrice,
         }
       : null;
     dto.newProduct = {
@@ -148,6 +151,13 @@ export class PurchaseImportDetailDto extends PurchaseImportSummaryDto {
   items: PurchaseImportItemDto[];
 }
 
+export class ConfirmedPriceChangeDto {
+  @ApiProperty() lineNumber: number;
+  @ApiProperty() reference: string;
+  @ApiProperty() previousPrice: number;
+  @ApiProperty() newPrice: number;
+}
+
 export class ConfirmedRelinkDto {
   @ApiProperty() lineNumber: number;
   @ApiProperty() reference: string;
@@ -161,6 +171,14 @@ export class ConfirmPurchaseImportResponseDto {
   @ApiProperty() restockedProducts: number;
   @ApiProperty() unitsAdded: number;
   @ApiProperty() suppliersAssigned: number;
+  @ApiProperty()
+  pricesUpdated: number;
+  @ApiProperty({
+    type: [ConfirmedPriceChangeDto],
+    description:
+      'Existing products whose sale price changed because the line carried a different one.',
+  })
+  priceChanges: ConfirmedPriceChangeDto[];
   @ApiProperty({
     type: [ConfirmedRelinkDto],
     description:
