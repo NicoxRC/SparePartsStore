@@ -114,7 +114,10 @@ export class InvoicesService {
     const number = await this.resolveNextNumber(resolution.prefix);
 
     const requestPayload = {
-      actions: { send_dian: true, send_email: false },
+      actions: {
+        send_dian: this.dataicoConfig.sendDian,
+        send_email: this.dataicoConfig.sendEmail,
+      },
       invoice: {
         env: 'PRODUCCION',
         dataico_account_id: this.dataicoConfig.accountId,
@@ -253,12 +256,14 @@ export class InvoicesService {
       );
     }
 
+    // The DATAICO_SEND_* switches are a ceiling: with one off, an explicit
+    // `true` in the request still isn't sent on.
     const response = await this.dataicoClient.put<DataicoInvoiceResponse>(
       `/invoices/${invoice.dataicoUuid}`,
       {
         actions: {
-          send_dian: dto.sendDian ?? true,
-          send_email: dto.sendEmail ?? false,
+          send_dian: this.dataicoConfig.sendDian && (dto.sendDian ?? true),
+          send_email: this.dataicoConfig.sendEmail && (dto.sendEmail ?? false),
         },
       },
     );

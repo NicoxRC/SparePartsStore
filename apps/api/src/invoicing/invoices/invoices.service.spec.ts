@@ -31,7 +31,11 @@ describe('InvoicesService', () => {
     put: jest.Mock<Promise<unknown>, [string, unknown]>;
     get: jest.Mock<Promise<unknown>, [string]>;
   };
-  let dataicoConfig: { accountId: string };
+  let dataicoConfig: {
+    accountId: string;
+    sendDian: boolean;
+    sendEmail: boolean;
+  };
   let resolutionsService: { findActiveForDocumentType: jest.Mock };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
@@ -95,7 +99,13 @@ describe('InvoicesService', () => {
       put: jest.fn<Promise<unknown>, [string, unknown]>(),
       get: jest.fn<Promise<unknown>, [string]>(),
     };
-    dataicoConfig = { accountId: 'account-123' };
+    // The switches default to off in real config; most tests exercise the
+    // "submitting" path, and the switch-off behavior has its own tests.
+    dataicoConfig = {
+      accountId: 'account-123',
+      sendDian: true,
+      sendEmail: false,
+    };
     resolutionsService = { findActiveForDocumentType: jest.fn() };
     productsService = { findOne: jest.fn().mockResolvedValue(product) };
     inventoryService = {
@@ -197,6 +207,20 @@ describe('InvoicesService', () => {
         pdf_url: 'https://app.dataico.com/pdf',
         xml: 'huge-base64-blob-not-to-be-persisted',
       });
+    });
+
+    it('sends the create request with send_dian/send_email off when the switches are off (the default)', async () => {
+      dataicoConfig.sendDian = false;
+      dataicoConfig.sendEmail = false;
+
+      await service.create(baseDto, 'user-1');
+
+      const body = dataicoClient.post.mock.calls[0][1] as {
+        actions: unknown;
+        invoice: { env: string };
+      };
+      expect(body.actions).toEqual({ send_dian: false, send_email: false });
+      expect(body.invoice.env).toBe('PRODUCCION');
     });
 
     it('sends the invoice to Dataico with the confirmed field names and computed tax', async () => {
@@ -426,12 +450,58 @@ describe('InvoicesService', () => {
         cufe: 'new-cufe',
       });
 
+      dataicoConfig.sendEmail = true;
+
       await service.resend('inv-1', { sendDian: true, sendEmail: true });
 
       expect(dataicoClient.put).toHaveBeenCalledWith(
         '/invoices/dataico-uuid-1',
         { actions: { send_dian: true, send_email: true } },
       );
+    });
+
+    describe('DATAICO_SEND_* switches act as a ceiling', () => {
+      beforeEach(() => {
+        invoicesRepository.findOne.mockResolvedValue({ ...existingInvoice });
+        invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+          Promise.resolve(entity as Invoice),
+        );
+        dataicoClient.put.mockResolvedValue({ dian_status: 'X' });
+      });
+
+      it('never submits to the DIAN or emails while both switches are off, even if the request asks to', async () => {
+        dataicoConfig.sendDian = false;
+        dataicoConfig.sendEmail = false;
+
+        await service.resend('inv-1', { sendDian: true, sendEmail: true });
+
+        expect(dataicoClient.put).toHaveBeenCalledWith(
+          '/invoices/dataico-uuid-1',
+          { actions: { send_dian: false, send_email: false } },
+        );
+      });
+
+      it('with the DIAN switch on, a resend defaults to submitting (the usual reason to resend)', async () => {
+        dataicoConfig.sendDian = true;
+
+        await service.resend('inv-1', {});
+
+        expect(dataicoClient.put).toHaveBeenCalledWith(
+          '/invoices/dataico-uuid-1',
+          { actions: { send_dian: true, send_email: false } },
+        );
+      });
+
+      it('a switch that is on still lets the request opt out', async () => {
+        dataicoConfig.sendDian = true;
+
+        await service.resend('inv-1', { sendDian: false });
+
+        expect(dataicoClient.put).toHaveBeenCalledWith(
+          '/invoices/dataico-uuid-1',
+          { actions: { send_dian: false, send_email: false } },
+        );
+      });
     });
 
     it('updates the existing row in place rather than creating a new one', async () => {

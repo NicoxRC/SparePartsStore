@@ -33,7 +33,12 @@ describe('CreditNotesService', () => {
     getManyAndCount: jest.Mock;
   };
   let dataicoClient: { post: jest.Mock<Promise<unknown>, [string, unknown]> };
-  let dataicoConfig: { accountId: string; creditNotePrefix: string };
+  let dataicoConfig: {
+    accountId: string;
+    creditNotePrefix: string;
+    sendDian: boolean;
+    sendEmail: boolean;
+  };
   let invoicesService: { findOne: jest.Mock };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
@@ -115,7 +120,12 @@ describe('CreditNotesService', () => {
       createQueryBuilder: jest.fn(() => queryBuilder),
     };
     dataicoClient = { post: jest.fn<Promise<unknown>, [string, unknown]>() };
-    dataicoConfig = { accountId: 'account-123', creditNotePrefix: 'NCE' };
+    dataicoConfig = {
+      accountId: 'account-123',
+      creditNotePrefix: 'NCE',
+      sendDian: true,
+      sendEmail: false,
+    };
     invoicesService = { findOne: jest.fn().mockResolvedValue(existingInvoice) };
     productsService = { findOne: jest.fn().mockResolvedValue(product) };
     inventoryService = {
@@ -362,6 +372,16 @@ describe('CreditNotesService', () => {
 
         expect(sentItems()[0].price).toBe(42017);
       });
+    });
+
+    it('sends send_dian/send_email off when the switches are off (the default)', async () => {
+      dataicoConfig.sendDian = false;
+      dataicoConfig.sendEmail = false;
+
+      await service.create(baseDto, 'user-1');
+
+      const body = dataicoClient.post.mock.calls[0][1] as { actions: unknown };
+      expect(body.actions).toEqual({ send_dian: false, send_email: false });
     });
 
     it('sends an empty taxes array for a tax-exempt product', async () => {

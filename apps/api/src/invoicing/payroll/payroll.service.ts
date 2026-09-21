@@ -76,7 +76,7 @@ export class PayrollService {
     };
 
     const requestPayload = {
-      send_dian: true,
+      send_dian: this.dataicoConfig.sendDian,
       env: 'PRODUCCION',
       prefix: dto.prefix,
       number: dto.number,
