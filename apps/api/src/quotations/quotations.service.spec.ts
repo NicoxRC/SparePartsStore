@@ -337,20 +337,75 @@ describe('QuotationsService', () => {
       expect(inventoryService.createMovement).not.toHaveBeenCalled();
     });
 
-    it('re-locks unitPrice to the current product price for every line in the new list', async () => {
-      productsService.findOne.mockImplementation((id: string) =>
-        Promise.resolve(
-          id === 'prod-b' ? productB : { ...productA, salePrice: 60000 },
-        ),
-      );
+    describe('price locking', () => {
+      beforeEach(() => {
+        // prod-a was quoted at 50000; its price has since gone up to 60000.
+        productsService.findOne.mockImplementation((id: string) =>
+          Promise.resolve(
+            id === 'prod-b' ? productB : { ...productA, salePrice: 60000 },
+          ),
+        );
+      });
 
-      await service.updateItems('q-1', dto, 'user-1');
+      const savedLine = (productId: string): QuotationItem | undefined =>
+        quotationItemsRepository.save.mock.calls[0][0].find(
+          (item) => item.product.id === productId,
+        );
 
-      const savedItems = quotationItemsRepository.save.mock.calls[0][0];
-      const lineA = savedItems.find(
-        (item: QuotationItem) => item.product.id === 'prod-a',
-      );
-      expect(lineA?.unitPrice).toBe(60000);
+      it('keeps the price a line was quoted at when the product price changed afterward', async () => {
+        await service.updateItems('q-1', dto, 'user-1');
+
+        expect(savedLine('prod-a')?.unitPrice).toBe(50000);
+      });
+
+      it('prices a product added by the edit at its current price', async () => {
+        await service.updateItems('q-1', dto, 'user-1');
+
+        expect(savedLine('prod-b')?.unitPrice).toBe(productB.salePrice);
+      });
+
+      it('keeps the quoted price even when only the quantity changed', async () => {
+        await service.updateItems(
+          'q-1',
+          { items: [{ productId: 'prod-a', quantity: 3 }] },
+          'user-1',
+        );
+
+        expect(savedLine('prod-a')?.unitPrice).toBe(50000);
+      });
+
+      it("totals the quotation with the quoted price, not the product's new one", async () => {
+        await service.updateItems(
+          'q-1',
+          { items: [{ productId: 'prod-a', quantity: 2 }] },
+          'user-1',
+        );
+
+        // 2 x 50000 gross at 19% IVA — same total as before the price rose.
+        const [, changes] = quotationsRepository.update.mock.calls[0] as [
+          string,
+          { totalAmount: number },
+        ];
+        expect(changes.totalAmount).toBe(100000);
+      });
+
+      it('keeps the price of a re-added product after it was removed and added back in the same edit', async () => {
+        await service.updateItems(
+          'q-1',
+          {
+            items: [
+              { productId: 'prod-a', quantity: 1 },
+              { productId: 'prod-a', quantity: 1 },
+            ],
+          },
+          'user-1',
+        );
+
+        const lines = quotationItemsRepository.save.mock.calls[0][0].filter(
+          (item) => item.product.id === 'prod-a',
+        );
+        expect(lines.map((line) => line.unitPrice)).toEqual([50000, 50000]);
+      });
     });
 
     it("does not touch a line whose quantity didn't change", async () => {

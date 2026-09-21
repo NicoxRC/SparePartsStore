@@ -20,6 +20,7 @@ import { ProductsService } from '../../products/products.service';
 import { DataicoClientService } from '../dataico/dataico-client.service';
 import { DataicoConfig } from '../dataico/dataico.config';
 import { toDataicoDate } from '../dataico/dataico-date.util';
+import { readInvoicedItems } from '../invoices/invoiced-items.util';
 import { Invoice } from '../invoices/entities/invoice.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { CreateCreditNoteDto } from './dto/create-credit-note.dto';
@@ -127,7 +128,7 @@ export class CreditNotesService {
 
     const { customer, paymentMeans, paymentMeansType } =
       this.extractOriginalInvoiceFields(invoice);
-    const items = await this.resolveItems(dto.items);
+    const items = await this.resolveItems(dto.items, invoice);
 
     const issueDate = getStoreToday();
     const prefix = this.dataicoConfig.creditNotePrefix;
@@ -267,18 +268,52 @@ export class CreditNotesService {
   }
 
   /**
+   * The price and IVA rate the original invoice charged for this product,
+   * read from its stored `request_payload` (matched by `sku`, which is the
+   * product reference at the time). A return must be credited at what the
+   * customer actually paid — not at today's price, which may have changed
+   * since. `price` there is already the pre-tax, post-discount unit price.
+   * null when the product isn't on that invoice.
+   */
+  private findInvoicedLine(
+    invoice: Invoice,
+    sku: string,
+  ): { unitPrice: number; taxRate: number } | null {
+    const line = readInvoicedItems(invoice.requestPayload).find(
+      (item) => item.sku === sku,
+    );
+    return line ? { unitPrice: line.unitPrice, taxRate: line.taxRate } : null;
+  }
+
+  /**
    * No stock-sufficiency check — a credit note returns merchandise, so
    * any quantity is always valid to add back, unlike a debit note or a
    * normal sale where stock can run out.
    */
   private async resolveItems(
     itemDtos: CreateCreditNoteItemDto[],
+    invoice: Invoice,
   ): Promise<ResolvedItem[]> {
     return Promise.all(
       itemDtos.map(async (itemDto) => {
         const product = await this.productsService.findOne(itemDto.productId);
-        const taxRate = resolveTaxRate(product);
 
+        const invoiced = this.findInvoicedLine(invoice, product.reference);
+        if (invoiced) {
+          const taxBase = invoiced.unitPrice * itemDto.quantity;
+          return {
+            product,
+            quantity: itemDto.quantity,
+            taxRate: invoiced.taxRate,
+            unitPrice: invoiced.unitPrice,
+            taxBase,
+            taxAmount: Math.round(taxBase * (invoiced.taxRate / 100)),
+          };
+        }
+
+        // Not on the original invoice (or its reference changed since):
+        // nothing to mirror, so fall back to the product's current price.
+        const taxRate = resolveTaxRate(product);
         const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
           Number(product.salePrice),
           itemDto.quantity,

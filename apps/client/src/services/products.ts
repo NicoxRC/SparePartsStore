@@ -1,6 +1,5 @@
 import { api } from '../lib/api';
 
-export type SaleType = 'normal' | 'neto';
 
 export interface ProductLookupRef {
   id: string;
@@ -11,14 +10,13 @@ export interface ProductResponse {
   id: string;
   reference: string;
   description: string;
-  cost: number;
   salePrice: number;
-  saleType: SaleType;
   stock: number;
   taxExempt: boolean;
   department: ProductLookupRef;
   group: ProductLookupRef;
   brand: ProductLookupRef;
+  supplier: ProductLookupRef | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -42,18 +40,20 @@ export interface ProductsQuery {
   departmentId?: string;
   groupId?: string;
   brandId?: string;
+  supplierId?: string;
 }
 
 export interface ProductInput {
   reference: string;
   description: string;
   salePrice: number;
-  saleType: SaleType;
   stock: number;
   departmentId: string;
   groupId: string;
   brandId: string;
   taxExempt?: boolean;
+  /** `null` on update clears the supplier tag; omitted leaves it untouched. */
+  supplierId?: string | null;
 }
 
 export async function getProducts(

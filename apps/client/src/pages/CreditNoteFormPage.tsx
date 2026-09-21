@@ -25,6 +25,9 @@ interface EditableItem {
   /** Derived from the product's taxExempt flag when added — never a user
    * input; not sent to the backend, which derives it itself. */
   taxRate: number;
+  /** True when `price`/`taxRate` come from the original invoice's own line
+   * (what the customer actually paid) rather than the product's current price. */
+  isInvoicedPrice: boolean;
 }
 
 export function CreditNoteFormPage() {
@@ -59,15 +62,20 @@ export function CreditNoteFormPage() {
         };
         return next;
       }
+      // A return is credited at what the invoice charged, not today's price.
+      const invoiced = invoiceQuery.data?.items.find((line) => line.sku === product.reference);
       return [
         ...prev,
         {
           productId: product.id,
           reference: product.reference,
           description: product.description,
-          price: product.salePrice,
+          price: invoiced
+            ? invoiced.unitPrice * (1 + invoiced.taxRate / 100)
+            : product.salePrice,
           quantity,
-          taxRate: product.taxExempt ? 0 : DEFAULT_TAX_RATE,
+          taxRate: invoiced ? invoiced.taxRate : product.taxExempt ? 0 : DEFAULT_TAX_RATE,
+          isInvoicedPrice: Boolean(invoiced),
         },
       ];
     });
@@ -212,7 +220,12 @@ export function CreditNoteFormPage() {
                         <span className="ml-2 text-xs font-medium text-fog">Exenta</span>
                       )}
                     </td>
-                    <td className="px-3 py-2">${item.price.toLocaleString('es-CO')}</td>
+                    <td className="px-3 py-2">
+                      ${Math.round(item.price).toLocaleString('es-CO')}
+                      {item.isInvoicedPrice && (
+                        <span className="ml-2 text-xs font-medium text-fog">Facturado</span>
+                      )}
+                    </td>
                     <td className="w-24 px-3 py-2">
                       <input
                         type="number"

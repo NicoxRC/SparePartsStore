@@ -4,24 +4,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { SaleType } from '../common/enums/sale-type.enum';
 import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
 import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
 import { Brand } from '../brands/entities/brand.entity';
+import { Supplier } from '../suppliers/entities/supplier.entity';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
-
-const COST_FACTORS: Record<SaleType, number> = {
-  [SaleType.NORMAL]: 1.65,
-  [SaleType.NETO]: 1.3,
-};
 
 @Injectable()
 export class ProductsService {
@@ -34,54 +29,89 @@ export class ProductsService {
     private readonly groupsRepository: Repository<Group>,
     @InjectRepository(Brand)
     private readonly brandsRepository: Repository<Brand>,
+    @InjectRepository(Supplier)
+    private readonly suppliersRepository: Repository<Supplier>,
   ) {}
 
+  /**
+   * `manager` lets a caller (the purchase-import confirm) run this inside its
+   * own transaction so a failure later in the batch rolls the product back too.
+   */
   async create(
     dto: CreateProductDto,
     createdById: string,
+    manager?: EntityManager,
   ): Promise<ProductResponseDto> {
-    const existing = await this.findByReference(dto.reference);
+    const productsRepository = manager
+      ? manager.getRepository(Product)
+      : this.productsRepository;
+    const departmentsRepository = manager
+      ? manager.getRepository(Department)
+      : this.departmentsRepository;
+    const groupsRepository = manager
+      ? manager.getRepository(Group)
+      : this.groupsRepository;
+    const brandsRepository = manager
+      ? manager.getRepository(Brand)
+      : this.brandsRepository;
+    const suppliersRepository = manager
+      ? manager.getRepository(Supplier)
+      : this.suppliersRepository;
+
+    const existing = await productsRepository.findOne({
+      where: { reference: dto.reference },
+    });
     if (existing) {
       throw new ConflictException('Reference already in use');
     }
 
-    const department = await this.departmentsRepository.findOne({
+    const department = await departmentsRepository.findOne({
       where: { id: dto.departmentId },
     });
     if (!department) {
       throw new NotFoundException('Invalid departmentId: department not found');
     }
 
-    const group = await this.groupsRepository.findOne({
+    const group = await groupsRepository.findOne({
       where: { id: dto.groupId },
     });
     if (!group) {
       throw new NotFoundException('Invalid groupId: group not found');
     }
 
-    const brand = await this.brandsRepository.findOne({
+    const brand = await brandsRepository.findOne({
       where: { id: dto.brandId },
     });
     if (!brand) {
       throw new NotFoundException('Invalid brandId: brand not found');
     }
 
-    const product = this.productsRepository.create({
+    let supplier: Supplier | null = null;
+    if (dto.supplierId) {
+      supplier = await suppliersRepository.findOne({
+        where: { id: dto.supplierId },
+      });
+      if (!supplier) {
+        throw new NotFoundException('Invalid supplierId: supplier not found');
+      }
+    }
+
+    const product = productsRepository.create({
       reference: dto.reference,
       description: dto.description,
       salePrice: dto.salePrice,
-      saleType: dto.saleType,
-      cost: this.calculateCost(dto.salePrice, dto.saleType),
       stock: dto.stock,
+      taxExempt: dto.taxExempt ?? false,
       department,
       group,
       brand,
+      supplier,
       createdBy: { id: createdById } as Product['createdBy'],
       updatedBy: { id: createdById } as Product['updatedBy'],
     });
 
     try {
-      const saved = await this.productsRepository.save(product);
+      const saved = await productsRepository.save(product);
       return ProductResponseDto.fromEntity(saved);
     } catch (error) {
       if (isUniqueViolation(error)) {
@@ -94,7 +124,8 @@ export class ProductsService {
   async findAll(
     query: QueryProductsDto,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
-    const { page, limit, search, departmentId, groupId, brandId } = query;
+    const { page, limit, search, departmentId, groupId, brandId, supplierId } =
+      query;
     const qb = this.productsRepository
       .createQueryBuilder('product')
       // .withDeleted() disables TypeORM's automatic "deleted_at IS NULL" filter
@@ -106,6 +137,7 @@ export class ProductsService {
       .leftJoinAndSelect('product.department', 'department')
       .leftJoinAndSelect('product.group', 'group')
       .leftJoinAndSelect('product.brand', 'brand')
+      .leftJoinAndSelect('product.supplier', 'supplier')
       .where('product.deletedAt IS NULL');
 
     if (search) {
@@ -125,6 +157,10 @@ export class ProductsService {
 
     if (brandId) {
       qb.andWhere('product.brand_id = :brandId', { brandId });
+    }
+
+    if (supplierId) {
+      qb.andWhere('product.supplier_id = :supplierId', { supplierId });
     }
 
     qb.orderBy('product.createdAt', 'DESC')
@@ -155,6 +191,7 @@ export class ProductsService {
       .leftJoinAndSelect('product.department', 'department')
       .leftJoinAndSelect('product.group', 'group')
       .leftJoinAndSelect('product.brand', 'brand')
+      .leftJoinAndSelect('product.supplier', 'supplier')
       .where('product.id = :id', { id })
       .andWhere('product.deletedAt IS NULL')
       .getOne();
@@ -222,12 +259,23 @@ export class ProductsService {
       product.brand = brand;
     }
 
-    if (dto.salePrice !== undefined) product.salePrice = dto.salePrice;
-    if (dto.saleType !== undefined) product.saleType = dto.saleType;
-
-    if (dto.salePrice !== undefined || dto.saleType !== undefined) {
-      product.cost = this.calculateCost(product.salePrice, product.saleType);
+    if (dto.supplierId !== undefined) {
+      if (dto.supplierId === null) {
+        product.supplier = null;
+      } else {
+        const supplier = await this.suppliersRepository.findOne({
+          where: { id: dto.supplierId },
+        });
+        if (!supplier) {
+          throw new NotFoundException('Invalid supplierId: supplier not found');
+        }
+        product.supplier = supplier;
+      }
     }
+
+    if (dto.taxExempt !== undefined) product.taxExempt = dto.taxExempt;
+
+    if (dto.salePrice !== undefined) product.salePrice = dto.salePrice;
 
     if (dto.stock !== undefined) product.stock = dto.stock;
 
@@ -247,9 +295,5 @@ export class ProductsService {
   async remove(id: string): Promise<void> {
     const product = await this.findOne(id);
     await this.productsRepository.softRemove(product);
-  }
-
-  private calculateCost(salePrice: number, saleType: SaleType): number {
-    return Math.round(salePrice / COST_FACTORS[saleType]);
   }
 }

@@ -30,4 +30,8 @@ export class QueryProductsDto {
   @IsOptional()
   @IsUUID()
   brandId?: string;
+
+  @IsOptional()
+  @IsUUID()
+  supplierId?: string;
 }

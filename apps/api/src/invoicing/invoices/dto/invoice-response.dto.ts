@@ -1,5 +1,19 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Invoice } from '../entities/invoice.entity';
+import { readInvoicedItems } from '../invoiced-items.util';
+
+export class InvoicedItemDto {
+  @ApiProperty() sku: string;
+  @ApiProperty() description: string;
+  @ApiProperty() quantity: number;
+  @ApiProperty({
+    description:
+      'Pre-tax, post-discount unit price exactly as invoiced — it never changes when the product price does.',
+  })
+  unitPrice: number;
+  @ApiProperty({ description: 'IVA rate charged on the line (0 if none).' })
+  taxRate: number;
+}
 
 export class InvoiceResponseDto {
   @ApiProperty()
@@ -44,6 +58,12 @@ export class InvoiceResponseDto {
   @ApiProperty()
   createdAt: string;
 
+  @ApiProperty({
+    type: [InvoicedItemDto],
+    description: 'The lines as they were invoiced (from the stored request).',
+  })
+  items: InvoicedItemDto[];
+
   static fromEntity(invoice: Invoice): InvoiceResponseDto {
     const dto = new InvoiceResponseDto();
     dto.id = invoice.id;
@@ -60,6 +80,7 @@ export class InvoiceResponseDto {
     dto.dianMessages = invoice.dianMessages;
     dto.totalAmount = invoice.totalAmount;
     dto.createdAt = invoice.createdAt.toISOString();
+    dto.items = readInvoicedItems(invoice.requestPayload);
     return dto;
   }
 }

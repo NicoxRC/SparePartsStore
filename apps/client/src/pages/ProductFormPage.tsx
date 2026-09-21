@@ -8,7 +8,6 @@ import { Button } from '../components/Button';
 import { CurrencyField } from '../components/CurrencyField';
 import { IconCamera } from '../components/icons';
 import { SearchableSelect } from '../components/SearchableSelect';
-import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useCheckReference, useCreateProduct, useProduct, useUpdateProduct } from '../hooks/useProducts';
@@ -19,12 +18,6 @@ import {
   type ProductFormInput,
   type ProductFormValues,
 } from '../lib/schemas/product';
-
-const currencyFormatter = new Intl.NumberFormat('es-CO', {
-  style: 'currency',
-  currency: 'COP',
-  maximumFractionDigits: 0,
-});
 
 export function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
@@ -48,24 +41,24 @@ export function ProductFormPage() {
       reference: '',
       description: '',
       salePrice: 0,
-      saleType: 'normal',
       stock: 0,
       departmentId: '',
       groupId: '',
       brandId: '',
       taxExempt: false,
+      supplierId: '',
     },
     values: productQuery.data
       ? {
           reference: productQuery.data.reference,
           description: productQuery.data.description,
           salePrice: productQuery.data.salePrice,
-          saleType: productQuery.data.saleType,
           stock: productQuery.data.stock,
           departmentId: productQuery.data.department.id,
           groupId: productQuery.data.group.id,
           brandId: productQuery.data.brand.id,
           taxExempt: productQuery.data.taxExempt,
+          supplierId: productQuery.data.supplier?.id ?? '',
         }
       : undefined,
   });
@@ -100,12 +93,14 @@ export function ProductFormPage() {
 
   const onSubmit = async (values: ProductFormValues) => {
     if (referenceExists) return;
+    const { supplierId, ...fields } = values;
     try {
       if (isEditMode) {
-        await updateMutation.mutateAsync(values);
+        // Clearing the select sends null, which removes the supplier tag.
+        await updateMutation.mutateAsync({ ...fields, supplierId: supplierId || null });
         navigate('/products');
       } else {
-        await createMutation.mutateAsync(values);
+        await createMutation.mutateAsync({ ...fields, supplierId: supplierId || undefined });
         reset();
         setDebouncedRef('');
         setFeedback({ type: 'success', message: 'Producto creado correctamente.' });
@@ -190,15 +185,6 @@ export function ProductFormPage() {
           />
         </div>
 
-        <SelectField
-          label="Tipo de venta"
-          error={errors.saleType?.message}
-          {...register('saleType')}
-        >
-          <option value="normal">Normal</option>
-          <option value="neto">Neto</option>
-        </SelectField>
-
         <TextField
           label="Descripción"
           placeholder="Descripción del producto"
@@ -222,15 +208,6 @@ export function ProductFormPage() {
           <input type="checkbox" {...register('taxExempt')} />
           Exento de IVA
         </label>
-
-        {isEditMode && productQuery.data && (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium text-steel">Costo (calculado)</span>
-            <div className="min-h-12 w-full rounded-sm border border-line bg-canvas px-4 py-3 text-base text-fog sm:min-h-11 sm:py-2.5 sm:text-sm">
-              {currencyFormatter.format(productQuery.data.cost)}
-            </div>
-          </div>
-        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Controller
@@ -279,6 +256,23 @@ export function ProductFormPage() {
             )}
           />
         </div>
+
+        <Controller
+          name="supplierId"
+          control={control}
+          render={({ field }) => (
+            <SearchableSelect
+              label="Proveedor (opcional)"
+              resource="suppliers"
+              value={field.value ?? ''}
+              initialLabel={productQuery.data?.supplier?.name}
+              onChange={(value) => field.onChange(value)}
+              placeholder="Sin proveedor"
+              clearLabel="Sin proveedor"
+              name={field.name}
+            />
+          )}
+        />
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button

@@ -106,10 +106,9 @@ export function DashboardPage() {
           hint={`${summary.openQuotationsCount} sin cobrar`}
         />
         <KpiCard
-          label="Valor del inventario"
-          value={money(summary.totalInventoryValue)}
+          label="Productos"
+          value={String(summary.totalProducts)}
           tone="indigo"
-          hint={`${summary.totalProducts} productos`}
         />
         <KpiCard
           label="Productos agotados"

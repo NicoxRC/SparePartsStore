@@ -56,6 +56,10 @@ export const PERMISSIONS = [
   'cash_register.reopen',
   'cash_register.movements.create',
   'cash_register.counted_cash.correct',
+
+  'purchase_imports.view',
+  'purchase_imports.create',
+  'purchase_imports.confirm',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -120,6 +124,20 @@ const IMPLIES: Partial<Record<Permission, Permission[]>> = {
   'cash_register.reopen': ['cash_register.view'],
   'cash_register.movements.create': ['cash_register.view'],
   'cash_register.counted_cash.correct': ['cash_register.view'],
+  // The review screen needs product search (relinking a line) and the
+  // department/group/brand dropdowns (completing a new product). `confirm`
+  // deliberately does not imply `create`: a trusted employee may approve
+  // what someone else prepared.
+  'purchase_imports.create': [
+    'purchase_imports.view',
+    'products.view',
+    'catalogs.view',
+  ],
+  'purchase_imports.confirm': [
+    'purchase_imports.view',
+    'products.view',
+    'catalogs.view',
+  ],
 };
 
 /** Expands a set of granted codes to include everything they imply —

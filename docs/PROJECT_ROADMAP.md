@@ -26,7 +26,7 @@ Phases 1–6 are **already built** — documented here retrospectively so the ro
 
 ## Phase 4 — Products
 
-**Done.** Full CRUD, reverse cost-from-sale-price calculation (normal/neto), reference uniqueness check, barcode scanner writing into the reference field. See `docs/phases/PHASE_4_PRODUCTS.md`.
+**Done.** Full CRUD, reference uniqueness check (a reverse cost-from-sale-price calculation, normal/neto, was built here and later removed — see Phase 16), barcode scanner writing into the reference field. See `docs/phases/PHASE_4_PRODUCTS.md`.
 
 ## Phase 5 — Inventory movements
 
@@ -90,6 +90,12 @@ As of 2026-09-15: **not currently in use, but expected back** — per the human,
 
 **Exit criteria:** this store's payroll can be reported to DIAN electronically through Dataico, meeting the legal requirement. *(met — batch submission and resend deliberately deferred, see the phase doc)*
 
+## Phase 16 — Purchase invoice import (supplier XML → stock)
+
+**Built. The Excel-template path is live; the XML upload button is switched off in the client** (`IS_XML_UPLOAD_ENABLED` in `UploadPurchaseImportButton.tsx`; the API endpoint still works) until a real supplier XML has been used to verify the parser — see the phase doc's open questions. A local feature, **not a Dataico integration** (zero HTTP calls to Dataico): upload the XML of an electronic invoice a supplier issued to this store, review it as a **draft** (nothing touches stock or the catalog yet), then confirm the whole draft to create the missing products and add stock atomically. Adds a `suppliers` table, `products.supplier_id`, and `purchase_imports`/`purchase_import_items`. When there is no XML, the same draft can be started from a downloadable Excel template. Independent of Phases 7–15 — and it does **not** reopen Phase 11: no reception event is ever sent to DIAN. See `docs/phases/PHASE_16_PURCHASE_INVOICE_IMPORT.md`.
+
+**Exit criteria:** an employee/admin with the right permission can upload a supplier XML (bare or attached), review and edit the draft on a phone, and confirm it once — creating the missing products and increasing stock through recorded movements atomically — with the same invoice impossible to import twice, and products filterable by supplier. *(Parsing is verified only against hand-made fixtures until a real supplier XML is tested — see the phase doc's open questions.)*
+
 ---
 
 ## Guiding principle for what else might belong here
@@ -101,7 +107,7 @@ Per the human directly: **the goal of this pivot isn't "the minimum to invoice,"
 | Item | Why deferred |
 |---|---|
 | Factura electrónica — sector salud (Dataico collection 2) | Healthcare-sector billing fields; this is a spare parts store, not a healthcare provider. |
-| Eventos de recepción (Dataico collection 6, Phase 11) | Only relevant for acknowledging invoices *received from suppliers* — confirmed with the human this isn't a current need. |
+| Eventos de recepción (Dataico collection 6, Phase 11) | Only relevant for acknowledging invoices *received from suppliers* — confirmed with the human this isn't a current need. (Phase 16 reads supplier invoices locally to receive stock; it sends no DIAN event.) |
 | CI/CD pipeline | Not set up; manual deployment acceptable at current scale (see `DEFINITION_OF_DONE.md`). |
 | End-to-end / integration tests | Unit tests on services are the current bar (see `TESTING.md`). |
 | Fixed test coverage thresholds | Deliberately not enforced — see `TESTING.md`. |

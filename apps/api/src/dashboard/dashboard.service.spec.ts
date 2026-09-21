@@ -127,7 +127,6 @@ describe('DashboardService', () => {
     const summary = await service.getSummary();
 
     expect(summary.totalProducts).toBe(42);
-    expect(summary.totalInventoryValue).toBe(5000000);
     expect(productsRepository.count).toHaveBeenCalledWith({
       where: { stock: 0 },
     });

@@ -45,9 +45,9 @@ users                          products
 │ id (PK)               │       │ id (PK)                  │
 │ email                 │       │ reference                │
 │ password_hash         │       │ description              │
-│ first_name            │       │ cost                      │
+│ first_name            │       │ tax_exempt                │
 │ last_name             │       │ sale_price                │
-│ role                  │       │ sale_type                 │
+│ role                  │       │ supplier_id (FK)          │
 │ is_active             │       │ stock                     │
 │ must_change_password  │       │ department_id (FK)───────┼──┐
 │ last_login_at         │       │ group_id (FK)─────────────┼──┼──┐
@@ -98,6 +98,7 @@ inventory_movements
 ### Relationships
 
 - A **product** belongs to exactly one **department**, one **group**, and one **brand** (all three `NOT NULL`, `onDelete: RESTRICT` — a lookup in active use can't be hard-removed, though in practice lookups are only ever soft-deleted anyway).
+- A **product** optionally belongs to one **supplier** (`supplier_id`, nullable, `RESTRICT`) — see `suppliers` below.
 - A **product** has many **inventory movements** (1:N), `onDelete: CASCADE` on the FK (a hard-deleted product takes its movements with it — soft-deleted products keep theirs, since soft-delete never touches other tables).
 - Every table's `created_by`/`updated_by` reference **users**, `onDelete: SET NULL`.
 
@@ -108,7 +109,6 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | Enum | Values | Notes |
 |---|---|---|
 | `UserRole` (`user_role`) | `admin`, `employee`, `auditor` | `auditor` added later via `AddAuditorRole` migration — Postgres enum values can be added but never removed, see that migration's `down()`. |
-| `SaleType` (`sale_type`) | `normal`, `neto` | Drives the reverse cost calculation — see `products` below. |
 | `MovementType` (`movement_type`) | `initial`, `purchase`, `adjustment` | `initial` is never produced by any endpoint — it only exists because the `CreateInventoryMovements` migration backfilled one `initial` movement per pre-existing product with stock > 0. See `inventory_movements` below. |
 
 ## Tables
@@ -140,18 +140,17 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `id` | UUID | PK |
 | `reference` | VARCHAR(100) | uppercased at the DTO layer; partial-unique among non-deleted rows; doubles as the barcode-scanner target field (see `GLOSSARY.md` "Barcode scanning") — there is no separate barcode column |
 | `description` | VARCHAR(255) | capitalized (first letter upper, rest lower) at the DTO layer |
-| `cost` | NUMERIC(12,2) | **derived, not entered directly** — see calculation below |
-| `sale_price` | NUMERIC(12,2) | the actual source-of-truth price entered by the user |
-| `sale_type` | ENUM `sale_type` | default `normal`; selects which factor derives `cost` |
+| `sale_price` | NUMERIC(12,2) | The only price on a product, **always typed in by the user** — never suggested or derived by the system (not even by a purchase import). Includes IVA, see `GLOSSARY.md`. |
 | `stock` | INT | default `0`; the live/current stock count — see `inventory_movements` for how it changes |
 | `tax_exempt` | BOOLEAN | default `false` — every product existing before this column was added keeps charging IVA. The only source of a line's tax rate on an invoice/quotation/credit-debit-note item: `resolveTaxRate()` (`common/utils/invoice-math.util.ts`) derives `0` or the standard `19` from this flag alone — `taxRate` was removed from every item DTO, it's never client-supplied anymore. |
 | `department_id` | UUID, FK → `departments.id` | `NOT NULL`, `RESTRICT` |
 | `group_id` | UUID, FK → `product_groups.id` | `NOT NULL`, `RESTRICT` |
 | `brand_id` | UUID, FK → `brands.id` | `NOT NULL`, `RESTRICT` |
+| `supplier_id` | UUID, nullable, FK → `suppliers.id`, `RESTRICT` | Added Phase 16. Legacy and hand-created products have none. Set when a purchase import creates the product, and filled in on an existing product only if it is still `NULL` (never overwritten by a later import). Editable/clearable on the product form. Plain index `IDX_products_supplier_id`. No many-to-many `product_suppliers` table — one supplier per product. |
 | `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard |
 
-**Cost calculation (reverse markup):** `cost = round(salePrice / COST_FACTORS[saleType])`, with `COST_FACTORS = { normal: 1.65, neto: 1.30 }`. The sale price is what staff actually enter; cost is back-computed from it, not the other way around. Recalculated automatically whenever `salePrice` or `saleType` changes (create or update) — never edited directly.
+**No cost, no sale type:** a product used to carry a derived `cost` (`round(sale_price / 1.65)`, or `/ 1.30` for `sale_type = neto`). Both columns — and the `sale_type` Postgres enum — were removed by `RemoveCostAndSaleTypeFromProducts`: the store only ever enters the sale price. Nothing in the app tracks what a part cost the store any more, so the admin dashboard no longer shows a cost-based inventory value either.
 
 **Read behavior worth knowing:** `findAll`/`findOne` deliberately use `.withDeleted()` on the department/group/brand joins (while still filtering `products.deletedAt IS NULL` on the product itself) so a product's classification still displays correctly even if that lookup was later soft-deleted/deactivated.
 
@@ -183,7 +182,7 @@ Table names: `departments`, `product_groups` (entity class `Group`), `brands`.
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at` | TIMESTAMPTZ | `@CreateDateColumn` — **no `updated_at`, no `deleted_at`: this table is append-only.** |
 
-**Business logic (`InventoryService.createMovement`):** loads the product, computes `newStock = product.stock + quantity`, rejects with 400 if it would go negative ("Stock insuficiente..."), then inserts the movement row and updates `Product.stock` **in one DB transaction**. There is no endpoint to edit or delete a movement — a correction is made by recording a new, opposite movement.
+**Business logic (`InventoryService.createMovement`):** loads the product **inside the transaction under a `pessimistic_write` row lock** (so two concurrent movements on the same product can't both read the same stock and lose an update), computes `newStock = product.stock + quantity`, rejects with 400 if it would go negative ("Stock insuficiente..."), then inserts the movement row and updates `Product.stock`. It takes an optional `EntityManager`: without one it opens its own transaction (every existing caller), with one it runs inside the caller's — used by the purchase-import confirm so a whole invoice applies atomically. There is no endpoint to edit or delete a movement — a correction is made by recording a new, opposite movement.
 
 **Read behavior worth knowing:** `MovementResponseDto`'s `newStock` field is actually **the product's current stock at read time**, not a point-in-time snapshot of what stock became right after that specific movement. Every row for the same product shows the same (current) `newStock` when listed together. This is a known simplification, not a bug to silently "fix" without checking whether the UI relies on the current behavior — flag it if a future phase needs a true historical snapshot.
 
@@ -276,7 +275,7 @@ Added alongside `debit_notes` — a local record of every "nota crédito" sent t
 
 **No `customer_*` columns, same as `debit_notes`** — but `CreditNotesService.create()` also reads `payment_means`/`payment_means_type` out of the linked invoice's stored `request_payload.invoice`, plus `payment_date` straight from `invoices.payment_date` (a real column already) — the confirmed credit-note request carries all three, unlike debit notes' confirmed examples, which never included them.
 
-**Business logic (`CreditNotesService.create`):** loads the target invoice (must have a `dataico_uuid` on file), sends the confirmed request shape (item `measuring-unit` is hyphenated here — confirmed from this note type's own example, distinct from `debit_notes`' underscored form), and — only after Dataico accepts — **returns** stock per item via `InventoryService.createMovement` (positive quantity, opposite direction from `debit_notes`). **No stock-sufficiency check** — a credit note only ever adds stock back, so there's nothing to run out of. Gated on `cash_registers` being open today, same as `invoices`/`quotations`/`debit_notes`.
+**Business logic (`CreditNotesService.create`):** loads the target invoice (must have a `dataico_uuid` on file), **prices each returned item at what the original invoice charged** — the pre-tax `price` and IVA `tax_rate` of the invoice line with the same `sku`, read from its stored `request_payload` via `readInvoicedItems()` — so a later product price change can't alter a credit (falls back to the product's current price only when the item isn't on that invoice), sends the confirmed request shape (item `measuring-unit` is hyphenated here — confirmed from this note type's own example, distinct from `debit_notes`' underscored form), and — only after Dataico accepts — **returns** stock per item via `InventoryService.createMovement` (positive quantity, opposite direction from `debit_notes`). **No stock-sufficiency check** — a credit note only ever adds stock back, so there's nothing to run out of. Gated on `cash_registers` being open today, same as `invoices`/`quotations`/`debit_notes`.
 
 ### `pos_invoices` — **removed**
 
@@ -409,18 +408,75 @@ Local enhancement (not a numbered roadmap phase, and not a Dataico integration �
 | `quantity` | INT | |
 | `tax_rate` | NUMERIC(5,2) | **Server-derived**, never client-supplied — `resolveTaxRate()` reads it straight off `products.tax_exempt` at the moment a line is added/edited (see the `products` table above). |
 | `discount` | NUMERIC(12,2), nullable | Same "flat COP amount, not a percentage" semantics as `CreateInvoiceItemDto.discount` — see the paragraph below on how the client computes it now. |
-| `unit_price` | NUMERIC(12,2) | **The locked price** — a snapshot of `products.sale_price` (gross, IVA-inclusive) taken when this row is created or last touched by an edit, confirmed with the human: the customer keeps the price they were quoted, even if the product's price changes before they come back to pay. |
+| `unit_price` | NUMERIC(12,2) | **The locked price** — a snapshot of `products.sale_price` (gross, IVA-inclusive) taken when the product is first added to the quotation, confirmed with the human: the customer keeps the price they were quoted, even if the product's price changes before they come back to pay. |
 | `created_at`, `updated_at` | TIMESTAMPTZ | No soft delete — a row removed by an edit has no further use once the inventory movement it triggered (the real audit trail) is recorded. |
 
 **Business logic (`QuotationsService`):**
 - `create()` — gated on `CashRegisterService.assertOpenToday()` (stock is leaving today, same as a real sale), validates stock for every line up front, decrements it via `InventoryService.createMovement` (one negative movement per line, same helper `InvoicesService` uses), *then* persists the `quotations`/`quotation_items` rows — same fail-before-persisting ordering `InvoicesService.create` uses, and the same accepted partial-failure risk if a movement fails mid-loop.
-- `updateItems()` — only while open. Full-replace: diffs old vs. new items by `product_id`, computes one signed inventory movement per product whose net quantity changed (a lower quantity, or a removed line, returns the difference), validates stock for every net increase up front, then re-snapshots `unit_price` for every line in the new list (an edit is a fresh pricing checkpoint, not just the changed lines).
+- `updateItems()` — only while open. Full-replace: diffs old vs. new items by `product_id`, computes one signed inventory movement per product whose net quantity changed (a lower quantity, or a removed line, returns the difference), validates stock for every net increase up front, **a line whose product was already on the quotation keeps the `unit_price` it was quoted at** (the customer's price never moves because the product's price changed, or because someone edited the quotation); only a product added by the edit is priced at its current `sale_price`. *(Earlier versions re-snapshotted every line on each edit; changed once product prices became editable in bulk — see the purchase import.)*
 - `invoice()` — only while open. Converts to a real `Invoice` via `InvoicesService.create()`, passing each item's locked `unit_price` through `CreateInvoiceItemDto.unitPriceOverride` (an internal-only field, never set by the normal Venta form) and telling `create()` to skip its own stock check/decrement via an internal-only 3rd parameter — required for correctness, not just to avoid double-counting: by invoice time, `products.stock` no longer includes these reserved units at all, so re-running the normal sufficiency check would fail a legitimate sale. Bills either to the quotation's own customer columns or to a caller-supplied override (`InvoiceQuotationDto.customer`, required when `useSameCustomer` is false).
 - `cancel()` — only while open. One positive (return) movement per line, sets `cancelled_at`.
 
 The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" math (`InvoicesService.resolveItems()` and `QuotationsService` both need it) lives in `common/utils/invoice-math.util.ts`'s `computeLineAmounts()`.
 
 **Discount is no longer a per-line input** — there's one "Aplicar descuento" control (% or a COP value, each deriving the other) on the invoice/quotation form, applied once to the whole sale. The client prorates it into each line's flat `discount` before it's sent (`computeItemDiscount()` in `apps/client/src/lib/invoiceMath.ts`): the same percentage taken off every line's pre-tax subtotal is mathematically identical to taking it off the tax-inclusive grand total (tax is linear), so `computeLineAmounts()`/the `discount` column's stored shape didn't need to change at all — only where the per-line number comes from.
+
+### `suppliers`
+
+Added Phase 16 — a supplier, find-or-created from the supplier party of an uploaded purchase-invoice XML. See `docs/GLOSSARY.md` ("Proveedor") and `docs/phases/PHASE_16_PURCHASE_INVOICE_IMPORT.md`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `nit` | VARCHAR(20) | Digits only (dots/dashes stripped), **without** the check digit. Partial-unique among non-deleted rows (`UQ_suppliers_nit_active`). The supplier's identity — not editable. |
+| `dv` | VARCHAR(2), nullable | Check digit, informational. |
+| `name` | VARCHAR(255) | Taken from the XML **only on creation** (uppercased + trimmed); an existing supplier's name is never overwritten by a later upload, since an admin may have renamed it (`PATCH /api/suppliers/:id`, admin-only). |
+| `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard. There is no delete endpoint; `deleted_at` is kept only for convention/partial-index consistency. |
+
+`GET /api/suppliers` (name/NIT search, `{ data, meta }` like the lookup catalogs) is open to any authenticated role — nothing sensitive, and the Products filter needs it.
+
+### `purchase_imports` / `purchase_import_items`
+
+Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. Nothing touches stock or the catalog until the whole draft is confirmed.
+
+`purchase_imports`:
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID | PK |
+| `supplier_id` | UUID, FK → `suppliers.id`, `RESTRICT` | `NOT NULL` |
+| `invoice_number` | VARCHAR(50) | The UBL `cbc:ID` as-is (already includes the prefix), trimmed + uppercased. |
+| `issue_date` | DATE | |
+| `cufe` | VARCHAR(128), nullable | UBL `cbc:UUID`, lowercased. |
+| `source` | VARCHAR(10) `NOT NULL` default `'xml'`, `CHECK IN ('xml','excel')` | Where the draft came from: a supplier's XML or the Excel template (see below). Drives only a chip in the list; the review/confirm flow is identical. |
+| `source_filename` | VARCHAR(255) | Display only. **The raw XML is not stored** (an `AttachedDocument` can embed a multi-MB base64 PDF; nothing downstream needs it). |
+| `confirmed_at`, `discarded_at` | TIMESTAMPTZ, nullable | **State is derived, no status column** (same precedent as `quotations.invoiced_at`/`cancelled_at`): both `NULL` = draft; `confirmed_at` set = confirmed; `discarded_at` set = discarded. `CHK_purchase_imports_single_outcome` forbids both. |
+| `confirmed_by_id`, `discarded_by_id`, `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
+| `created_at`, `updated_at` | TIMESTAMPTZ | **No `deleted_at`** — a documented exception to the `BaseEntity` convention: "discarded" *is* the removal state, so a soft delete would be a second way to say the same thing. |
+
+**Drafts from the Excel template** (`source = 'excel'`, Phase 16 follow-up) reuse the same tables. The header has no XML to read, so it comes from the template's top block: the supplier is find-or-created by NIT (the name is only needed when the supplier is new — `422 MISSING_SUPPLIER_NAME` otherwise); `invoice_number`/`issue_date` are optional there and default to a generated unique `EXCEL-YYYYMMDD-XXXXXX` and the store's current day; `cufe` is always `NULL`. Each line carries the sale price the user typed into `new_sale_price` — the price of a product it creates, or a price *change* for a product it matches. `xml_quantity` holds the sheet's quantity, the column name being historical. Duplicate protection therefore only applies to the Excel path when the user typed an invoice number.
+
+**Duplicate protection** is two partial unique indexes, both `WHERE discarded_at IS NULL` so a discard frees the invoice for re-upload: `(supplier_id, invoice_number)`, and `cufe` (where not null — catches the same document arriving bare vs. wrapped in an `AttachedDocument`). The upload also pre-checks both for a clean `409 PURCHASE_IMPORT_DUPLICATE` carrying `existingImportId`/`existingStatus`, and catches the DB unique violation as the race safety net (`isUniqueViolation()`).
+
+`purchase_import_items` (working data — no soft delete; the audit trail is the inventory movement):
+
+| Column | Type | Notes |
+|---|---|---|
+| `purchase_import_id` | UUID, FK → `purchase_imports.id`, `CASCADE` | `UNIQUE` with `line_number` |
+| `line_number` | INT | 1-based position in the document. |
+| `reference`, `description` | VARCHAR(100) / VARCHAR(255), nullable | Normalized with the same functions the product DTOs use (`products/product-normalize.util.ts`). Editable. |
+| `xml_quantity` | NUMERIC(14,4) | Exactly what the XML said; never edited. The draft keeps **only reference, description and quantity** from the XML (plus the supplier and invoice header) — the XML's prices are not stored anywhere. |
+| `quantity` | INT, nullable | Editable. Initialised from `xml_quantity` only when it is an integer > 0 — `products.stock` is an INT, so a fractional XML quantity leaves this `NULL` for the reviewer to type. |
+| `product_id` | UUID, nullable, FK → `products.id`, `RESTRICT` | Set by the exact-reference auto-match, a manual link, or (after confirm) the created product. |
+| `match_type` | VARCHAR(10), nullable, `CHECK IN ('exact','manual')` | `NULL` = "new". `CHECK`: `match_type IS NULL OR product_id IS NOT NULL`. Line chip is derived from it: `exact` → *Existe*, `manual` → *Enlazado*, `NULL` → *Nuevo*. |
+| `new_department_id`, `new_group_id`, `new_brand_id` | UUID, nullable, FK → lookups, `RESTRICT` | Reviewer-supplied; only meaningful while `product_id` is `NULL` (the XML carries none of these). |
+| `new_sale_price` | NUMERIC(12,2), nullable | Typed by the user (in the review screen, or in the Excel template) — the system never suggests it. Integer ≥ 500 when present. On a **new** line it is the price the product is created with (required). On a line **linked to an existing product** it is an optional *price change*: blank keeps the product's current price; a different value updates `products.sale_price` on confirm. |
+| `new_tax_exempt` | BOOLEAN `NOT NULL` default `false` | |
+| `created_product` | BOOLEAN `NOT NULL` default `false` | Set at confirm when this line created its product. |
+| `created_at`, `updated_at` | TIMESTAMPTZ | |
+
+**Business logic (`PurchaseImportsService.confirm`):** one transaction — locks the header row (`pessimistic_write`, so a double tap or two reviewers can't apply twice), re-resolves every line against the catalog *as it is now* (a "new" line whose reference has appeared since upload is restocked and reported back as `relinked`; the typed price is discarded), runs the same pure `validateDraft()` the detail view uses and refuses with `400 PURCHASE_IMPORT_INVALID` + `problems[]` before writing anything, then per line in `line_number` order: creates the product if new (via `ProductsService.create(..., manager)` with **`stock: 0`**, so every unit of stock has a movement in the audit trail), adds the units through `InventoryService.createMovement(..., manager)` (`purchase`, notes `Compra proveedor … — factura … (importación XML)`), fills `products.supplier_id` if the product had none, and — on a line matched to an existing product that carries a different `new_sale_price` — updates that product's `sale_price` (stamping `updated_by_id`/`updated_at`) and records `Precio de venta: $antes → $después` in the movement's notes, since nothing else keeps a price history. The description of an existing product is never touched. Any failure rolls back everything, including the status flip. Unlike `QuotationsService`, no partial-failure risk is accepted: a half-applied 80-line import is very hard to reconcile by hand.
 
 ## Migrations (chronological)
 
@@ -432,7 +488,7 @@ The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" 
 | 4 | `AddProductLookupForeignKeys` | Backfills lookups from distinct existing string values, adds/populates FK columns on `products`, sets them `NOT NULL` + `RESTRICT`, drops the old varchar columns. |
 | 5 | `AddStockToProducts` | Adds `products.stock INT NOT NULL DEFAULT 0`. |
 | 6 | `AddMustChangePasswordToUsers` | Adds `users.must_change_password BOOLEAN NOT NULL DEFAULT false`. |
-| 7 | `AddSaleTypeToProducts` | `sale_type` enum, adds `products.sale_type` default `normal`. |
+| 7 | `AddSaleTypeToProducts` | `sale_type` enum, adds `products.sale_type` default `normal`. *(Later removed by migration 29.)* |
 | 8 | `AddAuditorRole` | `ALTER TYPE user_role ADD VALUE 'auditor'` — irreversible `down()` (Postgres can't drop enum values). |
 | 9 | `CreateInventoryMovements` | `movement_type` enum, `inventory_movements` table (FKs, indexes on `product_id` and `created_at DESC`), backfills one `initial` movement per pre-existing product with stock > 0. |
 | 10 | `CreateDianResolutions` | Phase 8. `dian_resolution_document_type` enum (`invoice`, `support_docs`), `dian_resolutions` table (FK to `users`, indexes on `(document_type, prefix)` and `created_at DESC`). |
@@ -451,6 +507,10 @@ The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" 
 | 23 | `AddCashReconciliationToCashRegisters` | Local enhancement (not a numbered phase). Adds `cash_registers.opening_amount` (`NOT NULL`, backfilled `0` then dropped as a default) and nullable `total_cash`/`total_card`/`total_transfer`/`expected_cash`/`counted_cash`/`cash_discrepancy`. Hand-written, same reason as the migrations above. |
 | 24 | `CreateCashMovements` | Local enhancement, alongside migration 23. `cash_movements` table (FK to `cash_registers` `CASCADE`, FK to `users` for the audit column, index on `cash_register_id`). Hand-written, same reason as the migrations above. |
 | 25 | `AddPermissionsToUsers` | Local enhancement (not a numbered phase). Adds `users.permissions text[] NOT NULL DEFAULT '{}'`, then backfills every existing `role = 'employee'` row with the full permission catalog (replicating today's coarse-employee behavior as a starting point) — see `GLOSSARY.md` ("Permisos"). Hand-written, same reason as the migrations above. |
+| 26 | `AddTaxExemptToProducts` | Local enhancement (not a numbered phase). Adds `products.tax_exempt BOOLEAN NOT NULL DEFAULT false` — every pre-existing product keeps charging IVA. *(Row added retroactively in Phase 16: the migration already existed but was never listed here.)* |
+| 27 | `CreateSuppliers` | Phase 16. `suppliers` table (audit FKs to `users`, partial unique index `UQ_suppliers_nit_active`), plus nullable `products.supplier_id` (FK `RESTRICT`) and `IDX_products_supplier_id`. Hand-written, same reason as the migrations above. |
+| 28 | `CreatePurchaseImports` | Phase 16. `purchase_imports` (FK to `suppliers` `RESTRICT`, audit FKs, single-outcome `CHECK`, both partial unique indexes, `created_at DESC` and `supplier_id` indexes) and `purchase_import_items` (FK to `purchase_imports` `CASCADE`, FKs to `products`/lookups `RESTRICT`, `match_type` `CHECK`s, unique `(purchase_import_id, line_number)`). Hand-written, same reason as the migrations above. |
+| 29 | `RemoveCostAndSaleTypeFromProducts` | Drops `products.cost`, `products.sale_type` and the `sale_type` enum — the store now enters only the sale price. **Not fully reversible:** `down()` restores the columns with `sale_type = 'normal'` and a cost recomputed at the `normal` factor, not the original values. Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

@@ -1,6 +1,16 @@
 import { api } from '../lib/api';
 import type { PaginatedResponse } from './products';
 
+/** A line exactly as it was invoiced — it never changes when the product's price does. */
+export interface InvoicedItem {
+  sku: string;
+  description: string;
+  quantity: number;
+  /** Pre-tax, post-discount unit price. */
+  unitPrice: number;
+  taxRate: number;
+}
+
 export interface InvoiceResponse {
   id: string;
   number: number;
@@ -16,6 +26,7 @@ export interface InvoiceResponse {
   dianMessages: string[] | null;
   totalAmount: number;
   createdAt: string;
+  items: InvoicedItem[];
 }
 
 export interface InvoicesQuery {

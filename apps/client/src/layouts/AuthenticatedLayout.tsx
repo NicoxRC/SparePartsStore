@@ -7,6 +7,7 @@ import {
   IconContact,
   IconDashboard,
   IconIdCard,
+  IconInbox,
   IconLayers,
   IconReceipt,
   IconStamp,
@@ -42,6 +43,9 @@ export function AuthenticatedLayout() {
       : []),
     ...(!isAuditor && has('invoices.view')
       ? [{ to: '/invoicing/invoices', label: 'Facturas', Icon: IconReceipt }]
+      : []),
+    ...(!isAuditor && has('purchase_imports.view')
+      ? [{ to: '/compras', label: 'Compras', Icon: IconInbox }]
       : []),
     ...(!isAuditor && has('customers.view')
       ? [{ to: '/customers', label: 'Clientes', Icon: IconContact }]

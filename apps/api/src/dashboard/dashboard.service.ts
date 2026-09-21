@@ -47,7 +47,6 @@ export class DashboardService {
       openQuotationsTotal: openQuotations.total,
       openQuotationsCount: openQuotations.count,
       totalProducts: productStats.totalProducts,
-      totalInventoryValue: productStats.totalInventoryValue,
       outOfStockCount: productStats.outOfStockCount,
       outOfStockProducts: productStats.outOfStockProducts,
     };
@@ -113,17 +112,12 @@ export class DashboardService {
    * not an invented threshold. */
   private async computeProductStats(): Promise<{
     totalProducts: number;
-    totalInventoryValue: number;
     outOfStockCount: number;
     outOfStockProducts: DashboardSummaryDto['outOfStockProducts'];
   }> {
-    const [totalProducts, valueResult, outOfStockCount, outOfStockProducts] =
+    const [totalProducts, outOfStockCount, outOfStockProducts] =
       await Promise.all([
         this.productsRepository.count(),
-        this.productsRepository
-          .createQueryBuilder('product')
-          .select('COALESCE(SUM(product.cost * product.stock), 0)', 'value')
-          .getRawOne<{ value: string }>(),
         this.productsRepository.count({ where: { stock: 0 } }),
         this.productsRepository.find({
           where: { stock: 0 },
@@ -135,7 +129,6 @@ export class DashboardService {
 
     return {
       totalProducts,
-      totalInventoryValue: Number(valueResult?.value ?? 0),
       outOfStockCount,
       outOfStockProducts,
     };

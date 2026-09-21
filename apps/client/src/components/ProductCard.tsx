@@ -41,10 +41,6 @@ export function ProductCard({
 
       <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-steel">
         <div>
-          <dt className="text-xs uppercase tracking-wide text-fog">Costo</dt>
-          <dd className="font-mono">{currencyFormatter.format(product.cost)}</dd>
-        </div>
-        <div>
           <dt className="text-xs uppercase tracking-wide text-fog">Stock</dt>
           <dd className="font-mono">{product.stock}</dd>
         </div>
@@ -60,6 +56,12 @@ export function ProductCard({
           <dt className="text-xs uppercase tracking-wide text-fog">Marca</dt>
           <dd className="truncate">{product.brand.name}</dd>
         </div>
+        {product.supplier && (
+          <div>
+            <dt className="text-xs uppercase tracking-wide text-fog">Proveedor</dt>
+            <dd className="truncate">{product.supplier.name}</dd>
+          </div>
+        )}
       </dl>
 
       <div className="mt-4 flex gap-2 sm:mt-auto sm:pt-4">

@@ -24,6 +24,8 @@ import { InvoiceFormPage } from './pages/InvoiceFormPage';
 import { InvoicesListPage } from './pages/InvoicesListPage';
 import { PayrollFormPage } from './pages/PayrollFormPage';
 import { PayrollListPage } from './pages/PayrollListPage';
+import { PurchaseImportDetailPage } from './pages/PurchaseImportDetailPage';
+import { PurchaseImportsListPage } from './pages/PurchaseImportsListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsListPage } from './pages/ProductsListPage';
 import { QuotationDetailPage } from './pages/QuotationDetailPage';
@@ -101,6 +103,10 @@ function App() {
                   <Route element={<PermissionRoute permission="quotations.view" />}>
                     <Route path="/cotizaciones" element={<QuotationsListPage />} />
                     <Route path="/cotizaciones/:id" element={<QuotationDetailPage />} />
+                  </Route>
+                  <Route element={<PermissionRoute permission="purchase_imports.view" />}>
+                    <Route path="/compras" element={<PurchaseImportsListPage />} />
+                    <Route path="/compras/:id" element={<PurchaseImportDetailPage />} />
                   </Route>
                   <Route element={<PermissionRoute permission="customers.view" />}>
                     <Route path="/customers" element={<CustomersListPage />} />

@@ -17,11 +17,12 @@ import {
 
 const PRODUCTS_KEY = 'products';
 
-export function useProducts(query: ProductsQuery) {
+export function useProducts(query: ProductsQuery, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [PRODUCTS_KEY, query],
     queryFn: () => getProducts(query),
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 

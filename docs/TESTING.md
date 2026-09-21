@@ -8,7 +8,7 @@ This document defines what must be tested, how, and to what level in `api`. Fron
 
 ## What must be tested
 
-**Unit tests are mandatory for the Service layer.** Services own the business logic — cost calculation, stock movement validation, self-protection rules on user updates, and (going forward) Dataico request/response handling. This is where bugs are costly and tests are worth the most.
+**Unit tests are mandatory for the Service layer.** Services own the business logic — draft validation, stock movement validation, self-protection rules on user updates, and (going forward) Dataico request/response handling. This is where bugs are costly and tests are worth the most.
 
 | Layer | Required? |
 |---|---|
@@ -28,22 +28,22 @@ Not enforcing a minimum coverage number — that tends to produce shallow tests 
 3. **Error cases** — invalid input, entity not found, business rule violation (should throw the expected exception)
 4. **Every branch** — if the method has an `if/else`, both branches need a test
 
-### Example — testing the reverse cost calculation
+### Example — testing a pure calculation/validation
 
 ```typescript
-describe('ProductsService', () => {
-  describe('calculateCost', () => {
-    it('divides by 1.65 for saleType NORMAL', () => {
-      expect(service.calculateCost(1650, SaleType.NORMAL)).toBe(1000);
-    });
+describe('validateDraft', () => {
+  it('accepts the minimum sale price of 500', () => {
+    expect(validateDraft([newLine({ newSalePrice: 500 })]).readyToConfirm).toBe(true);
+  });
 
-    it('divides by 1.30 for saleType NETO', () => {
-      expect(service.calculateCost(1300, SaleType.NETO)).toBe(1000);
-    });
+  it('flags a sale price below 500', () => {
+    const { issuesByLine } = validateDraft([newLine({ newSalePrice: 499 })]);
+    expect(issuesByLine.get('l-1')).toContain('INVALID_SALE_PRICE');
+  });
 
-    it('rounds the result', () => {
-      expect(service.calculateCost(1000, SaleType.NORMAL)).toBe(606);
-    });
+  it('flags a non-integer sale price', () => {
+    const { issuesByLine } = validateDraft([newLine({ newSalePrice: 1500.5 })]);
+    expect(issuesByLine.get('l-1')).toContain('INVALID_SALE_PRICE');
   });
 });
 ```

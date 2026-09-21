@@ -89,5 +89,21 @@ describe('permission.constant', () => {
       expect(result.filter((code) => code === 'products.view')).toHaveLength(1);
       expect(result.filter((code) => code === 'catalogs.view')).toHaveLength(1);
     });
+
+    it('grants purchase_imports.create the view/product/catalog dependencies of the review screen', () => {
+      expect(expandPermissions(['purchase_imports.create'])).toEqual(
+        expect.arrayContaining([
+          'purchase_imports.view',
+          'products.view',
+          'catalogs.view',
+        ]),
+      );
+    });
+
+    it('does not let purchase_imports.confirm imply create', () => {
+      expect(expandPermissions(['purchase_imports.confirm'])).not.toContain(
+        'purchase_imports.create',
+      );
+    });
   });
 });

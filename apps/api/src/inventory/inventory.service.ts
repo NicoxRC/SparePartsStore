@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { MovementType } from '../common/enums/movement-type.enum';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { Product } from '../products/entities/product.entity';
@@ -22,7 +22,26 @@ export class InventoryService {
     private readonly productsRepository: Repository<Product>,
   ) {}
 
+  /**
+   * `manager` lets a caller (e.g. the purchase-import confirm) run this inside
+   * its own transaction. Without one, the movement opens a transaction of its
+   * own, exactly as before.
+   */
   async createMovement(
+    dto: CreateMovementDto,
+    createdById: string,
+    manager?: EntityManager,
+  ): Promise<MovementResponseDto> {
+    if (manager) {
+      return this.applyMovement(manager, dto, createdById);
+    }
+    return this.movementsRepository.manager.transaction((transactionManager) =>
+      this.applyMovement(transactionManager, dto, createdById),
+    );
+  }
+
+  private async applyMovement(
+    manager: EntityManager,
     dto: CreateMovementDto,
     createdById: string,
   ): Promise<MovementResponseDto> {
@@ -32,9 +51,14 @@ export class InventoryService {
     // and its stock counter still needs updating even though it's no
     // longer sellable. Same pattern as ProductsService.findOne() for
     // soft-deleted lookups.
-    const product = await this.productsRepository
-      .createQueryBuilder('product')
+    //
+    // The read happens inside the transaction with a row lock so two
+    // concurrent movements on the same product can't both read the same
+    // stock and lose one of the updates.
+    const product = await manager
+      .createQueryBuilder(Product, 'product')
       .withDeleted()
+      .setLock('pessimistic_write')
       .where('product.id = :id', { id: dto.productId })
       .getOne();
     if (!product) {
@@ -48,24 +72,22 @@ export class InventoryService {
       );
     }
 
-    return this.movementsRepository.manager.transaction(async (manager) => {
-      const movementType =
-        dto.quantity > 0 ? MovementType.PURCHASE : MovementType.ADJUSTMENT;
+    const movementType =
+      dto.quantity > 0 ? MovementType.PURCHASE : MovementType.ADJUSTMENT;
 
-      const movement = manager.create(InventoryMovement, {
-        product: { id: dto.productId } as Product,
-        movementType,
-        quantity: dto.quantity,
-        notes: dto.notes ?? null,
-        createdBy: { id: createdById } as InventoryMovement['createdBy'],
-      });
-
-      const saved = await manager.save(InventoryMovement, movement);
-      await manager.update(Product, { id: dto.productId }, { stock: newStock });
-
-      saved.product = product;
-      return MovementResponseDto.fromEntity(saved, newStock);
+    const movement = manager.create(InventoryMovement, {
+      product: { id: dto.productId } as Product,
+      movementType,
+      quantity: dto.quantity,
+      notes: dto.notes ?? null,
+      createdBy: { id: createdById } as InventoryMovement['createdBy'],
     });
+
+    const saved = await manager.save(InventoryMovement, movement);
+    await manager.update(Product, { id: dto.productId }, { stock: newStock });
+
+    saved.product = product;
+    return MovementResponseDto.fromEntity(saved, newStock);
   }
 
   async findMovements(

@@ -1,7 +1,8 @@
 import { api } from '../lib/api';
 import type { PaginatedResponse } from './products';
 
-export type LookupResource = 'departments' | 'groups' | 'brands';
+/** `suppliers` is read-only here: it has a list endpoint but no create/get-by-id. */
+export type LookupResource = 'departments' | 'groups' | 'brands' | 'suppliers';
 
 export interface LookupResponse {
   id: string;

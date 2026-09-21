@@ -1,4 +1,3 @@
-import { SaleType } from '../../common/enums/sale-type.enum';
 import { Product } from '../entities/product.entity';
 
 export interface ProductLookupRef {
@@ -10,14 +9,13 @@ export class ProductResponseDto {
   id: string;
   reference: string;
   description: string;
-  cost: number;
   salePrice: number;
-  saleType: SaleType;
   stock: number;
   taxExempt: boolean;
   department: ProductLookupRef;
   group: ProductLookupRef;
   brand: ProductLookupRef;
+  supplier: ProductLookupRef | null;
   createdAt: string;
   updatedAt: string;
 
@@ -26,9 +24,7 @@ export class ProductResponseDto {
     dto.id = product.id;
     dto.reference = product.reference;
     dto.description = product.description;
-    dto.cost = product.cost;
     dto.salePrice = product.salePrice;
-    dto.saleType = product.saleType;
     dto.stock = product.stock;
     dto.taxExempt = product.taxExempt;
     dto.department = {
@@ -43,6 +39,9 @@ export class ProductResponseDto {
       id: product.brand.id,
       name: product.brand.name,
     };
+    dto.supplier = product.supplier
+      ? { id: product.supplier.id, name: product.supplier.name }
+      : null;
     dto.createdAt = product.createdAt.toISOString();
     dto.updatedAt = product.updatedAt.toISOString();
     return dto;

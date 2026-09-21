@@ -7,7 +7,11 @@ interface SearchableSelectProps {
   label: string;
   resource: LookupResource;
   value: string;
-  onChange: (value: string) => void;
+  /** `label` is the chosen option's name (empty when the selection is cleared). */
+  onChange: (value: string, label?: string) => void;
+  /** Name to show for `value` before the user picks anything — needed for
+   * `suppliers`, which has no get-by-id endpoint to resolve it from. */
+  initialLabel?: string;
   /** Text shown when nothing is selected. */
   placeholder?: string;
   /** When set, shows an extra option at the top of the list to clear the selection (e.g. "Todos"). */
@@ -27,6 +31,7 @@ export function SearchableSelect({
   resource,
   value,
   onChange,
+  initialLabel,
   placeholder = 'Selecciona...',
   clearLabel,
   allowCreate,
@@ -42,6 +47,7 @@ export function SearchableSelect({
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createInitialName, setCreateInitialName] = useState('');
+  const [pickedLabel, setPickedLabel] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -65,16 +71,24 @@ export function SearchableSelect({
     limit: PAGE_SIZE,
     ...(debouncedQuery ? { search: debouncedQuery } : {}),
   });
-  const selectedQuery = useLookupItem(resource, value || undefined);
+  // Suppliers have no get-by-id endpoint; their label comes from what was picked.
+  const canFetchSelected = resource !== 'suppliers';
+  const selectedQuery = useLookupItem(
+    resource,
+    canFetchSelected && value ? value : undefined,
+  );
 
   const options = listQuery.data?.data ?? [];
-  const selectedLabel = selectedQuery.data?.name ?? '';
+  const selectedLabel = value
+    ? (selectedQuery.data?.name ?? (pickedLabel || initialLabel) ?? '')
+    : '';
 
   const optionCount = options.length + (clearLabel ? 1 : 0) + (allowCreate ? 1 : 0);
   const safeHighlightedIndex = Math.min(highlightedIndex, Math.max(optionCount - 1, 0));
 
-  const handleSelect = (selectedValue: string) => {
-    onChange(selectedValue);
+  const handleSelect = (selectedValue: string, selectedName = '') => {
+    setPickedLabel(selectedName);
+    onChange(selectedValue, selectedName);
     setIsOpen(false);
     setQuery('');
   };
@@ -86,7 +100,8 @@ export function SearchableSelect({
   };
 
   const handleCreated = (item: LookupResponse) => {
-    onChange(item.id);
+    setPickedLabel(item.name);
+    onChange(item.id, item.name);
     setIsCreateOpen(false);
     setQuery('');
   };
@@ -117,7 +132,7 @@ export function SearchableSelect({
         return;
       }
       const option = options[safeHighlightedIndex - (clearLabel ? 1 : 0)];
-      if (option) handleSelect(option.id);
+      if (option) handleSelect(option.id, option.name);
     } else if (event.key === 'Escape') {
       setIsOpen(false);
       setQuery('');
@@ -198,7 +213,7 @@ export function SearchableSelect({
                   key={option.id}
                   role="option"
                   aria-selected={value === option.id}
-                  onClick={() => handleSelect(option.id)}
+                  onClick={() => handleSelect(option.id, option.name)}
                   className={`cursor-pointer px-4 py-2.5 text-sm ${
                     safeHighlightedIndex === optionIndex ? 'bg-mist' : ''
                   } ${value === option.id ? 'font-semibold text-ink' : 'text-ink'}`}

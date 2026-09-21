@@ -1,7 +1,6 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
-  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -10,20 +9,23 @@ import {
   IsUUID,
   Min,
 } from 'class-validator';
-import { SaleType } from '../../common/enums/sale-type.enum';
+import {
+  normalizeProductDescription,
+  normalizeProductReference,
+} from '../product-normalize.util';
 
 export class CreateProductDto {
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }: { value: string }) => value?.toUpperCase())
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? normalizeProductReference(value) : value,
+  )
   reference: string;
 
   @IsString()
   @IsNotEmpty()
-  @Transform(({ value }: { value: string }) =>
-    value
-      ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
-      : value,
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? normalizeProductDescription(value) : value,
   )
   description: string;
 
@@ -31,9 +33,6 @@ export class CreateProductDto {
   @IsNumber()
   @Min(500)
   salePrice: number;
-
-  @IsEnum(SaleType)
-  saleType: SaleType;
 
   @Type(() => Number)
   @IsInt()
@@ -52,4 +51,8 @@ export class CreateProductDto {
   @IsOptional()
   @IsBoolean()
   taxExempt?: boolean;
+
+  @IsOptional()
+  @IsUUID()
+  supplierId?: string;
 }
