@@ -416,6 +416,33 @@ describe('InvoicesService', () => {
         expect(inventoryService.createMovement).not.toHaveBeenCalled();
       });
 
+      it('applies the sale discount to a one-off line and adds IVA on top of what is left, like any product', async () => {
+        await service.create(
+          { ...baseDto, items: [{ ...customLine, discount: 10000 }] },
+          'user-1',
+        );
+
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+        expect(dataicoClient.post).toHaveBeenCalledWith(
+          '/invoices',
+          expect.objectContaining({
+            invoice: expect.objectContaining({
+              items: [
+                expect.objectContaining({
+                  // 2 × 30000 = 60000, minus 10000 = 50000 → 25000 per unit;
+                  // IVA 19% of 50000 = 9500.
+                  price: 25000,
+                  taxes: [
+                    expect.objectContaining({ tax_rate: 19, tax_amount: 9500 }),
+                  ],
+                }),
+              ],
+            }),
+          }),
+        );
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      });
+
       it('rejects a line that is a product and a one-off at once, without calling Dataico', async () => {
         await expect(
           service.create(
