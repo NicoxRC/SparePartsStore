@@ -156,9 +156,11 @@ export class QuotationsService {
    * quantity changed — a line dropped to a lower quantity (or removed
    * entirely) returns the difference to stock, a raised quantity (or a
    * brand-new line) takes more out, matching a real return/additional
-   * sale. Every line in the new list gets its `unitPrice` re-snapshotted
-   * from the product's current price — an edit is a fresh checkpoint,
-   * the same as creating the quotation was.
+   * sale. A line whose product was already on the quotation KEEPS the
+   * `unitPrice` it was quoted at — the customer's price must not move just
+   * because the product's price changed afterward (or because someone
+   * edited the quotation). Only a product added by this edit is priced at
+   * the product's current price.
    */
   async updateItems(
     id: string,
@@ -233,6 +235,15 @@ export class QuotationsService {
       );
     }
 
+    const quotedPriceByProduct = new Map<string, number>();
+    for (const item of quotation.items) {
+      if (!quotedPriceByProduct.has(item.product.id)) {
+        quotedPriceByProduct.set(item.product.id, item.unitPrice);
+      }
+    }
+    const priceFor = (product: Product): number =>
+      quotedPriceByProduct.get(product.id) ?? Number(product.salePrice);
+
     await this.quotationItemsRepository.delete({
       quotation: { id: quotation.id },
     });
@@ -243,7 +254,7 @@ export class QuotationsService {
         quantity: itemDto.quantity,
         taxRate: resolveTaxRate(product),
         discount: itemDto.discount ?? null,
-        unitPrice: Number(product.salePrice),
+        unitPrice: priceFor(product),
       }),
     );
     await this.quotationItemsRepository.save(newItems);
@@ -254,7 +265,7 @@ export class QuotationsService {
         quantity: itemDto.quantity,
         taxRate: resolveTaxRate(product),
         discount: itemDto.discount,
-        unitPrice: Number(product.salePrice),
+        unitPrice: priceFor(product),
       })),
     );
     await this.quotationsRepository.update(quotation.id, {
