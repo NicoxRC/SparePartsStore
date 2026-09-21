@@ -238,7 +238,32 @@ describe('buildInvoiceTicket', () => {
       expect(ticket.items[1].taxRate).toBe(0);
     });
 
-    it('rounds the IVA per line, the same way the invoice was computed', () => {
+    it('adds up the IVA that was sent on each line, in centavos, so base + IVA is the price', () => {
+      const invoice = makeInvoice({
+        totalAmount: 85000,
+        requestPayload: {
+          invoice: {
+            items: [
+              {
+                sku: 'A',
+                description: 'x',
+                quantity: 1,
+                price: 71428.5714,
+                taxes: [{ tax_rate: 19, tax_amount: 13571.43 }],
+              },
+            ],
+          },
+        },
+      });
+
+      const ticket = buildInvoiceTicket(invoice, resolution);
+
+      expect(ticket.subtotal).toBe(71428.57);
+      expect(ticket.taxes).toEqual([{ rate: 19, amount: 13571.43 }]);
+      expect(ticket.total).toBe(85000);
+    });
+
+    it('works the IVA out of the rate when the stored line has none', () => {
       const invoice = makeInvoice({
         requestPayload: {
           invoice: {
@@ -262,9 +287,9 @@ describe('buildInvoiceTicket', () => {
         },
       });
 
-      // each line: 999 x 19% = 189.81 -> 190, so 380 (not round(379.62) = 380 by luck of the sum)
+      // each line: 999 x 19% = 189.81, so 379.62
       expect(buildInvoiceTicket(invoice, resolution).taxes).toEqual([
-        { rate: 19, amount: 380 },
+        { rate: 19, amount: 379.62 },
       ]);
     });
 

@@ -10,6 +10,7 @@ import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   computeLineAmounts,
+  round,
   resolveTaxRate,
 } from '../../common/utils/invoice-math.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
@@ -166,9 +167,8 @@ export class DebitNotesService {
       invoice,
       reason: 'OTROS',
       issueDate,
-      totalAmount: items.reduce(
-        (sum, item) => sum + item.taxBase + item.taxAmount,
-        0,
+      totalAmount: round(
+        items.reduce((sum, item) => sum + item.taxBase + item.taxAmount, 0),
       ),
       requestPayload,
       createdBy: { id: createdById } as DebitNote['createdBy'],

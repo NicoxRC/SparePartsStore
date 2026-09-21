@@ -1,3 +1,4 @@
+import { round } from '../../common/utils/invoice-math.util';
 import { DianResolution } from '../resolutions/entities/dian-resolution.entity';
 import {
   InvoiceTicketDto,
@@ -63,23 +64,23 @@ export function buildInvoiceTicket(
   const sentCustomer = asObject(request?.customer);
   const echoedCustomer = asObject(response?.customer);
 
-  const items = readInvoicedItems(invoice.requestPayload).map((line) => ({
+  const lines = readInvoicedItems(invoice.requestPayload);
+  const items = lines.map((line) => ({
     description: line.description,
     quantity: line.quantity,
     unit: UNIT_LABEL,
-    value: line.unitPrice * line.quantity,
+    value: line.value,
     taxRate: line.taxRate,
   }));
 
-  const subtotal = items.reduce((sum, item) => sum + item.value, 0);
+  const subtotal = round(items.reduce((sum, item) => sum + item.value, 0));
 
   const taxByRate = new Map<number, number>();
-  for (const item of items) {
-    if (item.taxRate <= 0) continue;
+  for (const line of lines) {
+    if (line.taxRate <= 0) continue;
     taxByRate.set(
-      item.taxRate,
-      (taxByRate.get(item.taxRate) ?? 0) +
-        Math.round(item.value * (item.taxRate / 100)),
+      line.taxRate,
+      round((taxByRate.get(line.taxRate) ?? 0) + line.taxAmount),
     );
   }
   const taxes: InvoiceTicketTaxDto[] = [...taxByRate.entries()]

@@ -1,3 +1,5 @@
+import { round } from '../../common/utils/invoice-math.util';
+
 export interface InvoicedItem {
   sku: string;
   description: string;
@@ -6,6 +8,10 @@ export interface InvoicedItem {
   unitPrice: number;
   /** IVA rate charged on the line; 0 when the line carried no tax. */
   taxRate: number;
+  /** Pre-tax value of the line (unitPrice × quantity, in centavos). */
+  value: number;
+  /** IVA of the line as it was sent; worked out from the rate if the payload has none. */
+  taxAmount: number;
 }
 
 interface StoredItem {
@@ -13,7 +19,7 @@ interface StoredItem {
   description?: unknown;
   quantity?: unknown;
   price?: unknown;
-  taxes?: Array<{ tax_rate?: unknown }>;
+  taxes?: Array<{ tax_rate?: unknown; tax_amount?: unknown }>;
 }
 
 /**
@@ -36,6 +42,9 @@ export function readInvoicedItems(requestPayload: unknown): InvoicedItem[] {
       return [];
     }
     const rate = item.taxes?.[0]?.tax_rate;
+    const taxRate = typeof rate === 'number' ? rate : 0;
+    const sentTax = item.taxes?.[0]?.tax_amount;
+    const value = round(item.price * item.quantity);
     return [
       {
         sku: item.sku,
@@ -43,7 +52,12 @@ export function readInvoicedItems(requestPayload: unknown): InvoicedItem[] {
           typeof item.description === 'string' ? item.description : '',
         quantity: item.quantity,
         unitPrice: item.price,
-        taxRate: typeof rate === 'number' ? rate : 0,
+        taxRate,
+        value,
+        taxAmount:
+          typeof sentTax === 'number'
+            ? sentTax
+            : round(value * (taxRate / 100)),
       },
     ];
   });

@@ -27,7 +27,7 @@ import {
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
 import {
-  computeExclusiveSubtotal,
+  computeGrossSubtotal,
   computeItemDiscount,
   computeItemTotal,
   summarizeLines,
@@ -103,13 +103,13 @@ function editableItemsFrom(items: QuotationItemResponse[]): EditableItem[] {
  * silently resetting to 0 and wiping it out on the next save.
  */
 function initialDiscountPercentageFrom(items: QuotationItemResponse[]): number {
-  const totalExclusive = items.reduce(
+  const totalGross = items.reduce(
     (sum, item) =>
-      sum + computeExclusiveSubtotal({ price: item.unitPrice, quantity: item.quantity, taxRate: item.taxRate }),
+      sum + computeGrossSubtotal({ price: item.unitPrice, quantity: item.quantity, taxRate: item.taxRate }),
     0,
   );
   const totalDiscount = items.reduce((sum, item) => sum + (item.discount ?? 0), 0);
-  return totalExclusive > 0 ? (totalDiscount / totalExclusive) * 100 : 0;
+  return totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
 }
 
 export function QuotationDetailPage() {

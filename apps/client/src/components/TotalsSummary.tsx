@@ -7,7 +7,7 @@ interface TotalsSummaryProps extends LineBreakdown {
 
 const money = (amount: number) => `$${amount.toLocaleString('es-CO')}`;
 
-/** Subtotal / IVA / Total of a sale, quotation or note — the IVA is added on top of the prices. */
+/** Subtotal / IVA / Total of a sale, quotation or note — the prices already include IVA; it is shown broken out of them. */
 export function TotalsSummary({ subtotal, tax, total, undiscountedTotal }: TotalsSummaryProps) {
   return (
     <dl className="ml-auto flex w-full max-w-xs flex-col gap-1 font-mono text-sm text-steel">

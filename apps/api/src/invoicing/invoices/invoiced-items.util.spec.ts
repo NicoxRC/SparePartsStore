@@ -23,8 +23,26 @@ describe('readInvoicedItems', () => {
         quantity: 2,
         unitPrice: 30000,
         taxRate: 19,
+        value: 60000,
+        taxAmount: 11400,
       },
     ]);
+  });
+
+  it('uses the IVA that was sent, and centavos for the pre-tax value', () => {
+    const [item] = readInvoicedItems(
+      payload([
+        {
+          sku: 'A',
+          quantity: 3,
+          price: 71428.5714,
+          taxes: [{ tax_rate: 19, tax_amount: 40714.29 }],
+        },
+      ]),
+    );
+
+    expect(item.value).toBe(214285.71);
+    expect(item.taxAmount).toBe(40714.29);
   });
 
   it('reports a rate of 0 for a line with no taxes', () => {
