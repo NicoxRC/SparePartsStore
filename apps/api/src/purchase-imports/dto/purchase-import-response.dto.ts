@@ -1,6 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { PurchaseImportItem } from '../entities/purchase-import-item.entity';
-import { PurchaseImport } from '../entities/purchase-import.entity';
+import {
+  PurchaseImport,
+  PurchaseImportSource,
+} from '../entities/purchase-import.entity';
 import { LineIssue, LINE_ISSUES } from '../purchase-import-validation';
 import {
   PURCHASE_IMPORT_STATUSES,
@@ -32,6 +35,7 @@ export class PurchaseImportSummaryDto {
   @ApiProperty({ enum: PURCHASE_IMPORT_STATUSES })
   status: PurchaseImportStatus;
   @ApiProperty() lineCount: number;
+  @ApiProperty({ enum: ['xml', 'excel'] }) source: PurchaseImportSource;
   @ApiProperty() sourceFilename: string;
   @ApiProperty() createdAt: string;
   @ApiProperty({ nullable: true, type: String }) createdByName: string | null;
@@ -52,6 +56,7 @@ export class PurchaseImportSummaryDto {
     dto.issueDate = purchaseImport.issueDate;
     dto.status = derivePurchaseImportStatus(purchaseImport);
     dto.lineCount = lineCount;
+    dto.source = purchaseImport.source;
     dto.sourceFilename = purchaseImport.sourceFilename;
     dto.createdAt = purchaseImport.createdAt.toISOString();
     dto.createdByName = purchaseImport.createdBy

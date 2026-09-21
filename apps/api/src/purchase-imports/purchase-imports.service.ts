@@ -5,11 +5,13 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { randomBytes } from 'node:crypto';
 import { EntityManager, In, IsNull, Repository } from 'typeorm';
 import { Brand } from '../brands/entities/brand.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
+import { getStoreToday } from '../common/utils/store-date.util';
 import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
 import { InventoryService } from '../inventory/inventory.service';
@@ -31,20 +33,35 @@ import {
 } from './dto/purchase-import-response.dto';
 import { QueryPurchaseImportsDto } from './dto/query-purchase-imports.dto';
 import { UpdatePurchaseImportItemDto } from './dto/update-purchase-import-item.dto';
+import { buildPurchaseTemplate } from './excel/purchase-sheet.template';
+import { PurchaseSheetParser } from './excel/purchase-sheet.parser';
 import {
   PurchaseImportItem,
   PurchaseImportMatchType,
 } from './entities/purchase-import-item.entity';
-import { PurchaseImport } from './entities/purchase-import.entity';
+import {
+  PurchaseImport,
+  PurchaseImportSource,
+} from './entities/purchase-import.entity';
 import {
   DraftLine,
   LineIssue,
   validateDraft,
 } from './purchase-import-validation';
 import {
-  ParsedPurchaseInvoice,
+  ParsedInvoiceLine,
   PurchaseInvoiceXmlParser,
 } from './xml/purchase-invoice-xml.parser';
+
+/** What both sources (XML, Excel) are normalized into before a draft is created. */
+interface DraftInput {
+  source: PurchaseImportSource;
+  invoiceNumber: string;
+  issueDate: string;
+  cufe: string | null;
+  supplier: { nit: string; dv: string | null; name: string | null };
+  lines: ParsedInvoiceLine[];
+}
 
 export interface UploadedXmlFile {
   buffer: Buffer;
@@ -72,6 +89,7 @@ export class PurchaseImportsService {
     @InjectRepository(Brand)
     private readonly brandsRepository: Repository<Brand>,
     private readonly xmlParser: PurchaseInvoiceXmlParser,
+    private readonly sheetParser: PurchaseSheetParser,
     private readonly suppliersService: SuppliersService,
     private readonly productsService: ProductsService,
     private readonly inventoryService: InventoryService,
@@ -84,7 +102,50 @@ export class PurchaseImportsService {
     createdById: string,
   ): Promise<PurchaseImportDetailDto> {
     const parsed = this.xmlParser.parse(file.buffer);
+    return this.createDraft({ ...parsed, source: 'xml' }, file, createdById);
+  }
 
+  buildTemplate(): Promise<Buffer> {
+    return buildPurchaseTemplate();
+  }
+
+  /**
+   * Same draft as an XML upload, for when there is no XML: the supplier and
+   * (optionally) the invoice number/date come from the template's header, and
+   * the user already typed each new product's sale price. Still nothing
+   * touches stock or the catalog until the draft is confirmed.
+   */
+  async uploadExcel(
+    file: UploadedXmlFile,
+    createdById: string,
+  ): Promise<PurchaseImportDetailDto> {
+    const sheet = await this.sheetParser.parse(file.buffer);
+    return this.createDraft(
+      {
+        source: 'excel',
+        // Without an invoice number there is nothing to deduplicate against,
+        // so a unique placeholder is generated instead of blocking the upload.
+        invoiceNumber: sheet.invoiceNumber ?? this.generateSheetInvoiceNumber(),
+        issueDate: sheet.issueDate ?? getStoreToday(),
+        cufe: null,
+        supplier: sheet.supplier,
+        lines: sheet.lines,
+      },
+      file,
+      createdById,
+    );
+  }
+
+  private generateSheetInvoiceNumber(): string {
+    const day = getStoreToday().replace(/-/g, '');
+    return `EXCEL-${day}-${randomBytes(3).toString('hex').toUpperCase()}`;
+  }
+
+  private async createDraft(
+    parsed: DraftInput,
+    file: UploadedXmlFile,
+    createdById: string,
+  ): Promise<PurchaseImportDetailDto> {
     // CUFE first, so nothing is created for a document we already know.
     if (parsed.cufe) {
       const byCufe = await this.importsRepository.findOne({
@@ -142,7 +203,7 @@ export class PurchaseImportsService {
 
   private async insertDraft(
     manager: EntityManager,
-    parsed: ParsedPurchaseInvoice,
+    parsed: DraftInput,
     supplier: Supplier,
     filename: string,
     createdById: string,
@@ -155,6 +216,7 @@ export class PurchaseImportsService {
         invoiceNumber: parsed.invoiceNumber,
         issueDate: parsed.issueDate,
         cufe: parsed.cufe,
+        source: parsed.source,
         sourceFilename: filename.slice(0, 255),
         createdBy: { id: createdById } as PurchaseImport['createdBy'],
       }),
@@ -173,6 +235,7 @@ export class PurchaseImportsService {
         quantity: line.quantity,
         productId,
         matchType: productId ? 'exact' : null,
+        newSalePrice: line.salePrice ?? null,
       });
     });
     await manager.save(PurchaseImportItem, items);

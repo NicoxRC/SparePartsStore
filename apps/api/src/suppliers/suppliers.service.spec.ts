@@ -1,4 +1,7 @@
-import { NotFoundException } from '@nestjs/common';
+import {
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 import { Supplier } from './entities/supplier.entity';
 import { SuppliersService } from './suppliers.service';
@@ -51,6 +54,32 @@ describe('SuppliersService', () => {
       );
       expect(result.id).toBe('s-1');
     });
+
+    it('returns an existing supplier even when the caller has no name', async () => {
+      const existing = { id: 's-0', nit: '900123456', name: 'EXISTE' };
+      repo.findOne.mockResolvedValue(existing);
+
+      await expect(
+        service.findOrCreateByNit({ ...data, name: null }, 'user-1'),
+      ).resolves.toBe(existing);
+    });
+
+    it.each([null, '', '   '])(
+      'refuses to create a new supplier with name %p',
+      async (name) => {
+        repo.findOne.mockResolvedValue(null);
+
+        await expect(
+          service.findOrCreateByNit({ ...data, name }, 'user-1'),
+        ).rejects.toMatchObject({
+          response: { code: 'MISSING_SUPPLIER_NAME' },
+        });
+        await expect(
+          service.findOrCreateByNit({ ...data, name }, 'user-1'),
+        ).rejects.toBeInstanceOf(UnprocessableEntityException);
+        expect(repo.save).not.toHaveBeenCalled();
+      },
+    );
 
     it('truncates an overlong name to 255 chars', async () => {
       repo.findOne.mockResolvedValue(null);

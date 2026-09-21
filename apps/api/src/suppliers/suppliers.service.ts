@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
@@ -69,7 +73,7 @@ export class SuppliersService {
    * renamed by an admin and must not be overwritten by a later upload.
    */
   async findOrCreateByNit(
-    data: { nit: string; dv: string | null; name: string },
+    data: { nit: string; dv: string | null; name: string | null },
     createdById: string,
     manager?: EntityManager,
   ): Promise<Supplier> {
@@ -79,6 +83,16 @@ export class SuppliersService {
 
     const existing = await repository.findOne({ where: { nit: data.nit } });
     if (existing) return existing;
+
+    // The Excel template can leave the name empty when the supplier is
+    // expected to exist already; creating one with no name is not allowed.
+    if (!data.name?.trim()) {
+      throw new UnprocessableEntityException({
+        code: 'MISSING_SUPPLIER_NAME',
+        message:
+          'El proveedor con este NIT no existe todavía: escribe también su nombre.',
+      });
+    }
 
     const supplier = repository.create({
       nit: data.nit,

@@ -11,6 +11,7 @@ export class CreatePurchaseImports1789930000001 implements MigrationInterface {
         "invoice_number" character varying(50) NOT NULL,
         "issue_date" date NOT NULL,
         "cufe" character varying(128),
+        "source" character varying(10) NOT NULL DEFAULT 'xml',
         "source_filename" character varying(255) NOT NULL,
         "confirmed_at" TIMESTAMPTZ,
         "discarded_at" TIMESTAMPTZ,
@@ -22,6 +23,8 @@ export class CreatePurchaseImports1789930000001 implements MigrationInterface {
         CONSTRAINT "PK_purchase_imports" PRIMARY KEY ("id"),
         CONSTRAINT "CHK_purchase_imports_single_outcome"
           CHECK ("confirmed_at" IS NULL OR "discarded_at" IS NULL),
+        CONSTRAINT "CHK_purchase_imports_source"
+          CHECK ("source" IN ('xml', 'excel')),
         CONSTRAINT "FK_purchase_imports_supplier"
           FOREIGN KEY ("supplier_id") REFERENCES "suppliers"("id") ON DELETE RESTRICT,
         CONSTRAINT "FK_purchase_imports_confirmed_by"

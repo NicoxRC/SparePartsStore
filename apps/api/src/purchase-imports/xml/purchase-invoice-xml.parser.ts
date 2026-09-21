@@ -1,6 +1,7 @@
 import { Injectable, UnprocessableEntityException } from '@nestjs/common';
 import { XMLParser, XMLValidator } from 'fast-xml-parser';
 import { normalizeProductReference } from '../../products/product-normalize.util';
+import { parseNit } from '../supplier-nit.util';
 
 export const MAX_INVOICE_LINES = 500;
 
@@ -13,6 +14,8 @@ export interface ParsedInvoiceLine {
   xmlQuantity: number;
   /** Integer > 0, or null when the reviewer has to type it. */
   quantity: number | null;
+  /** Only the Excel template carries a price; the XML parser leaves it out. */
+  salePrice?: number | null;
 }
 
 export interface ParsedPurchaseInvoice {
@@ -249,28 +252,17 @@ export class PurchaseInvoiceXmlParser {
 
     const companyId =
       read(taxScheme, 'CompanyID') ?? read(legalEntity, 'CompanyID');
-    const rawNit = text(companyId);
-
-    let nit: string | null = null;
-    let dv: string | null = null;
-    if (rawNit) {
-      // Some suppliers write the check digit inline ("900.123.456-7").
-      const inline = /^([\d.\s]+)-(\d)$/.exec(rawNit);
-      if (inline) {
-        nit = inline[1].replace(/\D/g, '');
-        dv = inline[2];
-      } else {
-        nit = rawNit.replace(/\D/g, '');
-        const schemeId = attribute(companyId, 'schemeID');
-        dv = schemeId && /^\d$/.test(schemeId) ? schemeId : null;
-      }
-    }
-    if (!nit || nit.length > 20) {
+    const parsedNit = parseNit(
+      text(companyId),
+      attribute(companyId, 'schemeID'),
+    );
+    if (!parsedNit) {
       fail(
         'MISSING_SUPPLIER',
         'No se encontró el NIT del proveedor en el XML.',
       );
     }
+    const { nit, dv } = parsedNit;
 
     const person = path(party, 'Person');
     const personName = [

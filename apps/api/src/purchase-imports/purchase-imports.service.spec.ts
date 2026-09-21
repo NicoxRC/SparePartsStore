@@ -13,6 +13,7 @@ import { Product } from '../products/entities/product.entity';
 import { ProductsService } from '../products/products.service';
 import { Supplier } from '../suppliers/entities/supplier.entity';
 import { SuppliersService } from '../suppliers/suppliers.service';
+import { PurchaseSheetParser } from './excel/purchase-sheet.parser';
 import { PurchaseImportItem } from './entities/purchase-import-item.entity';
 import { PurchaseImport } from './entities/purchase-import.entity';
 import { PurchaseImportsService } from './purchase-imports.service';
@@ -98,6 +99,7 @@ describe('PurchaseImportsService', () => {
   let groups: { findOne: Mock };
   let brands: { findOne: Mock };
   let xmlParser: { parse: Mock };
+  let sheetParser: { parse: Mock };
   let suppliersService: { findOrCreateByNit: Mock };
   let productsService: { create: Mock };
   let inventoryService: { createMovement: Mock };
@@ -161,6 +163,7 @@ describe('PurchaseImportsService', () => {
     groups = { findOne: jest.fn().mockResolvedValue({ id: 'grp' }) };
     brands = { findOne: jest.fn().mockResolvedValue({ id: 'brd' }) };
     xmlParser = { parse: jest.fn().mockReturnValue(parsed) };
+    sheetParser = { parse: jest.fn() };
     suppliersService = {
       findOrCreateByNit: jest.fn().mockResolvedValue(supplier),
     };
@@ -177,6 +180,7 @@ describe('PurchaseImportsService', () => {
       groups as unknown as Repository<Group>,
       brands as unknown as Repository<Brand>,
       xmlParser as unknown as PurchaseInvoiceXmlParser,
+      sheetParser as unknown as PurchaseSheetParser,
       suppliersService as unknown as SuppliersService,
       productsService as unknown as ProductsService,
       inventoryService as unknown as InventoryService,
@@ -314,6 +318,180 @@ describe('PurchaseImportsService', () => {
         UnprocessableEntityException,
       );
       expect(imports.findOne).not.toHaveBeenCalled();
+    });
+  });
+
+  // ---------------------------------------------------------- excel upload
+
+  describe('uploadExcel', () => {
+    const file = { buffer: Buffer.from('xlsx'), originalname: 'compra.xlsx' };
+    const sheet = {
+      supplier: { nit: '900123456', dv: null, name: 'Proveedor Uno' },
+      invoiceNumber: null as string | null,
+      issueDate: null as string | null,
+      lines: [
+        {
+          lineNumber: 1,
+          reference: 'REF-A',
+          description: 'Filtro',
+          xmlQuantity: 2,
+          quantity: 2,
+          salePrice: 15000,
+        },
+        {
+          lineNumber: 2,
+          reference: 'REF-B',
+          description: 'Bujia',
+          xmlQuantity: 1,
+          quantity: 1,
+          salePrice: null,
+        },
+      ],
+    };
+
+    const headerCreate = () =>
+      (
+        manager.create.mock.calls as Array<[unknown, Partial<PurchaseImport>]>
+      ).find(([entity]) => entity === PurchaseImport)![1];
+
+    beforeEach(() => {
+      sheetParser.parse.mockResolvedValue({ ...sheet });
+      imports.findOne.mockResolvedValue(null);
+      jest
+        .spyOn(service, 'findOne')
+        .mockResolvedValue({ id: 'imp-1' } as never);
+    });
+
+    it('creates an excel-sourced draft with the prices the user typed', async () => {
+      await service.uploadExcel(file, 'user-1');
+
+      expect(headerCreate()).toMatchObject({
+        source: 'excel',
+        cufe: null,
+        sourceFilename: 'compra.xlsx',
+        supplierId: 'sup-1',
+      });
+      const savedCall = (
+        manager.save.mock.calls as Array<[unknown, unknown]>
+      ).find(([entity]) => entity === PurchaseImportItem);
+      const saved = savedCall?.[1] as PurchaseImportItem[];
+      expect(saved.map((i) => i.newSalePrice)).toEqual([15000, null]);
+    });
+
+    it('still auto-matches existing references, keeping the typed price on the line', async () => {
+      products.find.mockResolvedValue([{ id: 'prod-a', reference: 'REF-A' }]);
+
+      await service.uploadExcel(file, 'user-1');
+
+      const savedCall = (
+        manager.save.mock.calls as Array<[unknown, unknown]>
+      ).find(([entity]) => entity === PurchaseImportItem);
+      const saved = savedCall?.[1] as PurchaseImportItem[];
+      expect(saved[0]).toMatchObject({
+        productId: 'prod-a',
+        matchType: 'exact',
+        newSalePrice: 15000,
+      });
+    });
+
+    it('hands the sheet supplier to find-or-create (name may be null)', async () => {
+      sheetParser.parse.mockResolvedValue({
+        ...sheet,
+        supplier: { nit: '900123456', dv: null, name: null },
+      });
+
+      await service.uploadExcel(file, 'user-1');
+
+      expect(suppliersService.findOrCreateByNit).toHaveBeenCalledWith(
+        { nit: '900123456', dv: null, name: null },
+        'user-1',
+      );
+    });
+
+    it('generates a unique placeholder invoice number and uses the store day when the template leaves them empty', async () => {
+      await service.uploadExcel(file, 'user-1');
+
+      const header = headerCreate();
+      expect(header.invoiceNumber).toMatch(/^EXCEL-\d{8}-[0-9A-F]{6}$/);
+      expect(header.issueDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(header.invoiceNumber).toContain(
+        header.issueDate!.replace(/-/g, ''),
+      );
+    });
+
+    it('generates a different placeholder every time', async () => {
+      await service.uploadExcel(file, 'user-1');
+      await service.uploadExcel(file, 'user-1');
+
+      const numbers = (
+        manager.create.mock.calls as Array<[unknown, Partial<PurchaseImport>]>
+      )
+        .filter(([entity]) => entity === PurchaseImport)
+        .map(([, header]) => header.invoiceNumber);
+      expect(new Set(numbers).size).toBe(2);
+    });
+
+    it('uses the invoice number and date typed in the template', async () => {
+      sheetParser.parse.mockResolvedValue({
+        ...sheet,
+        invoiceNumber: 'FV-12',
+        issueDate: '2026-08-30',
+      });
+
+      await service.uploadExcel(file, 'user-1');
+
+      expect(headerCreate()).toMatchObject({
+        invoiceNumber: 'FV-12',
+        issueDate: '2026-08-30',
+      });
+    });
+
+    it('rejects a duplicate when the template carries an invoice number that was already loaded', async () => {
+      sheetParser.parse.mockResolvedValue({ ...sheet, invoiceNumber: 'FV-12' });
+      imports.findOne.mockResolvedValueOnce(draftHeader({ id: 'old' }));
+
+      await expect(service.uploadExcel(file, 'user-1')).rejects.toMatchObject({
+        response: {
+          code: 'PURCHASE_IMPORT_DUPLICATE',
+          existingImportId: 'old',
+        },
+      });
+    });
+
+    it('never checks a CUFE (there is none)', async () => {
+      await service.uploadExcel(file, 'user-1');
+
+      expect(imports.findOne).toHaveBeenCalledTimes(1);
+    });
+
+    it('lets a sheet-parser 422 propagate without touching the database', async () => {
+      sheetParser.parse.mockRejectedValue(
+        new UnprocessableEntityException({ code: 'INVALID_TEMPLATE' }),
+      );
+
+      await expect(service.uploadExcel(file, 'user-1')).rejects.toThrow(
+        UnprocessableEntityException,
+      );
+      expect(suppliersService.findOrCreateByNit).not.toHaveBeenCalled();
+      expect(imports.findOne).not.toHaveBeenCalled();
+    });
+
+    it('marks XML uploads as xml-sourced', async () => {
+      await service.upload(
+        { buffer: Buffer.from('<x/>'), originalname: 'f.xml' },
+        'user-1',
+      );
+
+      expect(headerCreate().source).toBe('xml');
+    });
+  });
+
+  describe('buildTemplate', () => {
+    it('returns an xlsx workbook', async () => {
+      const buffer = await service.buildTemplate();
+
+      // An .xlsx is a zip: it starts with the "PK" signature.
+      expect(buffer.subarray(0, 2).toString()).toBe('PK');
     });
   });
 

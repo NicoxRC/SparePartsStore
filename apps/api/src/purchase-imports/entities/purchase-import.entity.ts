@@ -12,6 +12,8 @@ import { Supplier } from '../../suppliers/entities/supplier.entity';
 import { User } from '../../users/entities/user.entity';
 import { PurchaseImportItem } from './purchase-import-item.entity';
 
+export type PurchaseImportSource = 'xml' | 'excel';
+
 /**
  * The header of a draft built from a supplier's XML invoice. State is derived
  * from `confirmedAt`/`discardedAt` (both null = draft) — same precedent as
@@ -41,6 +43,10 @@ export class PurchaseImport {
 
   @Column({ type: 'varchar', length: 128, nullable: true })
   cufe: string | null;
+
+  /** Where the draft came from: a supplier's XML or the Excel template. */
+  @Column({ type: 'varchar', length: 10, default: 'xml' })
+  source: PurchaseImportSource;
 
   @Column({ name: 'source_filename', type: 'varchar', length: 255 })
   sourceFilename: string;

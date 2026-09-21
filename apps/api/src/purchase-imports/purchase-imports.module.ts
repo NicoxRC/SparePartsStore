@@ -9,6 +9,7 @@ import { ProductsModule } from '../products/products.module';
 import { SuppliersModule } from '../suppliers/suppliers.module';
 import { PurchaseImportItem } from './entities/purchase-import-item.entity';
 import { PurchaseImport } from './entities/purchase-import.entity';
+import { PurchaseSheetParser } from './excel/purchase-sheet.parser';
 import { PurchaseImportsController } from './purchase-imports.controller';
 import { PurchaseImportsService } from './purchase-imports.service';
 import { PurchaseInvoiceXmlParser } from './xml/purchase-invoice-xml.parser';
@@ -28,6 +29,10 @@ import { PurchaseInvoiceXmlParser } from './xml/purchase-invoice-xml.parser';
     InventoryModule,
   ],
   controllers: [PurchaseImportsController],
-  providers: [PurchaseImportsService, PurchaseInvoiceXmlParser],
+  providers: [
+    PurchaseImportsService,
+    PurchaseInvoiceXmlParser,
+    PurchaseSheetParser,
+  ],
 })
 export class PurchaseImportsModule {}

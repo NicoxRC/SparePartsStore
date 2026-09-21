@@ -11,6 +11,7 @@ import {
   Patch,
   Post,
   Query,
+  StreamableFile,
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import {
   ApiBody,
   ApiConsumes,
   ApiOperation,
+  ApiProduces,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
@@ -31,6 +33,7 @@ import { RequirePermission } from '../common/decorators/require-permission.decor
 import { Roles } from '../common/decorators/roles.decorator';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { UserRole } from '../common/enums/user-role.enum';
+import { TEMPLATE_FILENAME, XLSX_MIME } from './excel/purchase-sheet.layout';
 import { ApplyClassificationDto } from './dto/apply-classification.dto';
 import {
   ConfirmPurchaseImportResponseDto,
@@ -100,6 +103,71 @@ export class PurchaseImportsController {
       throw new BadRequestException('The file must be an .xml');
     }
     return this.purchaseImportsService.upload(file, user.id);
+  }
+
+  @ApiOperation({
+    summary: 'Download the Excel template for loading products without an XML',
+  })
+  @ApiProduces(XLSX_MIME)
+  @ApiResponse({ status: 200, description: 'The .xlsx template' })
+  // Declared before ':id' so "template" isn't parsed as a UUID.
+  @Get('template')
+  @RequirePermission('purchase_imports.create')
+  async downloadTemplate(): Promise<StreamableFile> {
+    return new StreamableFile(
+      await this.purchaseImportsService.buildTemplate(),
+      {
+        type: XLSX_MIME,
+        disposition: `attachment; filename="${TEMPLATE_FILENAME}"`,
+      },
+    );
+  }
+
+  @ApiOperation({
+    summary:
+      'Upload the filled-in Excel template — creates a DRAFT (same review flow as an XML), touches no stock',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+      required: ['file'],
+    },
+  })
+  @ApiResponse({ status: 201, type: PurchaseImportDetailDto })
+  @ApiResponse({
+    status: 409,
+    description:
+      'PURCHASE_IMPORT_DUPLICATE — only when the template carries an invoice number',
+  })
+  @ApiResponse({ status: 413, description: 'File larger than 5 MB' })
+  @ApiResponse({
+    status: 422,
+    description: 'Not the template / bad data — see the `code` field',
+  })
+  @Post('excel')
+  @RequirePermission('purchase_imports.create')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
+    }),
+  )
+  uploadExcel(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<PurchaseImportDetailDto> {
+    if (!file) {
+      throw new BadRequestException(
+        'Attach the Excel file in the "file" field',
+      );
+    }
+    if (!file.originalname.toLowerCase().endsWith('.xlsx')) {
+      throw new BadRequestException(
+        'The file must be an .xlsx (the template you downloaded)',
+      );
+    }
+    return this.purchaseImportsService.uploadExcel(file, user.id);
   }
 
   @ApiOperation({
