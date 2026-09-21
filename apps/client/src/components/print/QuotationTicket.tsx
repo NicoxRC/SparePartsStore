@@ -135,11 +135,7 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
         <span className="font-semibold">{amountInWords(total)}</span>
       </div>
 
-      <p className="mt-3 text-[10px] leading-snug">
-        Recibí conforme los productos descritos arriba, por los cuales me comprometo a pagar el
-        valor total indicado.
-      </p>
-      <p className="mt-8 border-t border-black pt-1 text-center text-[10px]">
+      <p className="mt-10 border-t border-black pt-1 text-center text-[10px]">
         Firma recibido a satisfacción
       </p>
     </div>
