@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   closeCashRegister,
+  closePastCashRegister,
   createCashMovement,
   getCashRegisterHistory,
   getDayInvoicesReport,
@@ -47,6 +48,17 @@ export function useCloseCashRegister() {
     mutationFn: closeCashRegister,
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: TODAY_KEY });
+      void queryClient.invalidateQueries({ queryKey: HISTORY_KEY });
+    },
+  });
+}
+
+export function useClosePastCashRegister() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, countedCash }: { id: string; countedCash?: number }) =>
+      closePastCashRegister(id, countedCash),
+    onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: HISTORY_KEY });
     },
   });

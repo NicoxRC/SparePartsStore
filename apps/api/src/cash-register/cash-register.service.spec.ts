@@ -325,6 +325,75 @@ describe('CashRegisterService', () => {
     });
   });
 
+  describe('closePast', () => {
+    const past = { ...openRegister, id: 'reg-old', registerDate: '2026-09-10' };
+
+    it('404s when the register does not exist', async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.closePast('nope', 'user-1')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it('409s when it is already closed', async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce({
+        ...past,
+        closedAt: new Date('2026-09-10T23:00:00.000Z'),
+      });
+
+      await expect(service.closePast('reg-old', 'user-1')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it("refuses today's register — that one closes the normal way", async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce({ ...openRegister });
+
+      await expect(service.closePast('reg-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(cashRegisterRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("computes that day's totals and uses the given counted cash", async () => {
+      cashRegisterRepository.findOne
+        .mockResolvedValueOnce({ ...past })
+        .mockResolvedValueOnce({ ...past, closedAt: new Date() });
+
+      await service.closePast('reg-old', 'user-1', 149000);
+
+      const saved = cashRegisterRepository.save.mock
+        .calls[0][0] as CashRegister;
+      expect(saved.totalAmount).toBe(150000);
+      expect(saved.expectedCash).toBe(150000);
+      expect(saved.countedCash).toBe(149000);
+      expect(saved.cashDiscrepancy).toBe(-1000);
+      expect(saved.closedBy).toEqual({ id: 'user-1' });
+      // The queries were run for the old day, not for today.
+
+      expect(invoiceQueryBuilder.where).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          start: new Date('2026-09-10T05:00:00.000Z'),
+        }),
+      );
+    });
+
+    it('takes the expected cash as counted when nothing was counted, so there is no discrepancy', async () => {
+      cashRegisterRepository.findOne
+        .mockResolvedValueOnce({ ...past })
+        .mockResolvedValueOnce({ ...past, closedAt: new Date() });
+
+      await service.closePast('reg-old', 'user-1');
+
+      const saved = cashRegisterRepository.save.mock
+        .calls[0][0] as CashRegister;
+      expect(saved.countedCash).toBe(150000);
+      expect(saved.cashDiscrepancy).toBe(0);
+    });
+  });
+
   describe('reopen', () => {
     it("nulls closedAt/closedBy and every total close() had frozen on today's register", async () => {
       const closedToday: CashRegister = {

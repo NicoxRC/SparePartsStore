@@ -87,6 +87,18 @@ export async function closeCashRegister(
   return data;
 }
 
+/** Closes a register from an earlier day that was never closed. `countedCash`
+ * may be left out: the server then takes the expected cash as counted. */
+export async function closePastCashRegister(
+  id: string,
+  countedCash?: number,
+): Promise<CashRegisterResponse> {
+  const { data } = await api.post<CashRegisterResponse>(`/cash-register/${id}/close`, {
+    countedCash,
+  });
+  return data;
+}
+
 export async function reopenCashRegister(): Promise<CashRegisterResponse> {
   const { data } = await api.post<CashRegisterResponse>('/cash-register/reopen');
   return data;

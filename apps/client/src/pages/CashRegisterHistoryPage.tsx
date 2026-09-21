@@ -3,9 +3,14 @@ import { Alert } from '../components/Alert';
 import { Pagination } from '../components/Pagination';
 import { CashRegisterPrint } from '../components/print/CashRegisterPrint';
 import { Spinner } from '../components/Spinner';
-import { useCashRegisterHistory, useUpdateCountedCash } from '../hooks/useCashRegister';
+import {
+  useCashRegisterHistory,
+  useClosePastCashRegister,
+  useUpdateCountedCash,
+} from '../hooks/useCashRegister';
 import { usePermissions } from '../hooks/usePermissions';
 import { getApiErrorMessage } from '../lib/errors';
+import { storeToday } from '../lib/ticketFormat';
 import type { CashRegisterResponse } from '../services/cashRegister';
 
 const PAGE_SIZE = 20;
@@ -78,9 +83,85 @@ function CorrectCountedCashCell({ register }: { register: CashRegisterResponse }
   );
 }
 
+/** A register from an earlier day that was never closed. Counting is optional:
+ * left empty, the server takes the expected cash as counted (no discrepancy),
+ * and "Corregir" can fix it afterwards. */
+function ClosePastRegisterCell({ register }: { register: CashRegisterResponse }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const closePast = useClosePastCashRegister();
+
+  if (!isEditing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsEditing(true)}
+        className="text-xs font-medium text-rust hover:underline"
+      >
+        Cerrar
+      </button>
+    );
+  }
+
+  const parsedValue = parseFloat(value);
+  const isEmpty = value.trim() === '';
+  const isValid = isEmpty || (!isNaN(parsedValue) && parsedValue >= 0);
+
+  const handleClose = async () => {
+    if (!isValid) return;
+    try {
+      await closePast.mutateAsync({
+        id: register.id,
+        countedCash: isEmpty ? undefined : parsedValue,
+      });
+    } catch {
+      // Error shown via mutation.isError
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          placeholder="Contado (opcional)"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-36 rounded-sm border border-line bg-paper px-2 py-1 text-right text-sm text-ink placeholder:text-fog focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
+        />
+        <button
+          type="button"
+          disabled={!isValid || closePast.isPending}
+          onClick={() => void handleClose()}
+          className="text-xs font-medium text-ok hover:underline disabled:cursor-not-allowed disabled:text-fog"
+        >
+          Cerrar caja
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsEditing(false)}
+          className="text-xs font-medium text-fog hover:text-steel hover:underline"
+        >
+          Cancelar
+        </button>
+      </div>
+      <p className="max-w-56 text-right text-xs text-fog">
+        Sin contado, se toma el efectivo esperado.
+      </p>
+      {closePast.isError && (
+        <p className="text-xs text-rust">{getApiErrorMessage(closePast.error)}</p>
+      )}
+    </div>
+  );
+}
+
 export function CashRegisterHistoryPage() {
   const { has } = usePermissions();
   const canCorrect = has('cash_register.counted_cash.correct');
+  const canClose = has('cash_register.close');
+  const today = storeToday();
   const [page, setPage] = useState(1);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [printingId, setPrintingId] = useState<string | null>(null);
@@ -127,9 +208,14 @@ export function CashRegisterHistoryPage() {
                       <tr>
                         <td className="px-4 py-3 font-medium text-ink">
                           {register.registerDate}
-                          {register.isOpen && (
-                            <span className="ml-2 text-xs font-normal text-ok">(abierta)</span>
-                          )}
+                          {register.isOpen &&
+                            (register.registerDate < today ? (
+                              <span className="ml-2 text-xs font-normal text-rust">
+                                (sin cerrar)
+                              </span>
+                            ) : (
+                              <span className="ml-2 text-xs font-normal text-ok">(abierta)</span>
+                            ))}
                         </td>
                         <td className="px-4 py-3 text-right font-mono">
                           {money(register.openingAmount)}
@@ -190,6 +276,9 @@ export function CashRegisterHistoryPage() {
                             )}
                             {!register.isOpen && canCorrect && (
                               <CorrectCountedCashCell register={register} />
+                            )}
+                            {register.isOpen && register.registerDate < today && canClose && (
+                              <ClosePastRegisterCell register={register} />
                             )}
                           </div>
                         </td>
