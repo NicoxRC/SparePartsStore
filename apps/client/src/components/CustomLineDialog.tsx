@@ -66,7 +66,7 @@ export function CustomLineDialog({
           />
           <div className="grid grid-cols-2 gap-3">
             <CurrencyField
-              label="Precio"
+              label="Precio (IVA incluido)"
               name="customLinePrice"
               placeholder="0"
               error={priceError}

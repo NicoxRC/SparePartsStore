@@ -10,6 +10,7 @@ import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   computeLineAmounts,
+  round,
   resolveTaxRate,
 } from '../../common/utils/invoice-math.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
@@ -189,9 +190,8 @@ export class CreditNotesService {
       invoice,
       reason: 'DEVOLUCION',
       issueDate,
-      totalAmount: items.reduce(
-        (sum, item) => sum + item.taxBase + item.taxAmount,
-        0,
+      totalAmount: round(
+        items.reduce((sum, item) => sum + item.taxBase + item.taxAmount, 0),
       ),
       requestPayload,
       createdBy: { id: createdById } as CreditNote['createdBy'],
@@ -303,14 +303,14 @@ export class CreditNotesService {
 
         const invoiced = this.findInvoicedLine(invoice, product.reference);
         if (invoiced) {
-          const taxBase = invoiced.unitPrice * itemDto.quantity;
+          const taxBase = round(invoiced.unitPrice * itemDto.quantity);
           return {
             product,
             quantity: itemDto.quantity,
             taxRate: invoiced.taxRate,
             unitPrice: invoiced.unitPrice,
             taxBase,
-            taxAmount: Math.round(taxBase * (invoiced.taxRate / 100)),
+            taxAmount: round(taxBase * (invoiced.taxRate / 100)),
           };
         }
 

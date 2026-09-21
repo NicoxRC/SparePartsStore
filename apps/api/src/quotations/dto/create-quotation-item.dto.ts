@@ -42,7 +42,7 @@ export class CreateQuotationItemDto {
   @ApiPropertyOptional({
     example: 25000,
     description:
-      'Price before IVA of a one-off line. Required when there is no `productId`. IVA (19%) is added on top like any other line.',
+      'Sale price of a one-off line, IVA included (like any product price). Required when there is no `productId`. The 19% IVA is broken out of it like any other line.',
   })
   @ValidateIf((line: { productId?: string }) => !line.productId)
   @Type(() => Number)

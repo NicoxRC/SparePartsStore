@@ -74,7 +74,10 @@ export function CreditNoteFormPage() {
           reference: product.reference,
           description: product.description,
           brand: product.brand?.name ?? '',
-          price: invoiced ? invoiced.unitPrice : product.salePrice,
+          // The invoice stores the pre-tax price; prices here include IVA.
+          price: invoiced
+            ? Math.round(invoiced.unitPrice * (1 + invoiced.taxRate / 100))
+            : product.salePrice,
           quantity,
           taxRate: invoiced ? invoiced.taxRate : product.taxExempt ? 0 : DEFAULT_TAX_RATE,
           isInvoicedPrice: Boolean(invoiced),

@@ -10,6 +10,7 @@ import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-d
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   computeLineAmounts,
+  round,
   CUSTOM_LINE_SKU,
   resolveTaxRate,
   STANDARD_TAX_RATE,
@@ -218,9 +219,8 @@ export class InvoicesService {
       customerEmail: dto.customerEmail,
       issueDate,
       paymentDate,
-      totalAmount: items.reduce(
-        (sum, item) => sum + item.taxBase + item.taxAmount,
-        0,
+      totalAmount: round(
+        items.reduce((sum, item) => sum + item.taxBase + item.taxAmount, 0),
       ),
       requestPayload,
       createdBy: { id: createdById } as Invoice['createdBy'],
@@ -360,23 +360,22 @@ export class InvoicesService {
    * un-sent, so it's better to fail here than after DIAN has accepted a
    * sale this store can't actually fulfill.
    *
-   * `product.salePrice` is the price BEFORE IVA, exactly as entered on the
-   * product (confirmed directly): IVA is added on top here, on the
-   * document, and that final amount is what reaches the DIAN. Only an
-   * exempt product (`taxRate: 0`) is left without IVA. Dataico takes `price`
-   * as the pre-tax unit price with `tax_amount` broken out separately.
+   * `product.salePrice` already INCLUDES IVA (confirmed directly): what the
+   * customer pays is just the sum of the prices, and the IVA is only broken
+   * out of it. Dataico takes `price` as the pre-tax unit price (with
+   * `tax_amount` broken out separately) and computes the IVA itself from the
+   * rate. An exempt product (`taxRate: 0`) has no IVA to unwrap.
    *
    * A fixed per-line discount (a flat COP amount, not a percentage) is
-   * then subtracted from that pre-tax subtotal, before IVA is computed —
-   * confirmed directly: the discount comes off the base, IVA is then
-   * calculated on the already-discounted amount. The discounted amount is
-   * folded back into a per-unit `unitPrice` (rather than kept as a
-   * separate figure) so `price × quantity` on the actual invoice always
-   * equals the discounted total — Dataico never sees a "discount" field,
-   * only the already-final numbers, per direct instruction.
+   * subtracted from that final, IVA-included amount first; the IVA is then
+   * unwrapped from what's left. The result is folded back into a per-unit
+   * `unitPrice` (rather than kept as a separate figure) so
+   * `price × quantity` on the actual invoice always equals the discounted
+   * pre-tax base — Dataico never sees a "discount" field, only the
+   * already-final numbers, per direct instruction.
    *
    * `itemDto.unitPriceOverride`, when present, replaces `product.salePrice`
-   * as the starting price (before IVA) — used by
+   * as the starting price (IVA included) — used by
    * QuotationsService.invoice() to honor a quotation's locked-in price
    * instead of the product's current one. `skipStockCheck` is set by the
    * same caller for the same reason — see create()'s docstring.

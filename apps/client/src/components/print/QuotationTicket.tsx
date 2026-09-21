@@ -41,7 +41,7 @@ function TotalRow({ label, value, bold = false }: { label: string; value: string
  * Gravados / Subtotal / IVA / Descuento / Valor total, seller and the amount
  * in words. Still a paper guarantee — the
  * customer signs it when merchandise leaves before payment. Every figure is
- * computed from the lines (IVA added on top of each price), never printed
+ * computed from the lines (the IVA broken out of each price), never printed
  * from a cached total. See PrintTicket for how this gets shown.
  */
 export function QuotationTicket({ quotation }: { quotation: QuotationResponse }) {

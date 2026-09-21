@@ -228,8 +228,9 @@ describe('DebitNotesService', () => {
                 measuring_unit: '94',
                 description: 'Filtro de aceite',
                 quantity: 1,
-                // salePrice (50000) is the price before IVA, sent as-is.
-                price: 50000,
+                // salePrice (50000) includes IVA: Dataico gets the pre-tax
+                // price (50000 / 1.19 = 42016.8067).
+                price: 42016.8067,
                 taxes: [{ tax_category: 'IVA', tax_rate: 19 }],
               }),
             ],

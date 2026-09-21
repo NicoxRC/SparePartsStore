@@ -1,4 +1,5 @@
 import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
+import { round } from '../common/utils/invoice-math.util';
 import { readInvoicedItems } from '../invoicing/invoices/invoiced-items.util';
 import {
   DayInvoiceRowDto,
@@ -31,8 +32,8 @@ const empty = (): DayPaymentTotalDto => ({ count: 0, amount: 0 });
  * report is: `total` is the sum of the invoices' stored totals, and the
  * payment split reads `payment_means` out of each stored request (anything
  * outside cash/card/transfer is listed but left out of the split). The
- * taxable / IVA / exempt figures come from the lines actually sent, so with
- * IVA added on top they satisfy `taxable + tax + exempt = total`.
+ * taxable / IVA / exempt figures come from the lines actually sent, so
+ * they satisfy `taxable + tax + exempt = total`.
  */
 export function buildDayInvoicesReport(
   registerDate: string,
@@ -62,12 +63,11 @@ export function buildDayInvoicesReport(
     }
 
     for (const line of readInvoicedItems(invoice.requestPayload)) {
-      const value = line.unitPrice * line.quantity;
       if (line.taxRate > 0) {
-        taxable += value;
-        tax += Math.round(value * (line.taxRate / 100));
+        taxable += line.value;
+        tax += line.taxAmount;
       } else {
-        exempt += value;
+        exempt += line.value;
       }
     }
 
@@ -86,9 +86,9 @@ export function buildDayInvoicesReport(
     cash,
     card,
     transfer,
-    taxable,
-    tax,
-    exempt,
-    total,
+    taxable: round(taxable),
+    tax: round(tax),
+    exempt: round(exempt),
+    total: round(total),
   };
 }

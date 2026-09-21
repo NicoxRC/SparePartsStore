@@ -44,7 +44,7 @@ export class CreateInvoiceItemDto {
   @ApiPropertyOptional({
     example: 25000,
     description:
-      'Price before IVA of a one-off line. Required when there is no `productId`. IVA (19%) is added on top like any other line.',
+      'Sale price of a one-off line, IVA included (like any product price). Required when there is no `productId`. The 19% IVA is broken out of it like any other line.',
   })
   @ValidateIf((line: { productId?: string }) => !line.productId)
   @Type(() => Number)
@@ -61,7 +61,7 @@ export class CreateInvoiceItemDto {
   @ApiPropertyOptional({
     example: 20000,
     description:
-      'Fixed COP amount taken off this line\'s pre-tax subtotal (price × quantity) before computing IVA — not a percentage. The client computes this per line by prorating a single invoice-level discount (% or COP value) the user enters once, not a per-line input anymore. Local-only: never sent to Dataico as its own field, it only changes the tax_base/tax_amount/price this app computes and sends (see docs/DATABASE.md\'s "invoices" table). Not part of the confirmed standard-invoice payload.',
+      'Fixed COP amount taken off this line\'s final, IVA-included amount (price × quantity) — not a percentage. The client computes this per line by prorating a single invoice-level discount (% or COP value) the user enters once, not a per-line input anymore. Local-only: never sent to Dataico as its own field, it only changes the tax_base/tax_amount/price this app computes and sends (see docs/DATABASE.md\'s "invoices" table). Not part of the confirmed standard-invoice payload.',
   })
   @IsOptional()
   @Type(() => Number)

@@ -246,8 +246,9 @@ describe('CreditNotesService', () => {
                 'measuring-unit': '94',
                 description: 'Filtro de aceite',
                 quantity: 1,
-                // salePrice (50000) is the price before IVA, sent as-is.
-                price: 50000,
+                // salePrice (50000) includes IVA: Dataico gets the pre-tax
+                // price (50000 / 1.19 = 42016.8067).
+                price: 42016.8067,
                 taxes: [{ tax_category: 'IVA', tax_rate: 19 }],
               }),
             ],
@@ -292,7 +293,7 @@ describe('CreditNotesService', () => {
         ).credit_note.items;
 
       it("credits at the price the invoice charged, not the product's current price", async () => {
-        // The product now sells at 50000 before IVA; it was invoiced at 30000.
+        // The product now sells at 50000; the invoice charged 30000 pre-tax.
         invoicesService.findOne.mockResolvedValue(
           invoiceWithItems([{ sku: 'REP-001', price: 30000, tax_rate: 19 }]),
         );
@@ -363,13 +364,15 @@ describe('CreditNotesService', () => {
 
         await service.create(baseDto, 'user-1');
 
-        expect(sentItems()[0].price).toBe(50000);
+        // 50000 with IVA -> 42016.8067 pre-tax.
+        expect(sentItems()[0].price).toBe(42016.8067);
       });
 
       it('falls back when the stored invoice has no items at all', async () => {
         await service.create(baseDto, 'user-1');
 
-        expect(sentItems()[0].price).toBe(50000);
+        // 50000 with IVA -> 42016.8067 pre-tax.
+        expect(sentItems()[0].price).toBe(42016.8067);
       });
     });
 

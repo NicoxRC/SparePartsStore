@@ -115,7 +115,7 @@ describe('buildDayInvoicesReport', () => {
     expect(report.taxable + report.tax + report.exempt).toBe(report.total);
   });
 
-  it('rounds the IVA per line, like the invoice itself', () => {
+  it('works the IVA out of the rate per line when the stored line has none', () => {
     const report = buildDayInvoicesReport('2026-09-21', [
       invoice({
         totalAmount: 2378,
@@ -126,7 +126,8 @@ describe('buildDayInvoicesReport', () => {
       }),
     ]);
 
-    expect(report.tax).toBe(380);
+    // 2 x (999 x 19% = 189.81)
+    expect(report.tax).toBe(379.62);
   });
 
   it('counts an invoice whose stored request has no lines only in the totals', () => {

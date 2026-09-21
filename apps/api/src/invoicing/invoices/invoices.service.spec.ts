@@ -244,8 +244,9 @@ describe('InvoicesService', () => {
       };
       const [tax] = body.invoice.items[0].taxes;
       expect(tax.tax_base).toBe(100);
-      // 10 x 50000 = 500,000 pre-tax -> 19% = 95,000: a real amount, not 100.
-      expect(tax.tax_amount).toBe(95000);
+      // 10 x 50000 = 500,000 with IVA -> 420,168.07 pre-tax -> the IVA is
+      // the rest, 79,831.93: a real amount, not 100.
+      expect(tax.tax_amount).toBe(79831.93);
     });
 
     it('sends the invoice to Dataico with the confirmed field names and computed tax', async () => {
@@ -273,16 +274,17 @@ describe('InvoicesService', () => {
               expect.objectContaining({
                 sku: 'REP-001',
                 description: 'Filtro de aceite',
-                // salePrice (50000) is the price BEFORE IVA: IVA is added on
-                // top (2 × 50000 = 100000 base, 19% = 19000).
-                price: 50000,
+                // salePrice (50000) already includes IVA: Dataico gets the
+                // pre-tax price (50000 / 1.19 = 42016.8067) and the IVA
+                // contained in 2 × 50000 (84033.61 base + 15966.39 IVA).
+                price: 42016.8067,
                 quantity: 2,
                 taxes: [
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
                     tax_base: 100,
-                    tax_amount: 19000,
+                    tax_amount: 15966.39,
                   },
                 ],
                 retentions: [],
@@ -294,7 +296,7 @@ describe('InvoicesService', () => {
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
-    it('subtracts a fixed per-line discount from the pre-tax subtotal before computing IVA', async () => {
+    it('takes a fixed per-line discount off the IVA-included amount, then unwraps the IVA', async () => {
       await service.create(
         {
           ...baseDto,
@@ -310,18 +312,19 @@ describe('InvoicesService', () => {
           invoice: expect.objectContaining({
             items: [
               expect.objectContaining({
-                // 2 × 50000 = 100000 pre-tax subtotal, minus the 20000
-                // discount = 80000, / 2 = 40000 per unit — price itself
-                // reflects the discount, so price × quantity on the actual
-                // invoice already equals the discounted total; Dataico never
-                // sees a separate "discount" field.
-                price: 40000,
+                // 2 × 50000 = 100000 with IVA, minus the 20000 discount =
+                // 80000 with IVA -> 67226.89 pre-tax, / 2 = 33613.4454 per
+                // unit — price itself reflects the discount, so price ×
+                // quantity on the actual invoice already equals the
+                // discounted base; Dataico never sees a separate "discount"
+                // field.
+                price: 33613.4454,
                 taxes: [
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
                     tax_base: 100,
-                    tax_amount: 15200,
+                    tax_amount: 12773.11,
                   },
                 ],
               }),
@@ -398,12 +401,15 @@ describe('InvoicesService', () => {
                 expect.objectContaining({
                   sku: 'VARIOS',
                   description: 'Instalación de llantas',
-                  price: 30000,
+                  // 30000 typed is the sale price, IVA included:
+                  // 2 × 30000 = 60000 -> 50420.17 pre-tax (25210.084 per
+                  // unit) + 9579.83 IVA.
+                  price: 25210.084,
                   quantity: 2,
                   taxes: [
                     expect.objectContaining({
                       tax_rate: 19,
-                      tax_amount: 11400,
+                      tax_amount: 9579.83,
                     }),
                   ],
                 }),
@@ -416,7 +422,7 @@ describe('InvoicesService', () => {
         expect(inventoryService.createMovement).not.toHaveBeenCalled();
       });
 
-      it('applies the sale discount to a one-off line and adds IVA on top of what is left, like any product', async () => {
+      it('applies the sale discount to a one-off line and unwraps the IVA of what is left, like any product', async () => {
         await service.create(
           { ...baseDto, items: [{ ...customLine, discount: 10000 }] },
           'user-1',
@@ -429,11 +435,14 @@ describe('InvoicesService', () => {
             invoice: expect.objectContaining({
               items: [
                 expect.objectContaining({
-                  // 2 × 30000 = 60000, minus 10000 = 50000 → 25000 per unit;
-                  // IVA 19% of 50000 = 9500.
-                  price: 25000,
+                  // 2 × 30000 = 60000, minus 10000 = 50000 with IVA →
+                  // 42016.81 pre-tax → 21008.4034 per unit; IVA 7983.19.
+                  price: 21008.4034,
                   taxes: [
-                    expect.objectContaining({ tax_rate: 19, tax_amount: 9500 }),
+                    expect.objectContaining({
+                      tax_rate: 19,
+                      tax_amount: 7983.19,
+                    }),
                   ],
                 }),
               ],
@@ -468,9 +477,9 @@ describe('InvoicesService', () => {
       expect(created.dianStatus).toBe('DIAN_ACEPTADO');
       expect(created.cufe).toBe('abc123');
       expect(created.dataicoUuid).toBe('dataico-uuid-1');
-      // salePrice (50000) is before IVA, so IVA goes on top:
-      // 2 × 50000 = 100000 + 19% (19000) = 119000.
-      expect(created.totalAmount).toBe(119000);
+      // salePrice (50000) already includes IVA, so nothing is added:
+      // 2 × 50000 = 100000 (84033.61 base + 15966.39 IVA).
+      expect(created.totalAmount).toBe(100000);
       expect(created.responsePayload).not.toHaveProperty('xml');
     });
 

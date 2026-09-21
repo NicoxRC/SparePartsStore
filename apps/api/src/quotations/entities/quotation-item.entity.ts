@@ -21,8 +21,8 @@ const decimalTransformer = {
  * because QuotationsService.updateItems() diffs old vs. new items by
  * product to compute the right signed inventory movement per change.
  *
- * `unitPrice` is a snapshot of `product.salePrice` (the price before IVA;
- * IVA is added on top when the quotation is totalled) taken when the product
+ * `unitPrice` is a snapshot of `product.salePrice` (an IVA-included price;
+ * the quotation's total is the sum of these, IVA only broken out) taken when the product
  * is first added — the "locked price" the customer keeps regardless of later product price changes.
  * `product.reference`/`description` are NOT snapshotted — unlike price,
  * they're not something a customer was promised, so the current product
