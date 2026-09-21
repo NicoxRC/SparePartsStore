@@ -12,6 +12,10 @@ Relationship to other phases: independent of Phases 7-15. It does **not** reopen
 
 **The draft keeps only reference, description and quantity from the XML; everything else is completed by the user, and the system never suggests a price.** Consequently: the XML's unit cost (`unit_cost`, "Costo en factura", the pre-IVA price question) is **gone** — the draft stores no price at all — and the whole product model dropped its derived `cost` and its `sale_type`, leaving only `sale_price` (see `RemoveCostAndSaleTypeFromProducts`, `docs/DATABASE.md`). Wherever this document below still mentions `unit_cost`, `saleType`/`new_sale_type`, D1 or Open question 2, that part is **superseded** by this paragraph.
 
+## Current status: XML button off, Excel on
+
+Decided by the human at PR time: the client's **XML upload button is disabled** ("Cargar factura (XML) — próximamente") and the Excel template is the primary action, until a real supplier XML has verified the parser (every UBL path is still unverified against a real file). Nothing else changed: `POST /api/purchase-imports` still accepts XML and is fully tested; re-enabling is flipping `IS_XML_UPLOAD_ENABLED` in `apps/client/src/components/purchase-imports/UploadPurchaseImportButton.tsx`.
+
 ## Follow-up: Excel template for when there is no XML (decided by the human, same branch)
 
 Not every purchase arrives with an XML, so the same draft can be started from an Excel file. Everything happens in the API; the client only offers "Descargar plantilla" and "Cargar plantilla de Excel". The draft, review, relink and confirm flow are **unchanged** — only how the draft is created differs, and there the user has already typed the **sale price**, "to make it faster".
