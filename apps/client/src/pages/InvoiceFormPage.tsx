@@ -37,7 +37,8 @@ import {
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
 import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
-import { computeItemDiscount, computeItemTotal } from '../lib/invoiceMath';
+import { computeItemDiscount, computeItemTotal, summarizeLines } from '../lib/invoiceMath';
+import { TotalsSummary } from '../components/TotalsSummary';
 import {
   invoiceFormSchema,
   type InvoiceFormInput,
@@ -552,7 +553,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
 
   const total = watchedItems.reduce((sum, item) => sum + computeItemTotal(item), 0);
   const discountValue = Math.round(total * (discountPercentage / 100));
-  const discountedTotal = total - discountValue;
+  const summary = summarizeLines(watchedItems, discountPercentage);
 
   return (
     <>
@@ -719,16 +720,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                     onChange={(e) => handleDiscountValueChange(e.target.value, total)}
                   />
                 </div>
-                <div className="flex items-baseline gap-2">
-                  {discountPercentage > 0 && (
-                    <span className="font-mono text-sm text-fog line-through">
-                      ${total.toLocaleString('es-CO')}
-                    </span>
-                  )}
-                  <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
-                    Total: ${discountedTotal.toLocaleString('es-CO')}
-                  </p>
-                </div>
+                <TotalsSummary {...summary} undiscountedTotal={total} />
               </div>
             </section>
 
@@ -880,16 +872,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                   </li>
                 ))}
               </ul>
-              <div className="flex items-baseline justify-end gap-2">
-                {discountPercentage > 0 && (
-                  <span className="font-mono text-sm text-fog line-through">
-                    ${total.toLocaleString('es-CO')}
-                  </span>
-                )}
-                <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
-                  Total: ${discountedTotal.toLocaleString('es-CO')}
-                </p>
-              </div>
+              <TotalsSummary {...summary} undiscountedTotal={total} />
             </section>
 
             <TextField label="Notas (opcional)" {...register('notes')} />

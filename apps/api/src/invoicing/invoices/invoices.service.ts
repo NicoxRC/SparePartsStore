@@ -340,12 +340,11 @@ export class InvoicesService {
    * un-sent, so it's better to fail here than after DIAN has accepted a
    * sale this store can't actually fulfill.
    *
-   * `product.salePrice` is confirmed to already include IVA (it's the
-   * price the store actually sells at) — `taxRate: 0` on a line is only
-   * the flag for the "excluida"/exenta label, not a separate calculation.
-   * Dataico takes `price` as the pre-tax unit price with `tax_amount`
-   * broken out separately, so salePrice is first "unwrapped" back to its
-   * pre-tax equivalent before anything else happens.
+   * `product.salePrice` is the price BEFORE IVA, exactly as entered on the
+   * product (confirmed directly): IVA is added on top here, on the
+   * document, and that final amount is what reaches the DIAN. Only an
+   * exempt product (`taxRate: 0`) is left without IVA. Dataico takes `price`
+   * as the pre-tax unit price with `tax_amount` broken out separately.
    *
    * A fixed per-line discount (a flat COP amount, not a percentage) is
    * then subtracted from that pre-tax subtotal, before IVA is computed —
@@ -357,7 +356,7 @@ export class InvoicesService {
    * only the already-final numbers, per direct instruction.
    *
    * `itemDto.unitPriceOverride`, when present, replaces `product.salePrice`
-   * as the gross (IVA-inclusive) starting price — used by
+   * as the starting price (before IVA) — used by
    * QuotationsService.invoice() to honor a quotation's locked-in price
    * instead of the product's current one. `skipStockCheck` is set by the
    * same caller for the same reason — see create()'s docstring.
@@ -375,11 +374,11 @@ export class InvoicesService {
           );
         }
 
-        const grossUnitPrice =
+        const basePrice =
           itemDto.unitPriceOverride ?? Number(product.salePrice);
         const taxRate = resolveTaxRate(product);
         const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
-          grossUnitPrice,
+          basePrice,
           itemDto.quantity,
           taxRate,
           itemDto.discount ?? 0,

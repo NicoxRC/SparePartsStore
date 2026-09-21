@@ -29,7 +29,9 @@ import {
   computeExclusiveSubtotal,
   computeItemDiscount,
   computeItemTotal,
+  summarizeLines,
 } from '../lib/invoiceMath';
+import { TotalsSummary } from '../components/TotalsSummary';
 import { toLowerCase, toUpperCase } from '../lib/textCase';
 import type { ProductResponse } from '../services/products';
 import type {
@@ -218,7 +220,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
 
   const total = items.reduce((sum, item) => sum + computeItemTotal(item), 0);
   const discountValue = Math.round(total * (discountPercentage / 100));
-  const discountedTotal = total - discountValue;
+  const summary = summarizeLines(items, discountPercentage);
 
   // Both fields drive the same discountPercentage — see the identical
   // pattern on InvoiceFormPage.
@@ -487,16 +489,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
               />
             </div>
           )}
-          <div className="flex items-baseline gap-2">
-            {discountPercentage > 0 && (
-              <span className="font-mono text-sm text-fog line-through">
-                ${total.toLocaleString('es-CO')}
-              </span>
-            )}
-            <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
-              Total: ${discountedTotal.toLocaleString('es-CO')}
-            </p>
-          </div>
+          <TotalsSummary {...summary} undiscountedTotal={total} />
         </div>
 
         {isOpen && canUpdate && (

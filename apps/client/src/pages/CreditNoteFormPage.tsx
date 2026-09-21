@@ -11,7 +11,8 @@ import { useInvoice } from '../hooks/useInvoices';
 import { useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
-import { computeItemTotal } from '../lib/invoiceMath';
+import { summarizeLines } from '../lib/invoiceMath';
+import { TotalsSummary } from '../components/TotalsSummary';
 import type { ProductResponse } from '../services/products';
 
 const DEFAULT_TAX_RATE = 19;
@@ -70,9 +71,7 @@ export function CreditNoteFormPage() {
           productId: product.id,
           reference: product.reference,
           description: product.description,
-          price: invoiced
-            ? invoiced.unitPrice * (1 + invoiced.taxRate / 100)
-            : product.salePrice,
+          price: invoiced ? invoiced.unitPrice : product.salePrice,
           quantity,
           taxRate: invoiced ? invoiced.taxRate : product.taxExempt ? 0 : DEFAULT_TAX_RATE,
           isInvoicedPrice: Boolean(invoiced),
@@ -97,7 +96,6 @@ export function CreditNoteFormPage() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const total = items.reduce((sum, item) => sum + computeItemTotal(item), 0);
 
   const handleSubmit = async () => {
     if (!invoiceId) return;
@@ -253,11 +251,7 @@ export function CreditNoteFormPage() {
           </div>
         )}
 
-        <div className="flex justify-end">
-          <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
-            Total: ${total.toLocaleString('es-CO')}
-          </p>
-        </div>
+        <TotalsSummary {...summarizeLines(items)} />
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button
