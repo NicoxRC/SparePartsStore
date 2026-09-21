@@ -1,3 +1,4 @@
+import { BrandTag } from '../components/BrandTag';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
@@ -21,6 +22,7 @@ interface EditableItem {
   productId: string;
   reference: string;
   description: string;
+  brand: string;
   price: number;
   quantity: number;
   /** Derived from the product's taxExempt flag when added — never a user
@@ -71,6 +73,7 @@ export function CreditNoteFormPage() {
           productId: product.id,
           reference: product.reference,
           description: product.description,
+          brand: product.brand?.name ?? '',
           price: invoiced ? invoiced.unitPrice : product.salePrice,
           quantity,
           taxRate: invoiced ? invoiced.taxRate : product.taxExempt ? 0 : DEFAULT_TAX_RATE,
@@ -183,7 +186,14 @@ export function CreditNoteFormPage() {
                     {product.reference} — {product.description}
                   </span>
                   <span className="text-xs text-fog">
-                    ${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
+                    {product.brand?.name && (
+                            <>
+                              <span className="font-semibold uppercase text-steel">
+                                {product.brand.name}
+                              </span>
+                              {' · '}
+                            </>
+                          )}${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
                   </span>
                 </button>
               ))
@@ -217,6 +227,7 @@ export function CreditNoteFormPage() {
                       {item.taxRate === 0 && (
                         <span className="ml-2 text-xs font-medium text-fog">Exenta</span>
                       )}
+                      <BrandTag brand={item.brand} />
                     </td>
                     <td className="px-3 py-2">
                       ${Math.round(item.price).toLocaleString('es-CO')}

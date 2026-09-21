@@ -1,3 +1,4 @@
+import { BrandTag } from '../components/BrandTag';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
@@ -70,6 +71,7 @@ interface EditableItem {
   productId: string;
   reference: string;
   description: string;
+  brand: string;
   /** Locked price shown in the editor — re-locked to the live price on save. */
   price: number;
   quantity: number;
@@ -84,6 +86,7 @@ function editableItemsFrom(items: QuotationItemResponse[]): EditableItem[] {
     productId: item.productId,
     reference: item.productReference,
     description: item.productDescription,
+    brand: item.productBrand ?? '',
     price: item.unitPrice,
     quantity: item.quantity,
     taxRate: item.taxRate,
@@ -194,6 +197,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           productId: product.id,
           reference: product.reference,
           description: product.description,
+          brand: product.brand?.name ?? '',
           price: product.salePrice,
           quantity,
           taxRate: product.taxExempt ? 0 : DEFAULT_TAX_RATE,
@@ -385,7 +389,14 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         {product.reference} — {product.description}
                       </span>
                       <span className="text-xs text-fog">
-                        ${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
+                        {product.brand?.name && (
+                            <>
+                              <span className="font-semibold uppercase text-steel">
+                                {product.brand.name}
+                              </span>
+                              {' · '}
+                            </>
+                          )}${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
                       </span>
                     </button>
                   ))
@@ -426,6 +437,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                       {item.taxRate === 0 && (
                         <span className="ml-2 text-xs font-medium text-fog">Exenta</span>
                       )}
+                      <BrandTag brand={item.brand} />
                     </td>
                     <td className="px-3 py-2">${item.price.toLocaleString('es-CO')}</td>
                     <td className="w-24 px-3 py-2">

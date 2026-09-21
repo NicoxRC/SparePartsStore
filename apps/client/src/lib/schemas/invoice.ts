@@ -4,6 +4,8 @@ export const invoiceItemFormSchema = z.object({
   productId: z.string().min(1, 'Selecciona un producto.'),
   reference: z.string(),
   description: z.string(),
+  // The product's brand, only to show it in the table (older saved drafts have none).
+  brand: z.string().optional(),
   price: z.number(),
   stock: z.number(),
   quantity: z.coerce.number().int().min(1, 'Cantidad mínima 1.'),

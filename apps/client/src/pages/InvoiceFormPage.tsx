@@ -1,3 +1,4 @@
+import { BrandTag } from '../components/BrandTag';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import {
@@ -376,6 +377,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
       productId: product.id,
       reference: product.reference,
       description: product.description,
+      brand: product.brand?.name ?? '',
       price: product.salePrice,
       stock: product.stock,
       quantity,
@@ -624,7 +626,14 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                           {product.reference} — {product.description}
                         </span>
                         <span className="text-xs text-fog">
-                          ${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
+                          {product.brand?.name && (
+                            <>
+                              <span className="font-semibold uppercase text-steel">
+                                {product.brand.name}
+                              </span>
+                              {' · '}
+                            </>
+                          )}${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
                         </span>
                       </button>
                     ))
@@ -665,6 +674,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                                   Exenta
                                 </span>
                               )}
+                              <BrandTag brand={field.brand} />
                             </td>
                             <td className="px-3 py-2 font-mono">
                               ${field.price.toLocaleString('es-CO')}
@@ -856,7 +866,8 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                     className="flex justify-between gap-2 border-b border-dotted border-line-2 py-1.5"
                   >
                     <span>
-                      {item.reference} — {item.description} × {Number(item.quantity)}
+                      {item.reference} — {item.description}
+                      {item.brand ? ` (${item.brand})` : ''} × {Number(item.quantity)}
                       {Number(item.taxRate) === 0 && (
                         <span className="ml-2 text-xs font-medium text-fog">
                           (venta excluida sin IVA)

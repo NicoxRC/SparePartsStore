@@ -35,9 +35,11 @@ function TotalRow({ label, value, bold = false }: { label: string; value: string
 
 /**
  * Printable cotización, laid out like the store's existing quotation slip:
- * header, customer block, lines (`Código / Descripción / Cant. / Pr.Lista /
- * Iva / Dcto / Vr Total`), Exentos / Gravados / Subtotal / IVA / Descuento /
- * Valor total, seller and the amount in words. Still a paper guarantee — the
+ * header, customer block, the lines (description and total on one row, and
+ * under it the code, quantity × price, IVA and any discount — kept to two
+ * short rows per product so it doesn't get crowded on 80 mm), Exentos /
+ * Gravados / Subtotal / IVA / Descuento / Valor total, seller and the amount
+ * in words. Still a paper guarantee — the
  * customer signs it when merchandise leaves before payment. Every figure is
  * computed from the lines (IVA added on top of each price), never printed
  * from a cached total. See PrintTicket for how this gets shown.
@@ -92,37 +94,25 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
       </div>
 
       <div className="mt-3 border-2 border-black">
-        <div className="border-b-2 border-black px-1 py-1 text-[11px] font-semibold leading-tight">
-          <div className="grid grid-cols-[28%_1fr] gap-1">
-            <span>Código</span>
-            <span>Descripción</span>
-          </div>
-          <div className="grid grid-cols-[14%_26%_14%_16%_1fr] gap-1">
-            <span>Cant.</span>
-            <span className="text-right">Pr.Lista</span>
-            <span className="text-right">Iva</span>
-            <span className="text-right">Dcto</span>
-            <span className="text-right">Vr Total</span>
-          </div>
+        <div className="flex justify-between border-b-2 border-black px-2 py-1 text-[11px] font-semibold">
+          <span>Descripción</span>
+          <span>Vr Total</span>
         </div>
 
-        <div className="flex flex-col gap-1.5 px-1 py-1.5">
+        <div className="px-2">
           {lines.map(({ item, breakdown, discountPercent }) => (
-            <div key={item.id} className="text-[11px] leading-tight">
-              <div className="grid grid-cols-[28%_1fr] gap-1 uppercase">
-                <span className="break-all">{item.productReference}</span>
-                <span className="break-words">{item.productDescription}</span>
+            <div key={item.id} className="border-b border-dotted border-black py-2 last:border-b-0">
+              <div className="flex items-start justify-between gap-2">
+                <span className="break-words text-[12px] font-semibold uppercase leading-tight">
+                  {item.productDescription}
+                </span>
+                <span className="shrink-0 text-[12px] font-bold">{ticketInt(breakdown.total)}</span>
               </div>
-              {item.productBrand && (
-                <p className="pl-[29%] text-[10px] uppercase">Marca: {item.productBrand}</p>
-              )}
-              <div className="grid grid-cols-[14%_26%_14%_16%_1fr] gap-1">
-                <span>{item.quantity.toFixed(1)}</span>
-                <span className="text-right">{ticketInt(item.unitPrice)}</span>
-                <span className="text-right">{item.taxRate}</span>
-                <span className="text-right">{discountPercent}%</span>
-                <span className="text-right font-semibold">{ticketInt(breakdown.total)}</span>
-              </div>
+              <p className="mt-1 text-[10px] leading-tight">
+                Cód. {item.productReference} · {item.quantity} × {ticketInt(item.unitPrice)}
+                {item.taxRate > 0 ? ` · IVA ${item.taxRate}%` : ' · Exento'}
+                {discountPercent > 0 ? ` · Dcto ${discountPercent}%` : ''}
+              </p>
             </div>
           ))}
         </div>
