@@ -2,8 +2,7 @@ import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Alert } from './Alert';
 import { Button } from './Button';
-import { CashRegisterTicket } from './print/CashRegisterTicket';
-import { PrintTicket } from './print/PrintTicket';
+import { CashRegisterPrint } from './print/CashRegisterPrint';
 import { useCloseCashRegister } from '../hooks/useCashRegister';
 import { getApiErrorMessage } from '../lib/errors';
 import type { CashRegisterResponse } from '../services/cashRegister';
@@ -161,11 +160,7 @@ export function CloseCashRegisterDialog({
               Listo
             </Button>
           </div>
-          {isPrinting && (
-            <PrintTicket onClose={() => setIsPrinting(false)}>
-              <CashRegisterTicket register={report} />
-            </PrintTicket>
-          )}
+          {isPrinting && <CashRegisterPrint register={report} onClose={() => setIsPrinting(false)} />}
         </div>
       </div>,
       document.body,

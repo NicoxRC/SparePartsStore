@@ -464,6 +464,8 @@ export class CashRegisterService {
         end,
       })
       .orderBy('invoice.createdAt', 'ASC')
+      // Invoices created in the same instant would otherwise list in any order.
+      .addOrderBy('invoice.number', 'ASC')
       .getMany();
 
     return buildDayInvoicesReport(register.registerDate, invoices);

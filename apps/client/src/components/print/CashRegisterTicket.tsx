@@ -17,7 +17,14 @@ function formatDateTime(iso: string | null) {
  * (base/efectivo/tarjeta/transferencia/esperado/contado/desfase), not a
  * copy of the old Sisco slip's field set (cheque/bonos/crédito aren't
  * things this app tracks). */
-export function CashRegisterTicket({ register }: { register: CashRegisterResponse }) {
+export function CashRegisterTicket({
+  register,
+  listingUnavailable = false,
+}: {
+  register: CashRegisterResponse;
+  /** The day's invoice listing (page 2) couldn't be loaded — say so on the paper. */
+  listingUnavailable?: boolean;
+}) {
   const discrepancy = register.cashDiscrepancy;
   const isSquared = discrepancy === 0;
 
@@ -119,6 +126,11 @@ export function CashRegisterTicket({ register }: { register: CashRegisterRespons
 
       <hr className="my-2 border-dashed border-black" />
       <p className="text-center">Impreso: {formatDateTime(new Date().toISOString())}</p>
+      {listingUnavailable && (
+        <p className="mt-2 text-center font-bold">
+          (No se pudo cargar el listado de facturas del día)
+        </p>
+      )}
     </div>
   );
 }

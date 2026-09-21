@@ -2,14 +2,13 @@ import { QRCodeSVG } from 'qrcode.react';
 import logo from '../../assets/logo.png';
 import { BUSINESS_PROFILE } from '../../config/business';
 import {
+  TICKET_FONT,
   ticketDate,
   ticketDateTime,
   ticketMoney,
   ticketRangeNumber,
 } from '../../lib/ticketFormat';
 import type { InvoiceTicket as InvoiceTicketData } from '../../services/invoices';
-
-const FONT = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
 
 function Dotted() {
   return <hr className="my-2 border-0 border-t-2 border-dotted border-black" />;
@@ -59,7 +58,7 @@ export function InvoiceTicket({ ticket }: { ticket: InvoiceTicketData }) {
   return (
     <div
       className="mx-auto w-[290px] p-2 text-black"
-      style={{ fontFamily: FONT }}
+      style={{ fontFamily: TICKET_FONT }}
     >
       <Logo />
 

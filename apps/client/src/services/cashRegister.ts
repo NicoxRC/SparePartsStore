@@ -123,3 +123,34 @@ export async function getCashRegisterHistory(
   );
   return data;
 }
+
+export interface DayInvoiceRow {
+  number: string;
+  total: number;
+  /** null when the invoice was paid with something other than cash/card/transfer. */
+  paymentMeans: 'CASH' | 'CARD' | 'BANK_TRANSFER' | null;
+}
+
+export interface DayPaymentTotal {
+  count: number;
+  amount: number;
+}
+
+/** Every invoice of a register's day and how it adds up — the second page of the printed slip. */
+export interface DayInvoicesReport {
+  registerDate: string;
+  invoices: DayInvoiceRow[];
+  invoiceCount: number;
+  cash: DayPaymentTotal;
+  card: DayPaymentTotal;
+  transfer: DayPaymentTotal;
+  taxable: number;
+  tax: number;
+  exempt: number;
+  total: number;
+}
+
+export async function getDayInvoicesReport(id: string): Promise<DayInvoicesReport> {
+  const { data } = await api.get<DayInvoicesReport>(`/cash-register/${id}/invoices`);
+  return data;
+}

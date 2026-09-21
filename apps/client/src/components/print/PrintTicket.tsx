@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { TICKET_FONT } from '../../lib/ticketFormat';
 
 interface PrintTicketProps {
   onClose: () => void;
@@ -31,7 +32,9 @@ export function PrintTicket({ onClose, children }: PrintTicketProps) {
   }, []);
 
   return createPortal(
-    <div className="print-ticket font-mono text-black">{children}</div>,
+    <div className="print-ticket text-black" style={{ fontFamily: TICKET_FONT }}>
+      {children}
+    </div>,
     document.body,
   );
 }

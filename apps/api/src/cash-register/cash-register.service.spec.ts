@@ -31,6 +31,7 @@ describe('CashRegisterService', () => {
   let creditNotesRepository: { find: jest.Mock };
   let invoiceQueryBuilder: {
     orderBy: jest.Mock;
+    addOrderBy: jest.Mock;
     select: jest.Mock;
     where: jest.Mock;
     getRawOne: jest.Mock;
@@ -80,6 +81,7 @@ describe('CashRegisterService', () => {
       select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       getRawOne: jest.fn().mockResolvedValue({ sum: '150000' }),
       getMany: jest
         .fn()
@@ -520,6 +522,10 @@ describe('CashRegisterService', () => {
       expect(range[1].end.toISOString()).toBe('2026-09-19T05:00:00.000Z');
       expect(invoiceQueryBuilder.orderBy).toHaveBeenCalledWith(
         'invoice.createdAt',
+        'ASC',
+      );
+      expect(invoiceQueryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'invoice.number',
         'ASC',
       );
     });

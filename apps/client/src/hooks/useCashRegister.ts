@@ -3,6 +3,7 @@ import {
   closeCashRegister,
   createCashMovement,
   getCashRegisterHistory,
+  getDayInvoicesReport,
   getTodayCashRegister,
   openCashRegister,
   reopenCashRegister,
@@ -17,6 +18,16 @@ export function useTodayCashRegister() {
   return useQuery({
     queryKey: TODAY_KEY,
     queryFn: getTodayCashRegister,
+  });
+}
+
+/** The day's invoices, fetched fresh each time a slip is printed (never served from an old cache). */
+export function useDayInvoicesReport(registerId: string) {
+  return useQuery({
+    queryKey: ['cash-register', 'day-invoices', registerId],
+    queryFn: () => getDayInvoicesReport(registerId),
+    gcTime: 0,
+    retry: false,
   });
 }
 

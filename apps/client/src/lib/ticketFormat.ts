@@ -1,5 +1,8 @@
 const BOGOTA = 'America/Bogota';
 
+/** The one typeface every printed receipt uses (the store's Dataico receipt is Arial). */
+export const TICKET_FONT = 'Arial, "Helvetica Neue", Helvetica, sans-serif';
+
 /** "$18,000.00" — the receipt prints amounts the way the store's existing tirilla does. */
 export function ticketMoney(amount: number): string {
   return `$${amount.toLocaleString('en-US', {
@@ -32,4 +35,25 @@ export function ticketDate(date: string): string {
 /** "10001" -> "10.001" (the authorized range is printed with thousands separators). */
 export function ticketRangeNumber(value: number): string {
   return value.toLocaleString('es-CO');
+}
+
+/** "18000" -> "18.000" — whole pesos with Colombian thousands separators (the day-report columns). */
+export function ticketInt(value: number): string {
+  return Math.round(value).toLocaleString('es-CO');
+}
+
+/** "5:57:45 p. m." in the store's time zone. */
+export function ticketTime(date: Date = new Date()): string {
+  return date.toLocaleTimeString('es-CO', {
+    timeZone: BOGOTA,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+}
+
+/** Today's date in the store's time zone, "YYYY-MM-DD". */
+export function storeToday(): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: BOGOTA }).format(new Date());
 }
