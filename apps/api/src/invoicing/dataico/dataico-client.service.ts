@@ -17,6 +17,9 @@ import { DataicoConfig } from './dataico.config';
  * `baseUrl` can be overridden per call — payroll (Phase 15) lives under a
  * different API path than the rest.
  */
+/** Enough to read a Dataico error without flooding the log with a base64 XML. */
+const MAX_LOGGED_BODY = 2000;
+
 @Injectable()
 export class DataicoClientService {
   private readonly logger = new Logger(DataicoClientService.name);
@@ -82,6 +85,13 @@ export class DataicoClientService {
     const parsedBody = rawBody ? this.tryParseJson(rawBody) : undefined;
 
     if (!response.ok) {
+      // The exception only reaches the client; without this line the reason
+      // Dataico gave (the whole point of a rejection) never reaches the
+      // server log. The request headers (the token) are deliberately not
+      // logged, only what Dataico answered.
+      this.logger.warn(
+        `Dataico ${init.method} ${path} -> ${response.status}: ${rawBody.slice(0, MAX_LOGGED_BODY)}`,
+      );
       throw new DataicoApiException(response.status, parsedBody ?? rawBody);
     }
 

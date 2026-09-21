@@ -110,6 +110,48 @@ describe('DataicoClientService', () => {
     });
   });
 
+  it("logs Dataico's status and answer on a failure, but never the token", async () => {
+    const warn = jest
+      .spyOn(
+        (service as unknown as { logger: { warn: (m: string) => void } })
+          .logger,
+        'warn',
+      )
+      .mockImplementation(() => undefined);
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('{"errors":"algo salió mal"}'),
+    });
+
+    await expect(service.post('/invoices', {})).rejects.toThrow();
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    const message = warn.mock.calls[0][0];
+    expect(message).toContain('POST /invoices -> 500');
+    expect(message).toContain('algo salió mal');
+    expect(message).not.toContain('test-token');
+  });
+
+  it('truncates a very long Dataico answer in the log', async () => {
+    const warn = jest
+      .spyOn(
+        (service as unknown as { logger: { warn: (m: string) => void } })
+          .logger,
+        'warn',
+      )
+      .mockImplementation(() => undefined);
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: () => Promise.resolve('x'.repeat(50000)),
+    });
+
+    await expect(service.post('/invoices', {})).rejects.toThrow();
+
+    expect(warn.mock.calls[0][0].length).toBeLessThan(2200);
+  });
+
   it('maps a network failure to a 502 DataicoApiException', async () => {
     fetchMock.mockRejectedValue(new Error('ECONNREFUSED'));
 
