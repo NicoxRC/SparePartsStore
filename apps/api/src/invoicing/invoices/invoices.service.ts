@@ -45,6 +45,16 @@ interface DataicoInvoiceResponse {
   [key: string]: unknown;
 }
 
+/**
+ * What Dataico expects in an item's `tax_base`. It is NOT the taxable amount
+ * in pesos: Dataico validates it between 1 and 100 (sending a real base got
+ * "El numero '121849' tiene que estar entre 1 y 100"), and the shared
+ * reference example sends 100 on every item while its `tax_amount` is the
+ * real 19% of price x quantity. So 100 (the whole line is taxable) always;
+ * the actual amounts travel in `price`, `quantity` and `tax_amount`.
+ */
+const DATAICO_TAX_BASE = 100;
+
 interface ResolvedItem {
   product: Product;
   quantity: number;
@@ -156,7 +166,7 @@ export class InvoicesService {
             {
               tax_category: 'IVA',
               tax_rate: item.taxRate,
-              tax_base: item.taxBase,
+              tax_base: DATAICO_TAX_BASE,
               tax_amount: item.taxAmount,
             },
           ],
@@ -333,9 +343,9 @@ export class InvoicesService {
    * `product.salePrice` is confirmed to already include IVA (it's the
    * price the store actually sells at) — `taxRate: 0` on a line is only
    * the flag for the "excluida"/exenta label, not a separate calculation.
-   * DIAN invoices report price/tax_base as the pre-tax amount with
-   * tax_amount broken out separately, so salePrice is first "unwrapped"
-   * back to its pre-tax equivalent before anything else happens.
+   * Dataico takes `price` as the pre-tax unit price with `tax_amount`
+   * broken out separately, so salePrice is first "unwrapped" back to its
+   * pre-tax equivalent before anything else happens.
    *
    * A fixed per-line discount (a flat COP amount, not a percentage) is
    * then subtracted from that pre-tax subtotal, before IVA is computed —

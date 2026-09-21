@@ -223,6 +223,25 @@ describe('InvoicesService', () => {
       expect(body.invoice.env).toBe('PRODUCCION');
     });
 
+    it("sends tax_base as Dataico's 1-100 value (100), never the amount in pesos, while tax_amount stays the real IVA", async () => {
+      await service.create(
+        { ...baseDto, items: [{ productId: 'prod-1', quantity: 10 }] },
+        'user-1',
+      );
+
+      const body = dataicoClient.post.mock.calls[0][1] as {
+        invoice: {
+          items: Array<{
+            taxes: Array<{ tax_base: number; tax_amount: number }>;
+          }>;
+        };
+      };
+      const [tax] = body.invoice.items[0].taxes;
+      expect(tax.tax_base).toBe(100);
+      // 10 x 42017 = 420,170 pre-tax -> 19% = 79,832: a real amount, not 100.
+      expect(tax.tax_amount).toBe(79832);
+    });
+
     it('sends the invoice to Dataico with the confirmed field names and computed tax', async () => {
       await service.create(baseDto, 'user-1');
 
@@ -258,7 +277,7 @@ describe('InvoicesService', () => {
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
-                    tax_base: 84034,
+                    tax_base: 100,
                     tax_amount: 15966,
                   },
                 ],
@@ -299,7 +318,7 @@ describe('InvoicesService', () => {
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
-                    tax_base: 64034,
+                    tax_base: 100,
                     tax_amount: 12166,
                   },
                 ],
@@ -337,7 +356,7 @@ describe('InvoicesService', () => {
                   {
                     tax_category: 'IVA',
                     tax_rate: 0,
-                    tax_base: 100000,
+                    tax_base: 100,
                     tax_amount: 0,
                   },
                 ],
