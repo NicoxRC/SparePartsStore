@@ -22,6 +22,8 @@ import { DataicoClientService } from '../dataico/dataico-client.service';
 import { DataicoConfig } from '../dataico/dataico.config';
 import { toDataicoDate } from '../dataico/dataico-date.util';
 import { ResolutionsService } from '../resolutions/resolutions.service';
+import { buildInvoiceTicket } from './invoice-ticket.util';
+import { InvoiceTicketDto } from './dto/invoice-ticket.dto';
 import { ELECTRONIC_SUBTYPE } from '../resolutions/resolution.constants';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
@@ -236,6 +238,16 @@ export class InvoicesService {
       data: invoices.map((invoice) => InvoiceResponseDto.fromEntity(invoice)),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
+  }
+
+  /** Everything the counter receipt (tirilla) of this invoice prints. */
+  async getTicket(id: string): Promise<InvoiceTicketDto> {
+    const invoice = await this.findOne(id);
+    const resolution = await this.resolutionsService.findByNumber(
+      invoice.prefix,
+      invoice.resolutionNumber,
+    );
+    return buildInvoiceTicket(invoice, resolution);
   }
 
   async findOne(id: string): Promise<Invoice> {

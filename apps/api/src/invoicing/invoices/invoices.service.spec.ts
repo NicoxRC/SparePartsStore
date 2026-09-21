@@ -36,7 +36,10 @@ describe('InvoicesService', () => {
     sendDian: boolean;
     sendEmail: boolean;
   };
-  let resolutionsService: { findActiveForDocumentType: jest.Mock };
+  let resolutionsService: {
+    findActiveForDocumentType: jest.Mock;
+    findByNumber: jest.Mock;
+  };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
   let cashRegisterService: { assertOpenToday: jest.Mock };
@@ -106,7 +109,10 @@ describe('InvoicesService', () => {
       sendDian: true,
       sendEmail: false,
     };
-    resolutionsService = { findActiveForDocumentType: jest.fn() };
+    resolutionsService = {
+      findActiveForDocumentType: jest.fn(),
+      findByNumber: jest.fn(),
+    };
     productsService = { findOne: jest.fn().mockResolvedValue(product) };
     inventoryService = {
       createMovement: jest.fn().mockResolvedValue(undefined),
@@ -423,6 +429,52 @@ describe('InvoicesService', () => {
 
       const created = invoicesRepository.create.mock.calls[0][0];
       expect(created.paymentDate).toBe('2026-09-07');
+    });
+  });
+
+  describe('getTicket', () => {
+    it('builds the ticket from the invoice and the resolution it was numbered under', async () => {
+      resolutionsService.findByNumber.mockResolvedValue({
+        startDate: '2019-01-19',
+        endDate: '2030-01-19',
+        rangeStart: 1,
+        rangeEnd: 1900000000,
+      });
+      invoicesRepository.findOne.mockResolvedValue({
+        id: 'inv-1',
+        number: 1789500028,
+        prefix: 'FEE',
+        dataicoNumber: 'FEE1789500028',
+        resolutionNumber: '18760000001',
+        customerIdentificationType: 'CC',
+        customerIdentification: '79456123',
+        customerEmail: 'c@example.com',
+        issueDate: '2026-09-21',
+        paymentDate: '2026-09-21',
+        totalAmount: 172550,
+        dianStatus: null,
+        cufe: null,
+        qrCode: null,
+        requestPayload: null,
+        responsePayload: null,
+        createdAt: new Date('2026-09-21T18:03:48.000Z'),
+      });
+
+      const ticket = await service.getTicket('inv-1');
+
+      expect(resolutionsService.findByNumber).toHaveBeenCalledWith(
+        'FEE',
+        '18760000001',
+      );
+      expect(ticket.authorization?.rangeEnd).toBe(1900000000);
+    });
+
+    it('404s when the invoice does not exist', async () => {
+      invoicesRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getTicket('nope')).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 

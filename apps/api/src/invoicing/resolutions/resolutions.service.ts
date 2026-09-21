@@ -73,6 +73,21 @@ export class ResolutionsService {
     });
   }
 
+  /**
+   * The resolution an invoice was numbered under (the invoice only keeps the
+   * prefix and the resolution number). When the same number was synced more
+   * than once, the most recent row wins.
+   */
+  async findByNumber(
+    prefix: string,
+    resolutionNumber: string,
+  ): Promise<DianResolution | null> {
+    return this.resolutionsRepository.findOne({
+      where: { prefix, resolutionNumber },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async findAll(
     query: QueryResolutionsDto,
   ): Promise<PaginatedResponseDto<ResolutionResponseDto>> {

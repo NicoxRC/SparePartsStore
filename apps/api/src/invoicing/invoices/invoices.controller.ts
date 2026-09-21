@@ -23,6 +23,7 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
+import { InvoiceTicketDto } from './dto/invoice-ticket.dto';
 import { QueryInvoicesDto } from './dto/query-invoices.dto';
 import { ResendInvoiceDto } from './dto/resend-invoice.dto';
 import { InvoicesService } from './invoices.service';
@@ -64,6 +65,18 @@ export class InvoicesController {
     @Query() query: QueryInvoicesDto,
   ): Promise<PaginatedResponseDto<InvoiceResponseDto>> {
     return this.invoicesService.findAll(query);
+  }
+
+  @ApiOperation({
+    summary:
+      'Everything the counter receipt (tirilla) of this invoice prints, assembled from what is already stored',
+  })
+  @ApiResponse({ status: 200, type: InvoiceTicketDto })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
+  @Get(':id/ticket')
+  @RequirePermission('invoices.view')
+  getTicket(@Param('id', ParseUUIDPipe) id: string): Promise<InvoiceTicketDto> {
+    return this.invoicesService.getTicket(id);
   }
 
   @ApiOperation({ summary: 'Get one invoice by its local id' })
