@@ -31,6 +31,26 @@ export const ISSUE_LABEL: Record<LineIssue | 'NO_LINES', string> = {
   NO_LINES: 'Sin líneas',
 };
 
+export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const XML_MIME_TYPES = ['text/xml', 'application/xml'];
+
+/** Fast client-side reject; the server decides whether the file is really usable. */
+export function validateXmlFile(file: File): string | null {
+  const looksLikeXml =
+    file.name.toLowerCase().endsWith('.xml') || XML_MIME_TYPES.includes(file.type);
+  if (!looksLikeXml) return 'El archivo debe ser un .xml de la factura electrónica.';
+  if (file.size > MAX_UPLOAD_BYTES) return 'El archivo supera el máximo de 5 MB.';
+  return null;
+}
+
+export function validateExcelFile(file: File): string | null {
+  if (!file.name.toLowerCase().endsWith('.xlsx')) {
+    return 'El archivo debe ser un .xlsx (la plantilla que descargaste).';
+  }
+  if (file.size > MAX_UPLOAD_BYTES) return 'El archivo supera el máximo de 5 MB.';
+  return null;
+}
+
 export function formatQuantity(quantity: number): string {
   return quantity.toLocaleString('es-CO', { maximumFractionDigits: 4 });
 }

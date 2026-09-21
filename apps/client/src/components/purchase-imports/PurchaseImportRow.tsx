@@ -24,6 +24,11 @@ export function PurchaseImportRow({ purchaseImport, showSupplier }: PurchaseImpo
         >
           {IMPORT_STATUS_LABEL[purchaseImport.status]}
         </span>
+        {purchaseImport.source === 'excel' && (
+          <span className="rounded-full bg-mist px-2 py-0.5 text-xs font-medium text-steel">
+            Excel
+          </span>
+        )}
         <span className="text-xs text-fog">{formatIssueDate(purchaseImport.issueDate)}</span>
         <span className="text-xs text-fog">
           {purchaseImport.lineCount} {purchaseImport.lineCount === 1 ? 'línea' : 'líneas'}

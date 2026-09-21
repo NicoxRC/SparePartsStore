@@ -1,64 +1,83 @@
-import { useRef, useState, type ChangeEvent } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Alert } from '../Alert';
 import { Button } from '../Button';
-import { useUploadPurchaseImport } from '../../hooks/usePurchaseImports';
+import { FilePickerButton } from './FilePickerButton';
+import {
+  useDownloadPurchaseImportTemplate,
+  useUploadPurchaseImport,
+  useUploadPurchaseImportExcel,
+} from '../../hooks/usePurchaseImports';
 import { getApiErrorMessage, getApiErrorStatus } from '../../lib/errors';
-import { getDuplicateImportInfo } from '../../lib/purchaseImports';
+import {
+  getDuplicateImportInfo,
+  validateExcelFile,
+  validateXmlFile,
+} from '../../lib/purchaseImports';
+import type { PurchaseImportDetail } from '../../services/purchaseImports';
 
-const MAX_FILE_BYTES = 5 * 1024 * 1024;
-const XML_MIME_TYPES = ['text/xml', 'application/xml'];
+type UploadKind = 'xml' | 'excel';
 
-/** Fast client-side reject; the server decides whether the XML is really a supplier invoice. */
-function validateFile(file: File): string | null {
-  const looksLikeXml =
-    file.name.toLowerCase().endsWith('.xml') || XML_MIME_TYPES.includes(file.type);
-  if (!looksLikeXml) return 'El archivo debe ser un .xml de la factura electrónica.';
-  if (file.size > MAX_FILE_BYTES) return 'El archivo supera el máximo de 5 MB.';
-  return null;
-}
-
+/**
+ * Two ways to start a draft: the supplier's XML, or — when there is no XML —
+ * the Excel template. Both end on the same review screen.
+ */
 export function UploadPurchaseImportButton() {
   const navigate = useNavigate();
-  const inputRef = useRef<HTMLInputElement>(null);
+  const xmlMutation = useUploadPurchaseImport();
+  const excelMutation = useUploadPurchaseImportExcel();
+  const templateMutation = useDownloadPurchaseImportTemplate();
+  const [lastKind, setLastKind] = useState<UploadKind>('xml');
   const [fileError, setFileError] = useState<string | null>(null);
-  const uploadMutation = useUploadPurchaseImport();
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    // Reset so picking the same file again (after a discard, say) still fires onChange.
-    event.target.value = '';
-    if (!file) return;
+  const mutations = { xml: xmlMutation, excel: excelMutation };
+  const validators = { xml: validateXmlFile, excel: validateExcelFile };
 
-    const error = validateFile(file);
+  const handleFile = (kind: UploadKind, file: File) => {
+    setLastKind(kind);
+    const error = validators[kind](file);
     setFileError(error);
     if (error) return;
 
-    uploadMutation.mutate(file, {
-      onSuccess: (detail) => navigate(`/compras/${detail.id}`),
+    mutations[kind].mutate(file, {
+      onSuccess: (detail: PurchaseImportDetail) => navigate(`/compras/${detail.id}`),
     });
   };
 
-  const duplicate = uploadMutation.isError ? getDuplicateImportInfo(uploadMutation.error) : null;
-  const uploadError = uploadMutation.isError && !duplicate ? uploadMutation.error : null;
+  const failed = mutations[lastKind];
+  const duplicate = failed.isError ? getDuplicateImportInfo(failed.error) : null;
+  const uploadError = failed.isError && !duplicate ? failed.error : null;
 
   return (
     <div className="flex flex-col gap-3">
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".xml,text/xml,application/xml"
-        className="hidden"
-        onChange={handleFileChange}
-      />
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+        <FilePickerButton
+          label="Cargar factura de proveedor (XML)"
+          accept=".xml,text/xml,application/xml"
+          isLoading={xmlMutation.isPending}
+          onFile={(file) => handleFile('xml', file)}
+        />
+        <FilePickerButton
+          label="Cargar plantilla de Excel"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          variant="secondary"
+          isLoading={excelMutation.isPending}
+          onFile={(file) => handleFile('excel', file)}
+        />
+      </div>
+
       <Button
         type="button"
-        className="sm:w-auto sm:self-start sm:px-6"
-        isLoading={uploadMutation.isPending}
-        onClick={() => inputRef.current?.click()}
+        variant="ghost"
+        className="sm:w-auto sm:self-start"
+        isLoading={templateMutation.isPending}
+        onClick={() => templateMutation.mutate()}
       >
-        Cargar factura de proveedor (XML)
+        ¿Sin XML? Descargar plantilla de Excel
       </Button>
+      {templateMutation.isError && (
+        <Alert variant="error">No se pudo descargar la plantilla. Intenta de nuevo.</Alert>
+      )}
 
       {fileError && <Alert variant="error">{fileError}</Alert>}
 

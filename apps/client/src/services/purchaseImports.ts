@@ -21,6 +21,9 @@ export interface PurchaseImportSupplier {
   nit: string;
 }
 
+/** Where the draft came from: a supplier's XML or the downloadable Excel template. */
+export type PurchaseImportSource = 'xml' | 'excel';
+
 export interface PurchaseImportSummary {
   id: string;
   supplier: PurchaseImportSupplier;
@@ -29,6 +32,7 @@ export interface PurchaseImportSummary {
   issueDate: string;
   status: PurchaseImportStatus;
   lineCount: number;
+  source: PurchaseImportSource;
   sourceFilename: string;
   createdAt: string;
   createdByName: string | null;
@@ -136,6 +140,18 @@ export async function uploadPurchaseImport(file: File): Promise<PurchaseImportDe
   const formData = new FormData();
   formData.append('file', file);
   const { data } = await api.post<PurchaseImportDetail>('/purchase-imports', formData);
+  return data;
+}
+
+export async function uploadPurchaseImportExcel(file: File): Promise<PurchaseImportDetail> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await api.post<PurchaseImportDetail>('/purchase-imports/excel', formData);
+  return data;
+}
+
+export async function downloadPurchaseImportTemplate(): Promise<Blob> {
+  const { data } = await api.get<Blob>('/purchase-imports/template', { responseType: 'blob' });
   return data;
 }
 

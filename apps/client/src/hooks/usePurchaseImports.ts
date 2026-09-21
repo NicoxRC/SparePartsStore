@@ -10,15 +10,18 @@ import {
   confirmPurchaseImport,
   deletePurchaseImportItem,
   discardPurchaseImport,
+  downloadPurchaseImportTemplate,
   getPurchaseImport,
   getPurchaseImports,
   updatePurchaseImportItem,
   uploadPurchaseImport,
+  uploadPurchaseImportExcel,
   type ApplyClassificationInput,
   type PurchaseImportDetail,
   type PurchaseImportsQuery,
   type UpdatePurchaseImportItemInput,
 } from '../services/purchaseImports';
+import { saveBlob } from '../lib/saveBlob';
 import { updateSupplier, type UpdateSupplierInput } from '../services/suppliers';
 
 const PURCHASE_IMPORTS_KEY = 'purchase-imports';
@@ -54,6 +57,22 @@ export function useUploadPurchaseImport() {
   return useMutation({
     mutationFn: (file: File) => uploadPurchaseImport(file),
     onSuccess: (detail) => cacheDetail(queryClient, detail),
+  });
+}
+
+export function useUploadPurchaseImportExcel() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (file: File) => uploadPurchaseImportExcel(file),
+    onSuccess: (detail) => cacheDetail(queryClient, detail),
+  });
+}
+
+export function useDownloadPurchaseImportTemplate() {
+  return useMutation({
+    mutationFn: async () => {
+      saveBlob(await downloadPurchaseImportTemplate(), 'plantilla-compra.xlsx');
+    },
   });
 }
 
