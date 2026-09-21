@@ -30,22 +30,24 @@ export function PurchaseImportLineReadOnly({
         <IssueBadges issues={item.issues} />
       </div>
 
-      <p className="text-sm text-ink">
-        <span className="font-mono font-medium">{item.reference ?? 'Sin referencia'}</span>
-        {item.description && ` — ${item.description}`}
-      </p>
+      {item.product ? (
+        // The app's description wins over whatever the file said.
+        <p className="text-sm text-ink">
+          <span className="font-mono font-medium">{item.product.reference}</span> —{' '}
+          {item.product.description}
+        </p>
+      ) : (
+        <p className="text-sm text-ink">
+          <span className="font-mono font-medium">{item.reference ?? 'Sin referencia'}</span>
+          {item.description && ` — ${item.description}`}
+        </p>
+      )}
 
       <p className="font-mono text-xs text-steel">
         Cantidad: {item.quantity === null ? '—' : formatQuantity(item.quantity)}
         {item.quantity !== item.xmlQuantity && ` (factura: ${formatQuantity(item.xmlQuantity)})`}
       </p>
 
-      {item.product && (
-        <p className="text-xs text-fog">
-          Producto: <span className="font-mono">{item.product.reference}</span> —{' '}
-          {item.product.description}
-        </p>
-      )}
     </article>
   );
 }

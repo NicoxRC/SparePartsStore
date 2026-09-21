@@ -79,7 +79,7 @@ export function PurchaseImportLineCard({ importId, item, isHighlighted }: Purcha
         )}
       </div>
 
-      <LineFieldsForm item={item} onPatch={patch} />
+      <LineFieldsForm item={item} showDescription={!item.product} onPatch={patch} />
 
       {item.product ? (
         <LinkedProductSummary

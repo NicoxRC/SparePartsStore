@@ -14,6 +14,12 @@ import type {
 
 interface LineFieldsFormProps {
   item: PurchaseImportItem;
+  /**
+   * False for a line linked to a product already in the app: that product's
+   * description is the one that counts, so the file's is not editable there
+   * (it is kept, and comes back if the link is removed).
+   */
+  showDescription: boolean;
   /** Saves one field; `onSaved` receives the line as the server now has it (it normalizes text). */
   onPatch: (
     input: UpdatePurchaseImportItemInput,
@@ -26,7 +32,7 @@ interface LineFieldsFormProps {
  * and sent on its own when it loses focus — never as one big submit — so a
  * reviewer can fix a line field by field without a save button.
  */
-export function LineFieldsForm({ item, onPatch }: LineFieldsFormProps) {
+export function LineFieldsForm({ item, showDescription, onPatch }: LineFieldsFormProps) {
   const {
     register,
     trigger,
@@ -96,14 +102,16 @@ export function LineFieldsForm({ item, onPatch }: LineFieldsFormProps) {
           <p className="font-mono text-xs text-fog">Factura: {formatQuantity(item.xmlQuantity)}</p>
         )}
       </div>
-      <div className="col-span-2">
-        <TextField
-          label="Descripción"
-          id={`line-description-${item.id}`}
-          error={errors.description?.message}
-          {...register('description', { onBlur: () => void commitDescription() })}
-        />
-      </div>
+      {showDescription && (
+        <div className="col-span-2">
+          <TextField
+            label="Descripción"
+            id={`line-description-${item.id}`}
+            error={errors.description?.message}
+            {...register('description', { onBlur: () => void commitDescription() })}
+          />
+        </div>
+      )}
     </div>
   );
 }

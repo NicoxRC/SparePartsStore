@@ -11,6 +11,10 @@ export function LinkedProductSummary({ item, onChangeProduct, onUnlink }: Linked
   const { product } = item;
   if (!product) return null;
 
+  const fileDescription = item.description?.trim();
+  const differsFromApp =
+    !!fileDescription &&
+    fileDescription.toLowerCase() !== product.description.trim().toLowerCase();
   const added = item.quantity !== null && item.quantity > 0 ? item.quantity : 0;
 
   return (
@@ -19,6 +23,11 @@ export function LinkedProductSummary({ item, onChangeProduct, onUnlink }: Linked
         <p className="text-sm text-ink">
           <span className="font-mono font-medium">{product.reference}</span> — {product.description}
         </p>
+        {differsFromApp && (
+          <p className="mt-1 text-xs text-fog">
+            En el archivo: {fileDescription} — se usa la descripción de la app.
+          </p>
+        )}
         <p className="mt-1 font-mono text-xs text-steel">
           stock {product.stock}
           {added > 0 && ` → ${product.stock + added}`}

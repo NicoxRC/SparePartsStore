@@ -1197,6 +1197,31 @@ describe('PurchaseImportsService', () => {
       });
     });
 
+    it("never changes an existing product's description or price, whatever the file said", async () => {
+      lines = [
+        item({
+          productId: 'p-old',
+          matchType: 'exact',
+          description: 'Descripcion distinta del archivo',
+          newSalePrice: 99999,
+        }),
+      ];
+      linkedProducts = [{ id: 'p-old', deletedAt: null, supplier: null }];
+
+      await service.confirm('imp-1', 'user-1');
+
+      expect(productsService.create).not.toHaveBeenCalled();
+      const updatedEntities = (
+        manager.update.mock.calls as Array<[unknown]>
+      ).map(([entity]) => entity);
+      expect(updatedEntities).not.toContain(Product);
+      // The only raw write touching products is the supplier "fill the blank".
+      for (const [sql] of manager.query.mock.calls as Array<[string]>) {
+        expect(sql).toMatch(/SET "supplier_id"/);
+        expect(sql).not.toMatch(/description|sale_price/);
+      }
+    });
+
     it('never overwrites the supplier of an existing product', async () => {
       lines = [item({ productId: 'p-old', matchType: 'exact' })];
       linkedProducts = [

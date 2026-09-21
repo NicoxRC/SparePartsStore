@@ -25,6 +25,10 @@ Not every purchase arrives with an XML, so the same draft can be started from an
 - **Library:** `exceljs` (already used once, removed with Sisco in Phase 14). Reading is bounded by the 5 MB cap, a 5000-row scan cap and the 500-line cap; legacy `.xls` is not accepted.
 - **Left out:** `.csv`, `.xls`, department/group/brand/IVA columns in the sheet (the reviewer still sets those, in bulk via "Aplicar clasificación"), updating the price of a product that already exists, and importing several suppliers in one file.
 
+## Rule added later: the app's description wins over the file's
+
+If a line's reference matches an existing product, the description/price in the XML or Excel are irrelevant — the **product's own** are used. Confirming only adds stock (it never updates description, price or any other field of an existing product; test-locked in `purchase-imports.service.spec.ts`). The review screen shows the app's description as the line's main text for linked lines (*Existe* / *Enlazado*), hides the file's description input there, and shows the file's only as a muted "En el archivo: …" note when it differs. The file's description stays stored on the draft line so it can still seed a new product if the link is removed.
+
 ## Decisions already made by the human (not re-litigated)
 
 1. A new product is created only at confirm, never at upload.
