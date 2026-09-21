@@ -17,6 +17,7 @@ import {
   type CustomerFormInput,
   type CustomerFormValues,
 } from '../lib/schemas/customer';
+import { lowerCaseField, upperCaseField } from '../lib/textCase';
 import type { CustomerPartyType } from '../services/customers';
 
 type Tab = 'data' | 'history';
@@ -195,7 +196,7 @@ export function CustomerFormPage() {
               <TextField
                 label="Razón social"
                 error={errors.companyName?.message}
-                {...register('companyName')}
+                {...upperCaseField(register('companyName'))}
               />
             </div>
           ) : (
@@ -203,12 +204,12 @@ export function CustomerFormPage() {
               <TextField
                 label="Nombres"
                 error={errors.firstName?.message}
-                {...register('firstName')}
+                {...upperCaseField(register('firstName'))}
               />
               <TextField
                 label="Apellidos"
                 error={errors.familyName?.message}
-                {...register('familyName')}
+                {...upperCaseField(register('familyName'))}
               />
             </>
           )}
@@ -256,7 +257,7 @@ export function CustomerFormPage() {
             label="Correo"
             type="email"
             error={errors.email?.message}
-            {...register('email')}
+            {...lowerCaseField(register('email'))}
           />
           <TextField
             label="Celular (opcional)"

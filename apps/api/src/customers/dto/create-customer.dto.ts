@@ -41,16 +41,25 @@ export class CreateCustomerDto {
 
   @ApiPropertyOptional({ description: 'Required for PERSONA_JURIDICA.' })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
   @IsString()
   companyName?: string;
 
   @ApiPropertyOptional({ description: 'Required for PERSONA_NATURAL.' })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
   @IsString()
   firstName?: string;
 
   @ApiPropertyOptional({ description: 'Required for PERSONA_NATURAL.' })
   @IsOptional()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
   @IsString()
   familyName?: string;
 
@@ -85,6 +94,9 @@ export class CreateCustomerDto {
   addressLine?: string;
 
   @ApiProperty()
+  @Transform(({ value }: { value: unknown }) =>
+    typeof value === 'string' ? value.trim().toLowerCase() : value,
+  )
   @IsEmail()
   email: string;
 

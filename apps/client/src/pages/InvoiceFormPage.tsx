@@ -43,6 +43,7 @@ import {
   type InvoiceFormInput,
   type InvoiceFormValues,
 } from '../lib/schemas/invoice';
+import { lowerCaseField, toLowerCase, toUpperCase, upperCaseField } from '../lib/textCase';
 import type { CustomerInput, CustomerPartyType, CustomerResponse } from '../services/customers';
 import type { ProductResponse } from '../services/products';
 import type { ThirdPartyResponse } from '../services/thirdParties';
@@ -141,7 +142,7 @@ function CustomerSection({
             <TextField
               label="Razón social"
               error={errors.customerCompanyName?.message}
-              {...register('customerCompanyName')}
+              {...upperCaseField(register('customerCompanyName'))}
             />
           </div>
         ) : (
@@ -149,12 +150,12 @@ function CustomerSection({
             <TextField
               label="Nombres"
               error={errors.customerFirstName?.message}
-              {...register('customerFirstName')}
+              {...upperCaseField(register('customerFirstName'))}
             />
             <TextField
               label="Apellidos"
               error={errors.customerFamilyName?.message}
-              {...register('customerFamilyName')}
+              {...upperCaseField(register('customerFamilyName'))}
             />
           </>
         )}
@@ -201,7 +202,7 @@ function CustomerSection({
           label="Correo"
           type="email"
           error={errors.customerEmail?.message}
-          {...register('customerEmail')}
+          {...lowerCaseField(register('customerEmail'))}
         />
         <TextField
           label="Celular (opcional)"
@@ -332,14 +333,14 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     setValue('customerPartyType', customer.partyType);
     setValue('customerTaxLevelCode', customer.taxLevelCode || 'COMUN');
     setValue('customerRegimen', customer.regimen ?? '');
-    setValue('customerCompanyName', customer.companyName ?? '');
-    setValue('customerFirstName', customer.firstName ?? '');
-    setValue('customerFamilyName', customer.familyName ?? '');
+    setValue('customerCompanyName', toUpperCase(customer.companyName ?? ''));
+    setValue('customerFirstName', toUpperCase(customer.firstName ?? ''));
+    setValue('customerFamilyName', toUpperCase(customer.familyName ?? ''));
     setValue('customerCountryCode', customer.countryCode ?? 'CO');
     setValue('customerDepartment', customer.department ?? '');
     setValue('customerCity', customer.city ?? '');
     setValue('customerAddressLine', customer.addressLine ?? '');
-    setValue('customerEmail', customer.email);
+    setValue('customerEmail', toLowerCase(customer.email));
     setCustomerSearchQuery('');
   };
 
@@ -362,10 +363,10 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   };
 
   const handleDianResult = (result: ThirdPartyResponse) => {
-    if (result.companyName) setValue('customerCompanyName', result.companyName);
-    if (result.firstName) setValue('customerFirstName', result.firstName);
-    if (result.familyName) setValue('customerFamilyName', result.familyName);
-    if (result.email) setValue('customerEmail', result.email);
+    if (result.companyName) setValue('customerCompanyName', toUpperCase(result.companyName));
+    if (result.firstName) setValue('customerFirstName', toUpperCase(result.firstName));
+    if (result.familyName) setValue('customerFamilyName', toUpperCase(result.familyName));
+    if (result.email) setValue('customerEmail', toLowerCase(result.email));
   };
 
   const handleAddProduct = (product: ProductResponse, quantity = 1) => {
