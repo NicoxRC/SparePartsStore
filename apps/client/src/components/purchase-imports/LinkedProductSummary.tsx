@@ -1,13 +1,23 @@
 import { Button } from '../Button';
-import type { PurchaseImportItem } from '../../services/purchaseImports';
+import { LinkedPriceField } from './LinkedPriceField';
+import type {
+  PurchaseImportItem,
+  UpdatePurchaseImportItemInput,
+} from '../../services/purchaseImports';
 
 interface LinkedProductSummaryProps {
   item: PurchaseImportItem;
   onChangeProduct: () => void;
   onUnlink: () => void;
+  onPatch: (input: UpdatePurchaseImportItemInput) => void;
 }
 
-export function LinkedProductSummary({ item, onChangeProduct, onUnlink }: LinkedProductSummaryProps) {
+export function LinkedProductSummary({
+  item,
+  onChangeProduct,
+  onUnlink,
+  onPatch,
+}: LinkedProductSummaryProps) {
   const { product } = item;
   if (!product) return null;
 
@@ -33,6 +43,7 @@ export function LinkedProductSummary({ item, onChangeProduct, onUnlink }: Linked
           {added > 0 && ` → ${product.stock + added}`}
         </p>
       </div>
+      <LinkedPriceField key={product.id} item={item} onPatch={onPatch} />
       <div className="flex gap-2">
         <Button type="button" variant="secondary" className="flex-1" onClick={onChangeProduct}>
           Cambiar producto

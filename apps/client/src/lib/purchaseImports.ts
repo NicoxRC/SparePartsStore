@@ -51,6 +51,16 @@ export function validateExcelFile(file: File): string | null {
   return null;
 }
 
+const priceFormatter = new Intl.NumberFormat('es-CO', {
+  style: 'currency',
+  currency: 'COP',
+  maximumFractionDigits: 0,
+});
+
+export function formatPrice(amount: number): string {
+  return priceFormatter.format(amount);
+}
+
 export function formatQuantity(quantity: number): string {
   return quantity.toLocaleString('es-CO', { maximumFractionDigits: 4 });
 }
@@ -93,6 +103,15 @@ export interface ConfirmSummary {
   createdProducts: number;
   restockedProducts: number;
   units: number;
+  /** Existing products that get a different sale price. */
+  priceChanges: number;
+}
+
+/** The new price a matched line would set, or null when it keeps the product's current one. */
+export function pendingPriceChange(item: PurchaseImportItem): number | null {
+  const typed = item.newProduct.salePrice;
+  if (!item.product || typed === null || typed === item.product.salePrice) return null;
+  return typed;
 }
 
 /** What confirming will do, computed the way the server counts it. */
@@ -100,12 +119,14 @@ export function summarizeConfirm(items: PurchaseImportItem[]): ConfirmSummary {
   const restocked = new Set<string>();
   let createdProducts = 0;
   let units = 0;
+  let priceChanges = 0;
   for (const item of items) {
+    if (pendingPriceChange(item) !== null) priceChanges += 1;
     if (item.product) restocked.add(item.product.id);
     else createdProducts += 1;
     units += item.quantity ?? 0;
   }
-  return { createdProducts, restockedProducts: restocked.size, units };
+  return { createdProducts, restockedProducts: restocked.size, units, priceChanges };
 }
 
 export interface DuplicateImportInfo {

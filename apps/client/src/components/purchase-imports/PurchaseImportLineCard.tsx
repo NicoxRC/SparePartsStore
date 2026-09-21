@@ -86,6 +86,7 @@ export function PurchaseImportLineCard({ importId, item, isHighlighted }: Purcha
           item={item}
           onChangeProduct={() => setIsPickerOpen(true)}
           onUnlink={() => patch({ productId: null })}
+          onPatch={patch}
         />
       ) : (
         <>

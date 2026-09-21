@@ -1,3 +1,4 @@
+import { formatPrice } from '../../lib/purchaseImports';
 import type { ConfirmPurchaseImportResponse } from '../../services/purchaseImports';
 
 function plural(count: number, singular: string, pluralForm: string): string {
@@ -23,7 +24,23 @@ export function ConfirmResult({ result }: { result: ConfirmPurchaseImportRespons
             {result.relinked.map((line) => (
               <li key={line.lineNumber}>
                 Línea {line.lineNumber} — <span className="font-mono">{line.reference}</span>: se
-                sumó stock al producto existente y se descartó el precio escrito.
+                sumó stock al producto existente.
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {result.priceChanges.length > 0 && (
+        <div>
+          <p className="font-medium">
+            Precio de venta cambiado en{' '}
+            {plural(result.priceChanges.length, 'producto', 'productos')}:
+          </p>
+          <ul className="mt-1 list-disc pl-5">
+            {result.priceChanges.map((change) => (
+              <li key={change.lineNumber}>
+                <span className="font-mono">{change.reference}</span>:{' '}
+                {formatPrice(change.previousPrice)} → {formatPrice(change.newPrice)}
               </li>
             ))}
           </ul>

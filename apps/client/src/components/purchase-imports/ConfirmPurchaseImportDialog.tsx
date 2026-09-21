@@ -63,8 +63,12 @@ export function ConfirmPurchaseImportDialog({
               {summary.createdProducts === 1 ? 'producto' : 'productos'} y se sumará stock a{' '}
               {summary.restockedProducts}{' '}
               {summary.restockedProducts === 1 ? 'producto' : 'productos'} ({summary.units}{' '}
-              {summary.units === 1 ? 'unidad' : 'unidades'}). Después no se puede editar ni
-              deshacer.
+              {summary.units === 1 ? 'unidad' : 'unidades'}).
+              {summary.priceChanges > 0 &&
+                ` Se cambiará el precio de venta de ${summary.priceChanges} ${
+                  summary.priceChanges === 1 ? 'producto' : 'productos'
+                } que ya existían.`}{' '}
+              Después no se puede editar ni deshacer.
             </p>
 
             {confirmMutation.isError && !getInvalidImportProblems(confirmMutation.error) && (

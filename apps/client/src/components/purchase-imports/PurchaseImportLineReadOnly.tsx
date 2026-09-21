@@ -1,6 +1,11 @@
 import { IssueBadges } from './IssueBadges';
 import { LineStatusChip } from './LineStatusChip';
-import { formatQuantity, lineElementId } from '../../lib/purchaseImports';
+import {
+  formatPrice,
+  formatQuantity,
+  lineElementId,
+  pendingPriceChange,
+} from '../../lib/purchaseImports';
 import type { PurchaseImportItem } from '../../services/purchaseImports';
 
 interface PurchaseImportLineReadOnlyProps {
@@ -40,6 +45,13 @@ export function PurchaseImportLineReadOnly({
         <p className="text-sm text-ink">
           <span className="font-mono font-medium">{item.reference ?? 'Sin referencia'}</span>
           {item.description && ` — ${item.description}`}
+        </p>
+      )}
+
+      {item.product && pendingPriceChange(item) !== null && (
+        <p className="font-mono text-xs text-steel">
+          Precio de venta {formatPrice(item.product.salePrice)} →{' '}
+          {formatPrice(pendingPriceChange(item) ?? 0)}
         </p>
       )}
 

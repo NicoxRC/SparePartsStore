@@ -44,6 +44,8 @@ export interface PurchaseImportLinkedProduct {
   reference: string;
   description: string;
   stock: number;
+  /** The product's current sale price in the app. */
+  salePrice: number;
 }
 
 export interface PurchaseImportNewProduct {
@@ -110,6 +112,14 @@ export interface ConfirmPurchaseImportResponse {
   restockedProducts: number;
   unitsAdded: number;
   suppliersAssigned: number;
+  pricesUpdated: number;
+  /** Existing products whose sale price changed because the line carried a different one. */
+  priceChanges: Array<{
+    lineNumber: number;
+    reference: string;
+    previousPrice: number;
+    newPrice: number;
+  }>;
   /** "New" lines whose reference appeared in the catalog before confirming. */
   relinked: Array<{ lineNumber: number; reference: string }>;
 }
