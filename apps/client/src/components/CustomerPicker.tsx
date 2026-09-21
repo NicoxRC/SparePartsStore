@@ -30,7 +30,9 @@ function customerLabel(customer: CustomerResponse): string {
 
 /**
  * Shared "find a customer" widget for the invoice forms: a search box over
- * saved local customers, plus the DIAN tercero lookup. Deliberately dumb
+ * saved local customers, plus the DIAN tercero lookup. The DIAN button sits
+ * above the search box because the results dropdown opens below it and would
+ * cover anything placed there. Deliberately dumb
  * about field-name vocabulary — both callbacks just hand back the raw
  * response object and each page decides how to map it into its own fields.
  */
@@ -62,6 +64,23 @@ export function CustomerPicker({
 
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="secondary"
+          className="sm:w-auto sm:px-4"
+          isLoading={thirdPartyLookup.isFetching}
+          disabled={!identification || !identificationType}
+          onClick={() => void handleDianLookup()}
+        >
+          Buscar en DIAN
+        </Button>
+      </div>
+
+      {thirdPartyLookup.isFetched && !thirdPartyLookup.data && (
+        <Alert variant="info">No se encontró un tercero con esa identificación en la DIAN.</Alert>
+      )}
+
       <div className="relative">
         <TextField
           label="Buscar cliente guardado"
@@ -92,22 +111,6 @@ export function CustomerPicker({
         )}
       </div>
 
-      <div className="flex justify-end">
-        <Button
-          type="button"
-          variant="secondary"
-          className="sm:w-auto sm:px-4"
-          isLoading={thirdPartyLookup.isFetching}
-          disabled={!identification || !identificationType}
-          onClick={() => void handleDianLookup()}
-        >
-          Buscar en DIAN
-        </Button>
-      </div>
-
-      {thirdPartyLookup.isFetched && !thirdPartyLookup.data && (
-        <Alert variant="info">No se encontró un tercero con esa identificación en la DIAN.</Alert>
-      )}
     </div>
   );
 }
