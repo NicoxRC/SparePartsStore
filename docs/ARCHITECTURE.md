@@ -66,7 +66,7 @@ apps/api/src/
 │
 ├── suppliers/                           # Phase 16 — supplier find-or-create by NIT (no create/delete endpoint of its own), admin rename, open GET list
 │
-├── purchase-imports/                    # Phase 16 (not Dataico — no HTTP calls). Supplier-invoice XML → draft → confirm. Imports SuppliersModule/ProductsModule/InventoryModule (none import it back, so no circular dependency). xml/purchase-invoice-xml.parser.ts reads UBL with `fast-xml-parser` (rejects any DOCTYPE/ENTITY before parsing); upload is multipart via @nestjs/platform-express (memory storage, 5 MB cap). See DATABASE.md ("purchase_imports")
+├── purchase-imports/                    # Phase 16 (not Dataico — no HTTP calls). Supplier-invoice XML → draft → confirm. Imports SuppliersModule/ProductsModule/InventoryModule (none import it back, so no circular dependency). xml/purchase-invoice-xml.parser.ts reads UBL with `fast-xml-parser` (rejects any DOCTYPE/ENTITY before parsing); excel/ builds the downloadable template and reads it back with `exceljs` (fixed layout in excel/purchase-sheet.layout.ts, shared by both so they can't drift); upload is multipart via @nestjs/platform-express (memory storage, 5 MB cap). See DATABASE.md ("purchase_imports")
 │
 ├── invoicing/                           # NEW — Dataico integration, see "Invoicing module" below
 │

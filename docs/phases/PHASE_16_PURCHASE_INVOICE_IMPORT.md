@@ -1,6 +1,6 @@
 # Phase 16 — Purchase invoice import (supplier XML to stock) (Backend + Client)
 
-**Status: Backend done (API, migrations, tests); client built; parsing still unverified against a real supplier file — see Open question 1.** Local feature, **not a Dataico integration** (zero HTTP calls to Dataico). Branch: `feature/purchase-invoice-xml-import`.
+**Status: Backend done (API, migrations, tests); client built (XML + Excel template); parsing still unverified against a real supplier file — see Open question 1.** Local feature, **not a Dataico integration** (zero HTTP calls to Dataico). Branch: `feature/purchase-invoice-xml-import`.
 
 ## Goal
 
@@ -11,6 +11,19 @@ Relationship to other phases: independent of Phases 7-15. It does **not** reopen
 ## Change of scope after the first implementation (decided by the human)
 
 **The draft keeps only reference, description and quantity from the XML; everything else is completed by the user, and the system never suggests a price.** Consequently: the XML's unit cost (`unit_cost`, "Costo en factura", the pre-IVA price question) is **gone** — the draft stores no price at all — and the whole product model dropped its derived `cost` and its `sale_type`, leaving only `sale_price` (see `RemoveCostAndSaleTypeFromProducts`, `docs/DATABASE.md`). Wherever this document below still mentions `unit_cost`, `saleType`/`new_sale_type`, D1 or Open question 2, that part is **superseded** by this paragraph.
+
+## Follow-up: Excel template for when there is no XML (decided by the human, same branch)
+
+Not every purchase arrives with an XML, so the same draft can be started from an Excel file. Everything happens in the API; the client only offers "Descargar plantilla" and "Cargar plantilla de Excel". The draft, review, relink and confirm flow are **unchanged** — only how the draft is created differs, and there the user has already typed the **sale price**, "to make it faster".
+
+- **Endpoints** (both `purchase_imports.create`): `GET /api/purchase-imports/template` → the `.xlsx` (declared before `:id` so "template" isn't parsed as a UUID); `POST /api/purchase-imports/excel` (multipart `file`, `.xlsx` only, 5 MB) → the same detail DTO as an XML upload.
+- **Template layout** (`excel/purchase-sheet.layout.ts`, sheet "Compra"): rows 1–4 hold the header — *NIT del proveedor*, *Nombre del proveedor*, *N° de factura (opcional)*, *Fecha de factura (opcional)* — row 6 the column titles *Referencia | Descripción | Cantidad | Precio de venta*, and one product per row from row 7 (500 max). A second sheet, "Instrucciones", explains it. Reference/NIT/invoice cells are text-formatted so Excel keeps leading zeros; quantity and price carry Excel data validation (whole numbers ≥ 1 / ≥ 500).
+- **Why the supplier sits in the sheet, not on the upload form:** the user is already editing the file, a first-time supplier can be created there (NIT + name, reusing `findOrCreateByNit`), and the client stays a plain file upload. The reader refuses a file whose labels/titles don't match (`422 INVALID_TEMPLATE`) instead of guessing which cell is which.
+- **Header defaults:** no invoice number → a unique `EXCEL-YYYYMMDD-XXXXXX` (nothing to deduplicate against); no date → today in the store's calendar; `cufe` null. If the user *does* type an invoice number, the usual `(supplier, invoice number)` duplicate protection applies. `purchase_imports.source` (`xml`|`excel`) records the origin.
+- **Reading is tolerant, the review is strict** — same philosophy as the XML: blank rows are skipped; a bad quantity or price never fails the upload, it shows up as a per-line issue to fix in the draft. Numbers typed as `1.500`/`1,500` are read as one thousand five hundred (COP amounts are integers) while `1500.5` is kept so validation can flag it. Errors: `INVALID_EXCEL`, `INVALID_TEMPLATE`, `MISSING_SUPPLIER`, `MISSING_SUPPLIER_NAME`, `INVALID_INVOICE_NUMBER`, `INVALID_ISSUE_DATE`, `NO_LINES`, `TOO_MANY_LINES` (all `422` with a Spanish `message`).
+- **Price on an existing product is ignored** (stock is added, the product keeps its price) — same rule as a "new" line that turns out to exist at confirm time (D5).
+- **Library:** `exceljs` (already used once, removed with Sisco in Phase 14). Reading is bounded by the 5 MB cap, a 5000-row scan cap and the 500-line cap; legacy `.xls` is not accepted.
+- **Left out:** `.csv`, `.xls`, department/group/brand/IVA columns in the sheet (the reviewer still sets those, in bulk via "Aplicar clasificación"), updating the price of a product that already exists, and importing several suppliers in one file.
 
 ## Decisions already made by the human (not re-litigated)
 

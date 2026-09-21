@@ -449,10 +449,13 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | `invoice_number` | VARCHAR(50) | The UBL `cbc:ID` as-is (already includes the prefix), trimmed + uppercased. |
 | `issue_date` | DATE | |
 | `cufe` | VARCHAR(128), nullable | UBL `cbc:UUID`, lowercased. |
+| `source` | VARCHAR(10) `NOT NULL` default `'xml'`, `CHECK IN ('xml','excel')` | Where the draft came from: a supplier's XML or the Excel template (see below). Drives only a chip in the list; the review/confirm flow is identical. |
 | `source_filename` | VARCHAR(255) | Display only. **The raw XML is not stored** (an `AttachedDocument` can embed a multi-MB base64 PDF; nothing downstream needs it). |
 | `confirmed_at`, `discarded_at` | TIMESTAMPTZ, nullable | **State is derived, no status column** (same precedent as `quotations.invoiced_at`/`cancelled_at`): both `NULL` = draft; `confirmed_at` set = confirmed; `discarded_at` set = discarded. `CHK_purchase_imports_single_outcome` forbids both. |
 | `confirmed_by_id`, `discarded_by_id`, `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at`, `updated_at` | TIMESTAMPTZ | **No `deleted_at`** — a documented exception to the `BaseEntity` convention: "discarded" *is* the removal state, so a soft delete would be a second way to say the same thing. |
+
+**Drafts from the Excel template** (`source = 'excel'`, Phase 16 follow-up) reuse the same tables. The header has no XML to read, so it comes from the template's top block: the supplier is find-or-created by NIT (the name is only needed when the supplier is new — `422 MISSING_SUPPLIER_NAME` otherwise); `invoice_number`/`issue_date` are optional there and default to a generated unique `EXCEL-YYYYMMDD-XXXXXX` and the store's current day; `cufe` is always `NULL`. Each line carries the sale price the user typed into `new_sale_price` (used only if the line ends up creating a product — a line that matches an existing product keeps that product's price). `xml_quantity` holds the sheet's quantity, the column name being historical. Duplicate protection therefore only applies to the Excel path when the user typed an invoice number.
 
 **Duplicate protection** is two partial unique indexes, both `WHERE discarded_at IS NULL` so a discard frees the invoice for re-upload: `(supplier_id, invoice_number)`, and `cufe` (where not null — catches the same document arriving bare vs. wrapped in an `AttachedDocument`). The upload also pre-checks both for a clean `409 PURCHASE_IMPORT_DUPLICATE` carrying `existingImportId`/`existingStatus`, and catches the DB unique violation as the race safety net (`isUniqueViolation()`).
 
