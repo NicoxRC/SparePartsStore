@@ -5,3 +5,4 @@
 - [product classification model](project_product_classification.md) — Department/Group(product_groups)/Brand replace Category/Brand+línea; table/route names, migration plan
 - [cash register design](project_cash_register_design.md) — cash_registers table, top-level module (like customers), assertOpenToday() gate in InvoicesService, America/Bogota "today", circular-dep avoidance
 - [employee permissions design](project_employee_permissions_design.md) — users.permissions TEXT[], @RequirePermission + PermissionsGuard alongside RolesGuard, JWT-embedded, flat catalog, admin/auditor untouched
+- [purchase import design](project_purchase_import_design.md) — Phase 16 supplier-XML import: draft/confirm, atomic via EntityManager, unverified UBL paths (no real sample yet)
