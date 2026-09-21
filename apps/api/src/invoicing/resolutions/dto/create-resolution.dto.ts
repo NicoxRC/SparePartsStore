@@ -5,7 +5,6 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Min,
   MaxLength,
@@ -46,15 +45,6 @@ export class CreateResolutionDto {
   @IsInt()
   @Min(0)
   rangeEnd: number;
-
-  @ApiProperty({
-    required: false,
-    description: 'Only used for documentType=invoice.',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  technicalKey?: string;
 
   @ApiProperty({ example: '2024-07-21' })
   @IsDateString()

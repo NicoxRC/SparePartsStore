@@ -21,7 +21,6 @@ describe('ResolutionsService', () => {
     resolutionNumber: '18764075467155',
     rangeStart: 50,
     rangeEnd: 200,
-    technicalKey: 'abc123',
     startDate: '2024-07-21',
     endDate: '2025-07-21',
   };
@@ -62,7 +61,6 @@ describe('ResolutionsService', () => {
                   number: '18764075467155',
                   start: 50,
                   end: 200,
-                  'technical-key': 'abc123',
                   'start-date': '21/07/2024',
                   'end-date': '21/07/2025',
                 },
@@ -70,6 +68,22 @@ describe('ResolutionsService', () => {
             },
           ],
         },
+      );
+    });
+
+    it('never sends a technical key (the field no longer exists)', async () => {
+      await service.create(
+        { ...baseDto, technicalKey: 'abc123' } as CreateResolutionDto,
+        'user-1',
+      );
+
+      const body = (
+        dataicoClient.post.mock.calls as Array<[string, unknown]>
+      )[0][1] as {
+        numberings: Array<{ dian_resolutions: Array<Record<string, unknown>> }>;
+      };
+      expect(body.numberings[0].dian_resolutions[0]).not.toHaveProperty(
+        'technical-key',
       );
     });
 
@@ -119,11 +133,10 @@ describe('ResolutionsService', () => {
   });
 
   describe('create — SUPPORT_DOCS document type', () => {
-    it('calls the support_docs numbering endpoint with snake_case fields and no technical-key', async () => {
+    it('calls the support_docs numbering endpoint with snake_case fields and no technical key', async () => {
       const dto: CreateResolutionDto = {
         ...baseDto,
         documentType: DianResolutionDocumentType.SUPPORT_DOCS,
-        technicalKey: undefined,
       };
 
       await service.create(dto, 'user-1');

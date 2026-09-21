@@ -46,7 +46,6 @@ export class ResolutionsService {
       resolutionNumber: dto.resolutionNumber,
       rangeStart: dto.rangeStart,
       rangeEnd: dto.rangeEnd,
-      technicalKey: dto.technicalKey ?? null,
       startDate: dto.startDate,
       endDate: dto.endDate,
       createdBy: { id: createdById } as DianResolution['createdBy'],
@@ -104,8 +103,8 @@ export class ResolutionsService {
    * Builds Dataico's request body exactly as confirmed per document type —
    * see docs/phases/PHASE_8_RESOLUTIONS.md. The two types use DIFFERENT
    * field-naming conventions in the shared reference (support_docs:
-   * snake_case; invoice: kebab-case, plus an invoice-only `technical-key`
-   * field) — this is intentional, not a bug, per the reference as given.
+   * snake_case; invoice: kebab-case) — this is intentional, not a bug, per
+   * the reference as given.
    */
   private buildDataicoBody(dto: CreateResolutionDto): unknown {
     const dianResolution =
@@ -116,7 +115,6 @@ export class ResolutionsService {
             number: dto.resolutionNumber,
             start: dto.rangeStart,
             end: dto.rangeEnd,
-            'technical-key': dto.technicalKey,
             'start-date': this.toDataicoDate(dto.startDate),
             'end-date': this.toDataicoDate(dto.endDate),
           }

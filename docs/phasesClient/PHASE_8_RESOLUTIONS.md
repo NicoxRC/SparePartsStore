@@ -9,7 +9,7 @@ Give an admin visibility into which DIAN resolution(s) this business can current
 ## What shipped
 
 - `ResolutionsListPage` (`/invoicing/resolutions`) — a simple table (type, prefix, resolution number, range, validity), newest first, paginated with the existing `Pagination` component. A table, not a card grid, since this data is dense and this is a low-frequency admin screen — consistent with `CLAUDE.md`'s "keep it simple" note.
-- `ResolutionFormPage` (`/invoicing/resolutions/new`) — create-only form (documentType select, prefix, resolution code, resolution number, numeric range, optional technical key — shown only for `invoice` document type, optional dates). No edit form — matches the backend's append-only model.
+- `ResolutionFormPage` (`/invoicing/resolutions/new`) — create-only form (documentType select, prefix, resolution code, resolution number, numeric range, dates). No edit form — matches the backend's append-only model.
 - `services/resolutions.ts` + `hooks/useResolutions.ts` follow the existing service/hook pattern.
 - `lib/schemas/resolution.ts` — Zod schema, including a range validation (`rangeEnd >= rangeStart`).
 - Added to the admin sidebar/bottom-nav as "Resoluciones" (🧾), alongside Usuarios/Catálogos.
@@ -26,3 +26,4 @@ Give an admin visibility into which DIAN resolution(s) this business can current
 ## Follow-up
 
 The form no longer has a **Subtipo** field (always `ELECTRONICO`, set by the API) nor a **Mensaje del código** field (the API still sends Dataico's `code-msg` as a fixed text), and the list dropped its Subtipo column.
+The **Clave técnica** field was removed as well.

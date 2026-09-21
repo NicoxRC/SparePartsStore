@@ -28,7 +28,6 @@ export const resolutionFormSchema = z
       .number({ message: 'El rango final debe ser un número.' })
       .int()
       .min(0),
-    technicalKey: z.string().trim().max(255).optional().or(z.literal('')),
     startDate: z.string().min(1, 'La fecha de inicio es obligatoria.'),
     endDate: z.string().min(1, 'La fecha de fin es obligatoria.'),
   })

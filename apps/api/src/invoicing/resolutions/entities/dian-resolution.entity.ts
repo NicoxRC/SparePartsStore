@@ -56,18 +56,6 @@ export class DianResolution {
   @Column({ name: 'range_end', type: 'int' })
   rangeEnd: number;
 
-  /**
-   * Only present on the INVOICE document type per the confirmed reference
-   * — always null for SUPPORT_DOCS.
-   */
-  @Column({
-    name: 'technical_key',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-  })
-  technicalKey: string | null;
-
   @Column({ name: 'start_date', type: 'date' })
   startDate: string;
 

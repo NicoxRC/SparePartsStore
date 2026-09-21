@@ -12,7 +12,6 @@ export interface ResolutionResponse {
   resolutionNumber: string;
   rangeStart: number;
   rangeEnd: number;
-  technicalKey: string | null;
   startDate: string;
   endDate: string;
   createdAt: string;
@@ -31,7 +30,6 @@ export interface CreateResolutionInput {
   resolutionNumber: string;
   rangeStart: number;
   rangeEnd: number;
-  technicalKey?: string;
   startDate: string;
   endDate: string;
 }

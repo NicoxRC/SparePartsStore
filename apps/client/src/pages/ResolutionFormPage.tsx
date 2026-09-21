@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
@@ -21,7 +21,6 @@ export function ResolutionFormPage() {
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors },
   } = useForm<ResolutionFormInput, unknown, ResolutionFormValues>({
     resolver: zodResolver(resolutionFormSchema),
@@ -32,18 +31,14 @@ export function ResolutionFormPage() {
       resolutionNumber: '',
       rangeStart: 0,
       rangeEnd: 0,
-      technicalKey: '',
       startDate: '',
       endDate: '',
     },
   });
 
-  const documentType = useWatch({ control, name: 'documentType' });
-
   const onSubmit = async (values: ResolutionFormValues) => {
     await createMutation.mutateAsync({
       ...values,
-      technicalKey: values.technicalKey || undefined,
     });
     navigate('/invoicing/resolutions');
   };
@@ -108,14 +103,6 @@ export function ResolutionFormPage() {
             {...register('rangeEnd')}
           />
         </div>
-
-        {documentType === 'invoice' && (
-          <TextField
-            label="Clave técnica (opcional)"
-            error={errors.technicalKey?.message}
-            {...register('technicalKey')}
-          />
-        )}
 
         <div className="grid grid-cols-2 gap-4">
           <TextField

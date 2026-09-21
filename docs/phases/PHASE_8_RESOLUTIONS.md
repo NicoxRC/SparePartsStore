@@ -15,7 +15,7 @@ Content-Type: application/json
 Auth-token: <DATAICO_AUTH_TOKEN>
 ```
 
-**Field-naming note, recorded as given, not "fixed":** the two document types use genuinely different field-naming conventions in the shared reference — `support_docs` uses snake_case (`code_msg`, `start_date`, `end_date`), `invoice` uses kebab-case (`code-msg`, `start-date`, `end-date`) plus an invoice-only `technical-key` field. This looked like it could be a Postman placeholder artifact (see the git history of this doc for the original analysis), but per explicit instruction from the human, both are implemented exactly as documented rather than normalized to one convention. **If Dataico rejects the `invoice` numbering sync in practice, this is the first thing to revisit** — see `ResolutionsService.buildDataicoBody()`.
+**Field-naming note, recorded as given, not "fixed":** the two document types use genuinely different field-naming conventions in the shared reference — `support_docs` uses snake_case (`code_msg`, `start_date`, `end_date`), `invoice` uses kebab-case (`code-msg`, `start-date`, `end-date`). *(The invoice-only `technical-key` field of the original reference is no longer asked for nor sent — see below.)* This looked like it could be a Postman placeholder artifact (see the git history of this doc for the original analysis), but per explicit instruction from the human, both are implemented exactly as documented rather than normalized to one convention. **If Dataico rejects the `invoice` numbering sync in practice, this is the first thing to revisit** — see `ResolutionsService.buildDataicoBody()`.
 
 ## What shipped
 
@@ -38,3 +38,7 @@ An admin can see which DIAN resolution(s) this business is currently authorized 
 ## Related documents
 
 - `docs/phasesClient/PHASE_8_RESOLUTIONS.md`, `docs/GLOSSARY.md` ("Resolución DIAN"), `docs/DATABASE.md` (`dian_resolutions`), `docs/phases/PHASE_10_INVOICING_STANDARD.md` (the confirmed invoice payload's `numbering` block, which this phase's data feeds)
+
+## Follow-up: no technical key
+
+The **Clave técnica** field was removed end to end (form, DTO, entity, `dian_resolutions.technical_key` column via migration 31, and the `technical-key` entry of the invoice sync body). It was optional and the first resolutions synced through the app were accepted by Dataico without it, so the request is identical to the one that already worked. *If invoices later turn out to need it, this is a place to revisit.*

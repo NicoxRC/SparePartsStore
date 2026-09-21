@@ -27,9 +27,6 @@ export class ResolutionResponseDto {
   @ApiProperty()
   rangeEnd: number;
 
-  @ApiProperty({ nullable: true })
-  technicalKey: string | null;
-
   @ApiProperty()
   startDate: string;
 
@@ -49,7 +46,6 @@ export class ResolutionResponseDto {
     dto.resolutionNumber = resolution.resolutionNumber;
     dto.rangeStart = resolution.rangeStart;
     dto.rangeEnd = resolution.rangeEnd;
-    dto.technicalKey = resolution.technicalKey;
     dto.startDate = resolution.startDate;
     dto.endDate = resolution.endDate;
     dto.createdAt = resolution.createdAt.toISOString();
