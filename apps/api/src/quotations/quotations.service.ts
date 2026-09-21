@@ -443,6 +443,9 @@ export class QuotationsService {
       .withDeleted()
       .leftJoinAndSelect('quotation.items', 'items')
       .leftJoinAndSelect('items.product', 'product')
+      // The printed quotation shows each part's brand and who sold it.
+      .leftJoinAndSelect('product.brand', 'brand')
+      .leftJoinAndSelect('quotation.createdBy', 'createdBy')
       .leftJoinAndSelect('quotation.invoice', 'invoice')
       .where('quotation.id = :id', { id })
       .andWhere('quotation.deletedAt IS NULL')

@@ -17,4 +17,11 @@ export const BUSINESS_PROFILE = {
   ],
   softwareProvider: 'Software DATAICO fabricado por Proveedor Tecnológico DATAICO SAS',
   softwareProviderNit: '901123618',
+  /** The header of the printed quotation, as the store's existing quotation slip has it. */
+  quotationHeader: {
+    title: 'LA CASA DE LOS REPUESTOS',
+    taxId: 'NIT 12.978.403-6',
+    regime: 'Persona natural régimen común',
+    address: 'Cra 16 No. 13-08 Av. Julián Bucheli',
+  },
 } as const;

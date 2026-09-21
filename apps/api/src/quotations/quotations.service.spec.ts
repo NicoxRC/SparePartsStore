@@ -440,6 +440,40 @@ describe('QuotationsService', () => {
     });
   });
 
+  describe('printout data', () => {
+    it("exposes each line's product brand and who made the quotation", async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({
+          createdBy: { firstName: 'Jose', lastName: 'Moncayo' } as never,
+          items: [
+            {
+              id: 'item-1',
+              product: { ...productA, brand: { name: 'VICTOR REINZ' } },
+              quantity: 1,
+              taxRate: 19,
+              discount: null,
+              unitPrice: 50000,
+            } as unknown as QuotationItem,
+          ],
+        }),
+      );
+
+      const result = await service.findOne('q-1');
+
+      expect(result.createdByName).toBe('Jose Moncayo');
+      expect(result.items?.[0].productBrand).toBe('VICTOR REINZ');
+    });
+
+    it('leaves brand and seller null when they are not there', async () => {
+      queryBuilder.getOne.mockResolvedValue(openQuotation());
+
+      const result = await service.findOne('q-1');
+
+      expect(result.createdByName).toBeNull();
+      expect(result.items?.[0].productBrand).toBeNull();
+    });
+  });
+
   describe('invoice', () => {
     const invoiceDto: InvoiceQuotationDto = {
       paymentMeans: 'CASH',
