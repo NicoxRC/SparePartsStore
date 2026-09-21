@@ -20,24 +20,22 @@ export function resolveTaxRate(product: { taxExempt: boolean }): number {
 }
 
 /**
- * Shared by InvoicesService and QuotationsService. `grossUnitPrice` is
- * confirmed IVA-inclusive (what the customer actually pays per unit) —
- * see GLOSSARY.md's "Cost vs. Sale price" entry — so it's first unwrapped
- * to its pre-tax equivalent, then the fixed per-line discount (a flat COP
- * amount, not a percentage) is subtracted from that pre-tax subtotal
- * before IVA is recomputed. The result is folded into a single `unitPrice`
- * so `unitPrice × quantity` already equals the discounted subtotal —
- * callers never need to send a separate "discount" field anywhere.
+ * Shared by InvoicesService, QuotationsService and the debit/credit notes.
+ * `unitPrice` here is the product's sale price BEFORE IVA (confirmed directly:
+ * IVA is added on top of the price, except for exempt products). The fixed
+ * per-line discount (a flat COP amount, not a percentage) is subtracted from
+ * the pre-tax subtotal before IVA is computed on what's left. The result is
+ * folded into a single `unitPrice` so `unitPrice × quantity` already equals
+ * the discounted subtotal — callers never need to send a separate "discount"
+ * field anywhere.
  */
 export function computeLineAmounts(
-  grossUnitPrice: number,
+  basePrice: number,
   quantity: number,
   taxRate: number,
   discount = 0,
 ): LineAmounts {
-  const exclusiveUnitPrice =
-    taxRate > 0 ? grossUnitPrice / (1 + taxRate / 100) : grossUnitPrice;
-  const rawSubtotal = exclusiveUnitPrice * quantity;
+  const rawSubtotal = basePrice * quantity;
   const discountedSubtotal = Math.max(0, rawSubtotal - discount);
   const unitPrice = Math.round(discountedSubtotal / quantity);
   const taxBase = unitPrice * quantity;

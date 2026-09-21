@@ -238,8 +238,8 @@ describe('InvoicesService', () => {
       };
       const [tax] = body.invoice.items[0].taxes;
       expect(tax.tax_base).toBe(100);
-      // 10 x 42017 = 420,170 pre-tax -> 19% = 79,832: a real amount, not 100.
-      expect(tax.tax_amount).toBe(79832);
+      // 10 x 50000 = 500,000 pre-tax -> 19% = 95,000: a real amount, not 100.
+      expect(tax.tax_amount).toBe(95000);
     });
 
     it('sends the invoice to Dataico with the confirmed field names and computed tax', async () => {
@@ -267,18 +267,16 @@ describe('InvoicesService', () => {
               expect.objectContaining({
                 sku: 'REP-001',
                 description: 'Filtro de aceite',
-                // salePrice (50000) is confirmed IVA-inclusive; Dataico
-                // wants the pre-tax price with tax broken out separately,
-                // so it's unwrapped first: 50000 / 1.19 = 42016.80..., ×2
-                // / 2 (no discount) rounds to 42017 per unit.
-                price: 42017,
+                // salePrice (50000) is the price BEFORE IVA: IVA is added on
+                // top (2 × 50000 = 100000 base, 19% = 19000).
+                price: 50000,
                 quantity: 2,
                 taxes: [
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
                     tax_base: 100,
-                    tax_amount: 15966,
+                    tax_amount: 19000,
                   },
                 ],
                 retentions: [],
@@ -306,20 +304,18 @@ describe('InvoicesService', () => {
           invoice: expect.objectContaining({
             items: [
               expect.objectContaining({
-                // Unwrap salePrice first (50000 / 1.19 = 42016.80... per
-                // unit, ×2 = 84033.61... pre-tax subtotal), then subtract
-                // the discount: (84033.61... - 20000) / 2 = 32016.80...,
-                // rounds to 32017 — price itself reflects the discount, so
-                // price × quantity on the actual invoice already equals
-                // the discounted total; Dataico never sees a separate
-                // "discount" field.
-                price: 32017,
+                // 2 × 50000 = 100000 pre-tax subtotal, minus the 20000
+                // discount = 80000, / 2 = 40000 per unit — price itself
+                // reflects the discount, so price × quantity on the actual
+                // invoice already equals the discounted total; Dataico never
+                // sees a separate "discount" field.
+                price: 40000,
                 taxes: [
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
                     tax_base: 100,
-                    tax_amount: 12166,
+                    tax_amount: 15200,
                   },
                 ],
               }),
@@ -384,9 +380,9 @@ describe('InvoicesService', () => {
       expect(created.dianStatus).toBe('DIAN_ACEPTADO');
       expect(created.cufe).toBe('abc123');
       expect(created.dataicoUuid).toBe('dataico-uuid-1');
-      // salePrice (50000) is IVA-inclusive, so the invoice total matches
-      // it exactly (×2 = 100000) — not 50000×2 plus tax on top.
-      expect(created.totalAmount).toBe(100000);
+      // salePrice (50000) is before IVA, so IVA goes on top:
+      // 2 × 50000 = 100000 + 19% (19000) = 119000.
+      expect(created.totalAmount).toBe(119000);
       expect(created.responsePayload).not.toHaveProperty('xml');
     });
 

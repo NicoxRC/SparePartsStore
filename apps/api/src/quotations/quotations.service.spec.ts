@@ -381,12 +381,13 @@ describe('QuotationsService', () => {
           'user-1',
         );
 
-        // 2 x 50000 gross at 19% IVA — same total as before the price rose.
+        // 2 x 50000 quoted, before IVA: 100000 + 19% (19000) = 119000 — the
+        // quoted price, not the product's new one (60000 would give 142800).
         const [, changes] = quotationsRepository.update.mock.calls[0] as [
           string,
           { totalAmount: number },
         ];
-        expect(changes.totalAmount).toBe(100000);
+        expect(changes.totalAmount).toBe(119000);
       });
 
       it('keeps the price of a re-added product after it was removed and added back in the same edit', async () => {

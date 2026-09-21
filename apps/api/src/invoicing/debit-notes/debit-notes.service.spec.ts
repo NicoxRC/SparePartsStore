@@ -228,9 +228,8 @@ describe('DebitNotesService', () => {
                 measuring_unit: '94',
                 description: 'Filtro de aceite',
                 quantity: 1,
-                // salePrice (50000) is IVA-inclusive, unwrapped to pre-tax:
-                // 50000 / 1.19 = 42016.80..., rounds to 42017.
-                price: 42017,
+                // salePrice (50000) is the price before IVA, sent as-is.
+                price: 50000,
                 taxes: [{ tax_category: 'IVA', tax_rate: 19 }],
               }),
             ],
