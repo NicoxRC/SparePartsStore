@@ -30,6 +30,7 @@ import {
   computeItemDiscount,
   computeItemTotal,
 } from '../lib/invoiceMath';
+import { toLowerCase, toUpperCase } from '../lib/textCase';
 import type { ProductResponse } from '../services/products';
 import type {
   CreateQuotationItemInput,
@@ -651,7 +652,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         onChange={(e) =>
                           setOverrideCustomer((prev) => ({
                             ...prev,
-                            customerCompanyName: e.target.value,
+                            customerCompanyName: toUpperCase(e.target.value),
                           }))
                         }
                       />
@@ -664,7 +665,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         onChange={(e) =>
                           setOverrideCustomer((prev) => ({
                             ...prev,
-                            customerFirstName: e.target.value,
+                            customerFirstName: toUpperCase(e.target.value),
                           }))
                         }
                       />
@@ -674,7 +675,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                         onChange={(e) =>
                           setOverrideCustomer((prev) => ({
                             ...prev,
-                            customerFamilyName: e.target.value,
+                            customerFamilyName: toUpperCase(e.target.value),
                           }))
                         }
                       />
@@ -732,7 +733,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                     type="email"
                     value={overrideCustomer.customerEmail}
                     onChange={(e) =>
-                      setOverrideCustomer((prev) => ({ ...prev, customerEmail: e.target.value }))
+                      setOverrideCustomer((prev) => ({ ...prev, customerEmail: toLowerCase(e.target.value) }))
                     }
                   />
                 </div>
