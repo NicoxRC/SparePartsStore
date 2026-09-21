@@ -249,6 +249,121 @@ describe('CreditNotesService', () => {
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
+    describe('price of the original invoice', () => {
+      const invoiceWithItems = (
+        items: Array<{ sku: string; price: number; tax_rate?: number }>,
+      ) => ({
+        ...existingInvoice,
+        requestPayload: {
+          invoice: {
+            ...(existingInvoice.requestPayload as { invoice: object }).invoice,
+            items: items.map(({ sku, price, tax_rate }) => ({
+              sku,
+              quantity: 1,
+              price,
+              taxes:
+                tax_rate === undefined
+                  ? []
+                  : [{ tax_category: 'IVA', tax_rate }],
+            })),
+          },
+        },
+      });
+
+      const sentItems = () =>
+        (
+          dataicoClient.post.mock.calls[0][1] as {
+            credit_note: {
+              items: Array<{
+                price: number;
+                taxes: Array<{ tax_rate: number }>;
+              }>;
+            };
+          }
+        ).credit_note.items;
+
+      it("credits at the price the invoice charged, not the product's current price", async () => {
+        // The product now sells at 50000 (42017 pre-tax); it was invoiced at 30000.
+        invoicesService.findOne.mockResolvedValue(
+          invoiceWithItems([{ sku: 'REP-001', price: 30000, tax_rate: 19 }]),
+        );
+
+        await service.create(baseDto, 'user-1');
+
+        expect(sentItems()[0].price).toBe(30000);
+      });
+
+      it('keeps the IVA rate the invoice used, even if the product has since become exempt', async () => {
+        productsService.findOne.mockResolvedValue({
+          ...product,
+          taxExempt: true,
+        });
+        invoicesService.findOne.mockResolvedValue(
+          invoiceWithItems([{ sku: 'REP-001', price: 30000, tax_rate: 19 }]),
+        );
+
+        await service.create(baseDto, 'user-1');
+
+        expect(sentItems()[0].taxes).toEqual([
+          { tax_category: 'IVA', tax_rate: 19 },
+        ]);
+      });
+
+      it('sends no taxes for a line the invoice charged without IVA', async () => {
+        invoicesService.findOne.mockResolvedValue(
+          invoiceWithItems([{ sku: 'REP-001', price: 30000 }]),
+        );
+
+        await service.create(baseDto, 'user-1');
+
+        expect(sentItems()[0].taxes).toEqual([]);
+      });
+
+      it('persists a total computed from the invoiced price', async () => {
+        invoicesService.findOne.mockResolvedValue(
+          invoiceWithItems([{ sku: 'REP-001', price: 30000, tax_rate: 19 }]),
+        );
+
+        await service.create(
+          { ...baseDto, items: [{ productId: 'prod-1', quantity: 2 }] },
+          'user-1',
+        );
+
+        // 2 x 30000 = 60000 base + 19% IVA (11400) = 71400
+        const saved = creditNotesRepository.save.mock.calls[0][0];
+        expect(saved.totalAmount).toBe(71400);
+      });
+
+      it('matches the right line when the invoice has several products', async () => {
+        invoicesService.findOne.mockResolvedValue(
+          invoiceWithItems([
+            { sku: 'OTHER', price: 999, tax_rate: 19 },
+            { sku: 'REP-001', price: 30000, tax_rate: 19 },
+          ]),
+        );
+
+        await service.create(baseDto, 'user-1');
+
+        expect(sentItems()[0].price).toBe(30000);
+      });
+
+      it("falls back to the product's current price when it isn't on the invoice", async () => {
+        invoicesService.findOne.mockResolvedValue(
+          invoiceWithItems([{ sku: 'OTHER', price: 999, tax_rate: 19 }]),
+        );
+
+        await service.create(baseDto, 'user-1');
+
+        expect(sentItems()[0].price).toBe(42017);
+      });
+
+      it('falls back when the stored invoice has no items at all', async () => {
+        await service.create(baseDto, 'user-1');
+
+        expect(sentItems()[0].price).toBe(42017);
+      });
+    });
+
     it('sends an empty taxes array for a tax-exempt product', async () => {
       productsService.findOne.mockResolvedValue({
         ...product,
