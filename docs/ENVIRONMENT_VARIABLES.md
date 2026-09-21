@@ -88,8 +88,6 @@ DATAICO_PAYROLL_BASE_URL=https://api.dataico.com/direct/payroll-api/v2
 
 Further invoicing phases reuse `DATAICO_BASE_URL`/`DATAICO_AUTH_TOKEN`/`DATAICO_ACCOUNT_ID` via the shared `DataicoClientService` unless, like Payroll, they turn out to live on a different host or path — check each phase's own doc rather than assuming.
 
-`DATAICO_POS_BASE_URL` **was removed** along with the POS Electrónico module (see `PROJECT_ROADMAP.md`) — drop it from any deployed `.env` file; it's no longer read anywhere.
-
 ---
 
 ## Client (`apps/client/.env`)

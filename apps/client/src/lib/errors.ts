@@ -6,7 +6,7 @@ interface ApiErrorBody {
 }
 
 /**
- * `DataicoApiException` (shared by invoices/POS/payroll) puts Dataico's own
+ * `DataicoApiException` (shared by invoices/notes/payroll) puts Dataico's own
  * error text in `upstreamBody` — usually a parsed object, but a raw JSON
  * string when Dataico's body couldn't be parsed (e.g. a literal unescaped
  * newline inside a string value, seen in the wild) — behind a generic

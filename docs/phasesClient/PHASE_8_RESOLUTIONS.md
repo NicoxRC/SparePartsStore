@@ -25,4 +25,4 @@ Give an admin visibility into which DIAN resolution(s) this business can current
 
 ## Follow-up
 
-The form no longer has a **Subtipo** field (always `ELECTRONICO`, set by the API) nor a **Mensaje del código** field (removed end to end), and the list dropped its Subtipo column.
+The form no longer has a **Subtipo** field (always `ELECTRONICO`, set by the API) nor a **Mensaje del código** field (the API still sends Dataico's `code-msg` as a fixed text), and the list dropped its Subtipo column.

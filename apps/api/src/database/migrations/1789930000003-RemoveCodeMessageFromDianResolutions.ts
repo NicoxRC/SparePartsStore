@@ -1,8 +1,8 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 /**
- * The resolution form no longer asks for (or sends) the code's message, so
- * the optional column is gone. `subtype` stays: it is now always
+ * The resolution form no longer asks for the code's message — the text Dataico
+ * needs (`code-msg`) is now a fixed constant, so the optional column is gone. `subtype` stays: it is now always
  * `ELECTRONICO` but the invoice lookup still filters on it. `down()` puts
  * the column back empty — the old texts are not recoverable.
  */

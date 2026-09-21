@@ -14,9 +14,8 @@ import { DataicoConfig } from './dataico.config';
  * custom `Auth-token` header — not Bearer, not OAuth. Uses Node's built-in
  * `fetch` rather than adding an HTTP client dependency.
  *
- * `baseUrl` can be overridden per call (see Phase 12 / POS Electrónico) —
- * Dataico's POS endpoints live under a different host (staging, per the
- * only reference shared so far) than the rest of the API.
+ * `baseUrl` can be overridden per call — payroll (Phase 15) lives under a
+ * different API path than the rest.
  */
 @Injectable()
 export class DataicoClientService {

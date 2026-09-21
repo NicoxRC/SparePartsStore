@@ -28,7 +28,7 @@ Auth-token: <DATAICO_AUTH_TOKEN>
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
 
 - No edit/delete UI or endpoint for a resolution — matches the append-only backend model; a correction is a new sync, not an edit.
-- `subtype` is **fixed to `ELECTRONICO`** (decided later by the human: "siempre electrónico") — no longer a user-entered field; the column stays for the active-resolution lookup. The optional **code message** (`code-msg`/`code_msg`) was also removed: not asked for, not sent, column dropped (migration 30). *If Dataico turns out to require the message in the sync body, this is the first thing to revisit alongside the field-naming note above.*
+- `subtype` is **fixed to `ELECTRONICO`** (decided later by the human: "siempre electrónico") — no longer a user-entered field; the column stays for the active-resolution lookup. The **code message** input was removed from the form, but Dataico's `code-msg` (`code_msg` for support docs) is still sent — as a fixed constant, `RESOLUTION_CODE_MESSAGE` in `resolutions/resolution.constants.ts` ("Resolución agregada correctamente", the text of the shared reference's example) — so nothing is asked or stored and the `resolution_code_message` column was dropped (migration 30). Change the constant if Dataico wants a different text.
 - No "active resolution" endpoint/flag — the frontend just shows the list newest-first; Phase 10 can decide how it picks "the" active resolution when that phase starts.
 
 ## Exit criteria (met)

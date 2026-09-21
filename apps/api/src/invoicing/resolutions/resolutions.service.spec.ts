@@ -58,6 +58,7 @@ describe('ResolutionsService', () => {
               dian_resolutions: [
                 {
                   code: 'SDJ-002',
+                  'code-msg': 'Resolución agregada correctamente',
                   number: '18764075467155',
                   start: 50,
                   end: 200,
@@ -86,12 +87,9 @@ describe('ResolutionsService', () => {
       );
     });
 
-    it('no longer sends a code message, even if an old client still supplies one', async () => {
+    it('always sends the fixed code message, whatever a client supplies', async () => {
       await service.create(
-        {
-          ...baseDto,
-          resolutionCodeMessage: 'ignored',
-        } as CreateResolutionDto,
+        { ...baseDto, resolutionCodeMessage: 'ignored' } as CreateResolutionDto,
         'user-1',
       );
 
@@ -100,13 +98,8 @@ describe('ResolutionsService', () => {
       )[0][1] as {
         numberings: Array<{ dian_resolutions: Array<Record<string, unknown>> }>;
       };
-      const sent = body.numberings[0].dian_resolutions[0];
-      expect(sent).not.toHaveProperty('code-msg');
-      expect(sent).not.toHaveProperty('code_msg');
-      expect(repository.create).toHaveBeenCalledWith(
-        expect.not.objectContaining({
-          resolutionCodeMessage: expect.anything() as unknown,
-        }),
+      expect(body.numberings[0].dian_resolutions[0]['code-msg']).toBe(
+        'Resolución agregada correctamente',
       );
     });
 
@@ -146,6 +139,7 @@ describe('ResolutionsService', () => {
               dian_resolutions: [
                 {
                   code: 'SDJ-002',
+                  code_msg: 'Resolución agregada correctamente',
                   number: '18764075467155',
                   start: 50,
                   end: 200,

@@ -39,8 +39,7 @@ export class DianResolution {
 
   /**
    * Always `ELECTRONICO` now (see resolution.constants.ts) — no longer
-   * user-entered. Rows created before that may hold another value (a
-   * removed POS one). Still a plain string, not an enum.
+   * user-entered. Still a plain string, not an enum.
    */
   @Column({ type: 'varchar', length: 50 })
   subtype: string;

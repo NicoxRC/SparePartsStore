@@ -8,7 +8,10 @@ import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { QueryResolutionsDto } from './dto/query-resolutions.dto';
 import { ResolutionResponseDto } from './dto/resolution-response.dto';
 import { DianResolution } from './entities/dian-resolution.entity';
-import { ELECTRONIC_SUBTYPE } from './resolution.constants';
+import {
+  ELECTRONIC_SUBTYPE,
+  RESOLUTION_CODE_MESSAGE,
+} from './resolution.constants';
 
 const NUMBERING_SYNC_PATHS: Record<DianResolutionDocumentType, string> = {
   [DianResolutionDocumentType.INVOICE]: '/numberings/sync_dian/invoice',
@@ -59,10 +62,7 @@ export class ResolutionsService {
    * comment. Used by InvoicesService to auto-fill an invoice's numbering
    * instead of asking the caller to re-type it every time.
    *
-   * `subtype` optionally narrows further — a business can have separate
-   * resolutions for ordinary electronic invoices (`subtype: 'ELECTRONICO'`)
-   * and for POS Electrónico (`subtype: 'POS'`), both under the same
-   * `documentType: invoice` — see docs/phases/PHASE_12_POS.md.
+   * `subtype` optionally narrows further (callers pass `ELECTRONIC_SUBTYPE`).
    */
   async findActiveForDocumentType(
     documentType: DianResolutionDocumentType,
@@ -112,6 +112,7 @@ export class ResolutionsService {
       dto.documentType === DianResolutionDocumentType.INVOICE
         ? {
             code: dto.resolutionCode,
+            'code-msg': RESOLUTION_CODE_MESSAGE,
             number: dto.resolutionNumber,
             start: dto.rangeStart,
             end: dto.rangeEnd,
@@ -121,6 +122,7 @@ export class ResolutionsService {
           }
         : {
             code: dto.resolutionCode,
+            code_msg: RESOLUTION_CODE_MESSAGE,
             number: dto.resolutionNumber,
             start: dto.rangeStart,
             end: dto.rangeEnd,
