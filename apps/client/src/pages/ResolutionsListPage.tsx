@@ -2,10 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { DeleteResolutionDialog } from '../components/DeleteResolutionDialog';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
 import { useResolutions } from '../hooks/useResolutions';
 import { getApiErrorMessage } from '../lib/errors';
+import type { ResolutionResponse } from '../services/resolutions';
 
 const PAGE_SIZE = 20;
 
@@ -16,6 +18,7 @@ const DOCUMENT_TYPE_LABEL: Record<string, string> = {
 
 export function ResolutionsListPage() {
   const [page, setPage] = useState(1);
+  const [pendingDelete, setPendingDelete] = useState<ResolutionResponse | null>(null);
   const resolutionsQuery = useResolutions({ page, limit: PAGE_SIZE });
 
   return (
@@ -52,6 +55,7 @@ export function ResolutionsListPage() {
                     <th className="px-4 py-3">Número</th>
                     <th className="px-4 py-3">Rango</th>
                     <th className="px-4 py-3">Vigencia</th>
+                    <th className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
@@ -69,6 +73,15 @@ export function ResolutionsListPage() {
                       <td className="px-4 py-3">
                         {resolution.startDate} a {resolution.endDate}
                       </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          type="button"
+                          onClick={() => setPendingDelete(resolution)}
+                          className="text-sm font-medium text-rust hover:underline"
+                        >
+                          Eliminar
+                        </button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -78,6 +91,13 @@ export function ResolutionsListPage() {
 
           <Pagination meta={resolutionsQuery.data.meta} onPageChange={setPage} />
         </>
+      )}
+
+      {pendingDelete && (
+        <DeleteResolutionDialog
+          resolution={pendingDelete}
+          onClose={() => setPendingDelete(null)}
+        />
       )}
     </div>
   );

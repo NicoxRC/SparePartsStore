@@ -12,8 +12,9 @@ import { User } from '../../../users/entities/user.entity';
 /**
  * A DIAN numbering resolution successfully synced to Dataico — see
  * docs/phases/PHASE_8_RESOLUTIONS.md and docs/DATABASE.md. Append-only,
- * same convention as InventoryMovement: a resolution is never edited or
- * deleted locally, only superseded by associating a new one. The most
+ * same convention as InventoryMovement: a resolution is never edited, only
+ * superseded by associating a new one (or deleted, if entered wrong and no
+ * invoice was numbered under it — see ResolutionsService.remove). The most
  * recently created row for a given (documentType, subtype) is the active
  * one — there is no separate "is this active" flag. (Not `prefix`: this
  * table's `prefix` is an output of picking the active resolution, not an

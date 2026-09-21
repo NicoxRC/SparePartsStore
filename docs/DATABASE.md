@@ -200,9 +200,11 @@ Added Phase 8 — a DIAN numbering resolution successfully synced to Dataico. Se
 | `range_start`, `range_end` | INT | The resolution's authorized numbering range. |
 | `start_date`, `end_date` | DATE | The resolution's validity window. |
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
-| `created_at` | TIMESTAMPTZ | **No `updated_at`, no `deleted_at` — append-only**, same convention as `inventory_movements`. A resolution is never edited; it's superseded by syncing a new one. The most recently created row for a given `(document_type, subtype)` is the active one — there is no separate "is active" flag. |
+| `created_at` | TIMESTAMPTZ | **No `updated_at`, no `deleted_at` — append-only**, same convention as `inventory_movements`. A resolution is never edited; it's superseded by syncing a new one — or, if it was entered wrong, hard-deleted (see `ResolutionsService.remove` below). The most recently created row for a given `(document_type, subtype)` is the active one — there is no separate "is active" flag. |
 
 **Business logic (`ResolutionsService.create`):** builds Dataico's request body (field names differ by `document_type` — see the phase doc), calls Dataico, and **only inserts the local row if Dataico accepts it** — a rejected sync is never recorded as "on file."
+
+**Business logic (`ResolutionsService.remove`, `DELETE /invoicing/resolutions/:id`, admin):** hard-deletes a wrongly entered resolution **locally only** — Dataico keeps the numbering it accepted (no confirmed Dataico call removes one). If it was the active row, the previous one becomes active. Refused with 409 while an invoice was numbered under it (same `prefix` + `resolution_number`) and no other row with that pair remains, because the invoice's receipt reads the range and dates from that row.
 
 **Business logic (`ResolutionsService.findActiveForDocumentType`):** every caller must pass `subtype` explicitly (e.g. `InvoicesService.create()` passes `ELECTRONIC_SUBTYPE`) — never call it with just `document_type`. `subtype` is a free string, not an enum; omitting it would let whichever row is most recent silently become "the" active one, regardless of what it was actually meant for. The `IDX_dian_resolutions_document_type_prefix` index predates this — `prefix` is an output of picking the active resolution (which row it lands on), not something a caller filters by going in.
 
