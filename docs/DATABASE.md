@@ -195,8 +195,8 @@ Added Phase 8 — a DIAN numbering resolution successfully synced to Dataico. Se
 | `id` | UUID | PK |
 | `document_type` | ENUM `dian_resolution_document_type` (`invoice`, `support_docs`) | Which Dataico numbering-sync endpoint this resolution was sent to. |
 | `prefix` | VARCHAR(20) | |
-| `subtype` | VARCHAR(50) | Free validated string, not a TypeScript enum — only `ELECTRONICO`/`POS` are confirmed so far, and locking in a full enum would mean guessing the rest. |
-| `resolution_code`, `resolution_code_message` (nullable), `resolution_number` | VARCHAR | Mirror Dataico's own `code`/`code-msg`(or `code_msg`)/`number` fields — see the phase doc for the exact per-document-type wire format. |
+| `subtype` | VARCHAR(50) | **Always `ELECTRONICO`** — no longer user-entered (`ELECTRONIC_SUBTYPE` in `resolutions/resolution.constants.ts`; the form and DTO dropped the field). Kept as a column because `findActiveForDocumentType()` still filters on it; older rows may hold another value (a removed POS resolution). Still a plain string, not an enum. |
+| `resolution_code`, `resolution_number` | VARCHAR | Mirror Dataico's own `code`/`number` fields (the optional `code-msg`/`code_msg` message was dropped — the form no longer asks for it, the sync doesn't send it, and migration 30 removed its column) — see the phase doc for the exact per-document-type wire format. |
 | `range_start`, `range_end` | INT | The resolution's authorized numbering range. |
 | `technical_key` | VARCHAR(255), nullable | Only ever set for `document_type = 'invoice'`, per the confirmed reference. |
 | `start_date`, `end_date` | DATE | The resolution's validity window. |
@@ -511,6 +511,7 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 27 | `CreateSuppliers` | Phase 16. `suppliers` table (audit FKs to `users`, partial unique index `UQ_suppliers_nit_active`), plus nullable `products.supplier_id` (FK `RESTRICT`) and `IDX_products_supplier_id`. Hand-written, same reason as the migrations above. |
 | 28 | `CreatePurchaseImports` | Phase 16. `purchase_imports` (FK to `suppliers` `RESTRICT`, audit FKs, single-outcome `CHECK`, both partial unique indexes, `created_at DESC` and `supplier_id` indexes) and `purchase_import_items` (FK to `purchase_imports` `CASCADE`, FKs to `products`/lookups `RESTRICT`, `match_type` `CHECK`s, unique `(purchase_import_id, line_number)`). Hand-written, same reason as the migrations above. |
 | 29 | `RemoveCostAndSaleTypeFromProducts` | Drops `products.cost`, `products.sale_type` and the `sale_type` enum — the store now enters only the sale price. **Not fully reversible:** `down()` restores the columns with `sale_type = 'normal'` and a cost recomputed at the `normal` factor, not the original values. Hand-written, same reason as the migrations above. |
+| 30 | `RemoveCodeMessageFromDianResolutions` | Drops `dian_resolutions.resolution_code_message` (the optional code message the resolution form no longer asks for). `down()` re-adds the empty nullable column — the old texts aren't recoverable. Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

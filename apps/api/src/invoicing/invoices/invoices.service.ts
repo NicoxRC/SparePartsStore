@@ -22,6 +22,7 @@ import { DataicoClientService } from '../dataico/dataico-client.service';
 import { DataicoConfig } from '../dataico/dataico.config';
 import { toDataicoDate } from '../dataico/dataico-date.util';
 import { ResolutionsService } from '../resolutions/resolutions.service';
+import { ELECTRONIC_SUBTYPE } from '../resolutions/resolution.constants';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
 import { QueryInvoicesDto } from './dto/query-invoices.dto';
@@ -95,7 +96,7 @@ export class InvoicesService {
     // active one for standard invoicing.
     const resolution = await this.resolutionsService.findActiveForDocumentType(
       DianResolutionDocumentType.INVOICE,
-      'ELECTRONICO',
+      ELECTRONIC_SUBTYPE,
     );
     if (!resolution) {
       throw new BadRequestException(

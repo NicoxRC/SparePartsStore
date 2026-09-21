@@ -9,7 +9,6 @@ export interface ResolutionResponse {
   prefix: string;
   subtype: string;
   resolutionCode: string;
-  resolutionCodeMessage: string | null;
   resolutionNumber: string;
   rangeStart: number;
   rangeEnd: number;
@@ -28,9 +27,7 @@ export interface ResolutionsQuery {
 export interface CreateResolutionInput {
   documentType: ResolutionDocumentType;
   prefix: string;
-  subtype: string;
   resolutionCode: string;
-  resolutionCodeMessage?: string;
   resolutionNumber: string;
   rangeStart: number;
   rangeEnd: number;

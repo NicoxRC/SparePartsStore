@@ -28,7 +28,7 @@ Auth-token: <DATAICO_AUTH_TOKEN>
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
 
 - No edit/delete UI or endpoint for a resolution — matches the append-only backend model; a correction is a new sync, not an edit.
-- `subtype` is a free validated string, not a locked enum — only two values (`ELECTRONICO`, `POS`) are confirmed, and this store likely only ever uses one. Locking it into an enum now would need guessing the full valid-value list.
+- `subtype` is **fixed to `ELECTRONICO`** (decided later by the human: "siempre electrónico") — no longer a user-entered field; the column stays for the active-resolution lookup. The optional **code message** (`code-msg`/`code_msg`) was also removed: not asked for, not sent, column dropped (migration 30). *If Dataico turns out to require the message in the sync body, this is the first thing to revisit alongside the field-naming note above.*
 - No "active resolution" endpoint/flag — the frontend just shows the list newest-first; Phase 10 can decide how it picks "the" active resolution when that phase starts.
 
 ## Exit criteria (met)

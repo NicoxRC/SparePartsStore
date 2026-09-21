@@ -17,9 +17,7 @@ describe('ResolutionsService', () => {
   const baseDto: CreateResolutionDto = {
     documentType: DianResolutionDocumentType.INVOICE,
     prefix: 'FE',
-    subtype: 'ELECTRONICO',
     resolutionCode: 'SDJ-002',
-    resolutionCodeMessage: 'Resolución agregada correctamente',
     resolutionNumber: '18764075467155',
     rangeStart: 50,
     rangeEnd: 200,
@@ -60,7 +58,6 @@ describe('ResolutionsService', () => {
               dian_resolutions: [
                 {
                   code: 'SDJ-002',
-                  'code-msg': 'Resolución agregada correctamente',
                   number: '18764075467155',
                   start: 50,
                   end: 200,
@@ -72,6 +69,44 @@ describe('ResolutionsService', () => {
             },
           ],
         },
+      );
+    });
+
+    it('always sends and stores the ELECTRONICO subtype, never a caller-supplied one', async () => {
+      await service.create(baseDto, 'user-1');
+
+      const body = (
+        dataicoClient.post.mock.calls as Array<[string, unknown]>
+      )[0][1] as {
+        numberings: Array<{ subtype: string }>;
+      };
+      expect(body.numberings[0].subtype).toBe('ELECTRONICO');
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ subtype: 'ELECTRONICO' }),
+      );
+    });
+
+    it('no longer sends a code message, even if an old client still supplies one', async () => {
+      await service.create(
+        {
+          ...baseDto,
+          resolutionCodeMessage: 'ignored',
+        } as CreateResolutionDto,
+        'user-1',
+      );
+
+      const body = (
+        dataicoClient.post.mock.calls as Array<[string, unknown]>
+      )[0][1] as {
+        numberings: Array<{ dian_resolutions: Array<Record<string, unknown>> }>;
+      };
+      const sent = body.numberings[0].dian_resolutions[0];
+      expect(sent).not.toHaveProperty('code-msg');
+      expect(sent).not.toHaveProperty('code_msg');
+      expect(repository.create).toHaveBeenCalledWith(
+        expect.not.objectContaining({
+          resolutionCodeMessage: expect.anything() as unknown,
+        }),
       );
     });
 
@@ -111,7 +146,6 @@ describe('ResolutionsService', () => {
               dian_resolutions: [
                 {
                   code: 'SDJ-002',
-                  code_msg: 'Resolución agregada correctamente',
                   number: '18764075467155',
                   start: 50,
                   end: 200,

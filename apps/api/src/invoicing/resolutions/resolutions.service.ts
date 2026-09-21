@@ -8,6 +8,7 @@ import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { QueryResolutionsDto } from './dto/query-resolutions.dto';
 import { ResolutionResponseDto } from './dto/resolution-response.dto';
 import { DianResolution } from './entities/dian-resolution.entity';
+import { ELECTRONIC_SUBTYPE } from './resolution.constants';
 
 const NUMBERING_SYNC_PATHS: Record<DianResolutionDocumentType, string> = {
   [DianResolutionDocumentType.INVOICE]: '/numberings/sync_dian/invoice',
@@ -37,9 +38,8 @@ export class ResolutionsService {
     const resolution = this.resolutionsRepository.create({
       documentType: dto.documentType,
       prefix: dto.prefix,
-      subtype: dto.subtype,
+      subtype: ELECTRONIC_SUBTYPE,
       resolutionCode: dto.resolutionCode,
-      resolutionCodeMessage: dto.resolutionCodeMessage ?? null,
       resolutionNumber: dto.resolutionNumber,
       rangeStart: dto.rangeStart,
       rangeEnd: dto.rangeEnd,
@@ -112,7 +112,6 @@ export class ResolutionsService {
       dto.documentType === DianResolutionDocumentType.INVOICE
         ? {
             code: dto.resolutionCode,
-            'code-msg': dto.resolutionCodeMessage,
             number: dto.resolutionNumber,
             start: dto.rangeStart,
             end: dto.rangeEnd,
@@ -122,7 +121,6 @@ export class ResolutionsService {
           }
         : {
             code: dto.resolutionCode,
-            code_msg: dto.resolutionCodeMessage,
             number: dto.resolutionNumber,
             start: dto.rangeStart,
             end: dto.rangeEnd,
@@ -135,7 +133,7 @@ export class ResolutionsService {
         {
           prefix: dto.prefix,
           numbering_type: 'RESOLUCIONES_DIAN',
-          subtype: dto.subtype,
+          subtype: ELECTRONIC_SUBTYPE,
           dian_resolutions: [dianResolution],
         },
       ],

@@ -23,27 +23,11 @@ export class CreateResolutionDto {
   @MaxLength(20)
   prefix: string;
 
-  @ApiProperty({
-    example: 'ELECTRONICO',
-    description:
-      'Only ELECTRONICO and POS are confirmed so far — see docs/phases/PHASE_8_RESOLUTIONS.md.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
-  subtype: string;
-
   @ApiProperty({ example: 'SDJ-002' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
   resolutionCode: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  resolutionCodeMessage?: string;
 
   @ApiProperty({ example: '18764075467155' })
   @IsString()

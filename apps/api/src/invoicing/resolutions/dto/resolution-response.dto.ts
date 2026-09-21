@@ -18,9 +18,6 @@ export class ResolutionResponseDto {
   @ApiProperty()
   resolutionCode: string;
 
-  @ApiProperty({ nullable: true })
-  resolutionCodeMessage: string | null;
-
   @ApiProperty()
   resolutionNumber: string;
 
@@ -49,7 +46,6 @@ export class ResolutionResponseDto {
     dto.prefix = resolution.prefix;
     dto.subtype = resolution.subtype;
     dto.resolutionCode = resolution.resolutionCode;
-    dto.resolutionCodeMessage = resolution.resolutionCodeMessage;
     dto.resolutionNumber = resolution.resolutionNumber;
     dto.rangeStart = resolution.rangeStart;
     dto.rangeEnd = resolution.rangeEnd;

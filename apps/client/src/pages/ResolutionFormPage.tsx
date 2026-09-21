@@ -28,9 +28,7 @@ export function ResolutionFormPage() {
     defaultValues: {
       documentType: 'invoice',
       prefix: '',
-      subtype: '',
       resolutionCode: '',
-      resolutionCodeMessage: '',
       resolutionNumber: '',
       rangeStart: 0,
       rangeEnd: 0,
@@ -45,7 +43,6 @@ export function ResolutionFormPage() {
   const onSubmit = async (values: ResolutionFormValues) => {
     await createMutation.mutateAsync({
       ...values,
-      resolutionCodeMessage: values.resolutionCodeMessage || undefined,
       technicalKey: values.technicalKey || undefined,
     });
     navigate('/invoicing/resolutions');
@@ -84,23 +81,10 @@ export function ResolutionFormPage() {
         />
 
         <TextField
-          label="Subtipo"
-          placeholder="ELECTRONICO"
-          error={errors.subtype?.message}
-          {...register('subtype')}
-        />
-
-        <TextField
           label="Código de la resolución"
           placeholder="SDJ-002"
           error={errors.resolutionCode?.message}
           {...register('resolutionCode')}
-        />
-
-        <TextField
-          label="Mensaje del código (opcional)"
-          error={errors.resolutionCodeMessage?.message}
-          {...register('resolutionCodeMessage')}
         />
 
         <TextField
