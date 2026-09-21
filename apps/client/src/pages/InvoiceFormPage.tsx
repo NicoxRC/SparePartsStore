@@ -19,6 +19,7 @@ import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { Toast } from '../components/Toast';
+import { PrintInvoiceTicketButton } from '../components/print/PrintInvoiceTicketButton';
 import {
   useOpenCashRegister,
   useReopenCashRegister,
@@ -219,7 +220,7 @@ function CustomerSection({
 
 interface InvoiceDraftFormProps {
   draft: InvoiceDraft;
-  onInvoiced: (message: string, pdfUrl: string | null) => void;
+  onInvoiced: (message: string, pdfUrl: string | null, invoiceId: string) => void;
 }
 
 /**
@@ -548,7 +549,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     // navigating away.
     closeDraft(draft.id);
     const invoiceNumber = invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`;
-    onInvoiced(`Factura ${invoiceNumber} creada correctamente.`, invoice.pdfUrl);
+    onInvoiced(`Factura ${invoiceNumber} creada correctamente.`, invoice.pdfUrl, invoice.id);
   };
 
   const total = watchedItems.reduce((sum, item) => sum + computeItemTotal(item), 0);
@@ -921,9 +922,11 @@ export function InvoiceFormPage() {
   const [isCloseDialogOpen, setIsCloseDialogOpen] = useState(false);
   const [isMovementDialogOpen, setIsMovementDialogOpen] = useState(false);
   const [openingAmount, setOpeningAmount] = useState('');
-  const [toast, setToast] = useState<{ message: string; pdfUrl: string | null } | null>(
-    null,
-  );
+  const [toast, setToast] = useState<{
+    message: string;
+    pdfUrl: string | null;
+    invoiceId: string;
+  } | null>(null);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
 
   if (cashRegisterQuery.isPending) {
@@ -1163,7 +1166,7 @@ export function InvoiceFormPage() {
           <InvoiceDraftForm
             key={activeDraft.id}
             draft={activeDraft}
-            onInvoiced={(message, pdfUrl) => setToast({ message, pdfUrl })}
+            onInvoiced={(message, pdfUrl, invoiceId) => setToast({ message, pdfUrl, invoiceId })}
           />
         </div>
       </div>
@@ -1172,6 +1175,12 @@ export function InvoiceFormPage() {
         <Toast
           message={toast.message}
           onDismiss={() => setToast(null)}
+          extra={
+            <PrintInvoiceTicketButton
+              invoiceId={toast.invoiceId}
+              className="font-medium underline hover:opacity-70"
+            />
+          }
           action={toast.pdfUrl ? { label: 'Ver/imprimir factura', href: toast.pdfUrl } : undefined}
         />
       )}

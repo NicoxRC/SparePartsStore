@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 
 interface ToastProps {
   message: string;
@@ -11,14 +11,16 @@ interface ToastProps {
     label: string;
     href: string;
   };
+  /** Another action shown before `action` (e.g. a print button). Also disables auto-dismiss. */
+  extra?: ReactNode;
 }
 
-export function Toast({ message, onDismiss, duration = 4000, action }: ToastProps) {
+export function Toast({ message, onDismiss, duration = 4000, action, extra }: ToastProps) {
   useEffect(() => {
-    if (action) return;
+    if (action || extra) return;
     const timeout = setTimeout(onDismiss, duration);
     return () => clearTimeout(timeout);
-  }, [message, duration, onDismiss, action]);
+  }, [message, duration, onDismiss, action, extra]);
 
   return (
     <div
@@ -27,6 +29,7 @@ export function Toast({ message, onDismiss, duration = 4000, action }: ToastProp
     >
       <span>{message}</span>
       <div className="flex shrink-0 items-center gap-3">
+        {extra}
         {action && (
           <a
             href={action.href}

@@ -15,6 +15,7 @@
     "@zxing/browser": "^0.2.0",
     "@zxing/library": "^0.22.0",
     "axios": "^1.17.0",
+    "qrcode.react": "^4.2.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
     "react-hook-form": "^7.78.0",

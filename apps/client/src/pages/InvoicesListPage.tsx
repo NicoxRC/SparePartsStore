@@ -1,3 +1,4 @@
+import { PrintInvoiceTicketButton } from '../components/print/PrintInvoiceTicketButton';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
@@ -179,6 +180,10 @@ export function InvoicesListPage() {
                                     Ver PDF
                                   </a>
                                 )}
+                                <PrintInvoiceTicketButton
+                                  invoiceId={invoice.id}
+                                  className="text-xs font-medium text-ink hover:underline"
+                                />
                                 {has('invoices.refresh') && (
                                   <button
                                     type="button"
