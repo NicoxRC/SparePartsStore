@@ -34,8 +34,11 @@ export interface InvoicesQuery {
   limit?: number;
 }
 
+/** A catalog product (`productId`) or a one-off line (`description` + `customUnitPrice`) — never both. */
 export interface CreateInvoiceItemInput {
-  productId: string;
+  productId?: string;
+  description?: string;
+  customUnitPrice?: number;
   quantity: number;
   /** Fixed COP amount, not a percentage — see CreateInvoiceItemDto. */
   discount?: number;

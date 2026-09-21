@@ -403,9 +403,10 @@ Local enhancement (not a numbered roadmap phase, and not a Dataico integration �
 |---|---|---|
 | `id` | UUID | PK |
 | `quotation_id` | UUID, FK → `quotations.id`, `CASCADE` | |
-| `product_id` | UUID, FK → `products.id`, `RESTRICT` | |
+| `product_id` | UUID, nullable, FK → `products.id`, `RESTRICT` | `NULL` for a **one-off line** typed on the quotation (see "Línea libre" in `GLOSSARY.md`) — then `description` carries its name. |
+| `description` | VARCHAR(255), nullable | Only set on a one-off line (`product_id IS NULL`). |
 | `quantity` | INT | |
-| `tax_rate` | NUMERIC(5,2) | **Server-derived**, never client-supplied — `resolveTaxRate()` reads it straight off `products.tax_exempt` at the moment a line is added/edited (see the `products` table above). |
+| `tax_rate` | NUMERIC(5,2) | **Server-derived** (a one-off line is always 19%), never client-supplied — `resolveTaxRate()` reads it straight off `products.tax_exempt` at the moment a line is added/edited (see the `products` table above). |
 | `discount` | NUMERIC(12,2), nullable | Same "flat COP amount, not a percentage" semantics as `CreateInvoiceItemDto.discount` — see the paragraph below on how the client computes it now. |
 | `unit_price` | NUMERIC(12,2) | **The locked price** — a snapshot of `products.sale_price` (the price before IVA — IVA is added on top when the quotation is totalled) taken when the product is first added to the quotation, confirmed with the human: the customer keeps the price they were quoted, even if the product's price changes before they come back to pay. |
 | `created_at`, `updated_at` | TIMESTAMPTZ | No soft delete — a row removed by an edit has no further use once the inventory movement it triggered (the real audit trail) is recorded. |
@@ -512,6 +513,7 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 29 | `RemoveCostAndSaleTypeFromProducts` | Drops `products.cost`, `products.sale_type` and the `sale_type` enum — the store now enters only the sale price. **Not fully reversible:** `down()` restores the columns with `sale_type = 'normal'` and a cost recomputed at the `normal` factor, not the original values. Hand-written, same reason as the migrations above. |
 | 30 | `RemoveCodeMessageFromDianResolutions` | Drops `dian_resolutions.resolution_code_message` (the optional code message: `code-msg` is still sent to Dataico, but as a fixed constant, so nothing needs storing). `down()` re-adds the empty nullable column — the old texts aren't recoverable. Hand-written, same reason as the migrations above. |
 | 31 | `RemoveTechnicalKeyFromDianResolutions` | Drops `dian_resolutions.technical_key`: the resolution form no longer asks for it and the numbering sync no longer sends `technical-key` (Dataico had already accepted resolutions synced without it). `down()` re-adds the empty nullable column — stored keys aren't recoverable. Hand-written, same reason as the migrations above. |
+| 32 | `AddCustomLinesToQuotationItems` | `quotation_items.product_id` becomes nullable and `description` (VARCHAR 255) is added, so a quotation line can be a one-off (description + price) instead of a catalog product. `down()` deletes the one-off lines before restoring `NOT NULL`. Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

@@ -6,7 +6,7 @@ import { Button } from '../components/Button';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
 import { PrintTicket } from '../components/print/PrintTicket';
 import { QuotationTicket } from '../components/print/QuotationTicket';
-import { QuickCreateProductDialog } from '../components/QuickCreateProductDialog';
+import { CustomLineDialog } from '../components/CustomLineDialog';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
@@ -68,6 +68,7 @@ function customerLabelFor(quotation: QuotationResponse): string {
 }
 
 interface EditableItem {
+  /** '' for a one-off line typed on the quotation (not a catalog product). */
   productId: string;
   reference: string;
   description: string;
@@ -83,8 +84,8 @@ interface EditableItem {
 
 function editableItemsFrom(items: QuotationItemResponse[]): EditableItem[] {
   return items.map((item) => ({
-    productId: item.productId,
-    reference: item.productReference,
+    productId: item.productId ?? '',
+    reference: item.productReference ?? '',
     description: item.productDescription,
     brand: item.productBrand ?? '',
     price: item.unitPrice,
@@ -146,7 +147,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   const [productQuery, setProductQuery] = useState('');
   const [filterDepartmentId, setFilterDepartmentId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
-  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
+  const [isCustomLineOpen, setIsCustomLineOpen] = useState(false);
   const updateItemsMutation = useUpdateQuotationItems();
 
   const [isInvoicePanelOpen, setIsInvoicePanelOpen] = useState(false);
@@ -209,9 +210,24 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
     setFilterGroupId('');
   };
 
-  const handleProductCreated = (product: ProductResponse, quantity: number) => {
-    handleAddProduct(product, quantity);
-    setIsCreateProductOpen(false);
+  // A line for something not in the catalog: it lives only on this quotation.
+  const handleAddCustomLine = (line: { description: string; price: number; quantity: number }) => {
+    setItems((prev) => [
+      ...prev,
+      {
+        productId: '',
+        reference: '',
+        description: line.description,
+        brand: '',
+        price: line.price,
+        quantity: line.quantity,
+        taxRate: DEFAULT_TAX_RATE,
+      },
+    ]);
+    setProductQuery('');
+    setFilterDepartmentId('');
+    setFilterGroupId('');
+    setIsCustomLineOpen(false);
   };
 
   const updateItemField = (index: number, patch: Partial<EditableItem>) => {
@@ -242,11 +258,17 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   };
 
   const handleSaveItems = async () => {
-    const input: CreateQuotationItemInput[] = items.map((item) => ({
-      productId: item.productId,
-      quantity: item.quantity,
-      discount: computeItemDiscount(item, discountPercentage) || undefined,
-    }));
+    const input: CreateQuotationItemInput[] = items.map((item) => {
+      const discount = computeItemDiscount(item, discountPercentage) || undefined;
+      return item.productId
+        ? { productId: item.productId, quantity: item.quantity, discount }
+        : {
+            description: item.description,
+            customUnitPrice: item.price,
+            quantity: item.quantity,
+            discount,
+          };
+    });
     await updateItemsMutation.mutateAsync({
       id: quotation.id,
       input: { items: input },
@@ -403,10 +425,10 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                 )}
                 <button
                   type="button"
-                  onClick={() => setIsCreateProductOpen(true)}
+                  onClick={() => setIsCustomLineOpen(true)}
                   className="w-full border-t border-line px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-mist"
                 >
-                  + Crear producto nuevo
+                  + No existe: agregar con descripción y precio
                 </button>
               </div>
             )}
@@ -433,7 +455,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                 {items.map((item, index) => (
                   <tr key={`${item.productId}-${index}`}>
                     <td className="px-3 py-2">
-                      {item.reference} — {item.description}
+                      {item.reference ? `${item.reference} — ` : ''}{item.description}
                       {item.taxRate === 0 && (
                         <span className="ml-2 text-xs font-medium text-fog">Exenta</span>
                       )}
@@ -767,11 +789,11 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
         </section>
       )}
 
-      {isCreateProductOpen && (
-        <QuickCreateProductDialog
-          initialReference={productQuery}
-          onClose={() => setIsCreateProductOpen(false)}
-          onCreated={handleProductCreated}
+      {isCustomLineOpen && (
+        <CustomLineDialog
+          initialDescription={productQuery}
+          onClose={() => setIsCustomLineOpen(false)}
+          onAdd={handleAddCustomLine}
         />
       )}
 

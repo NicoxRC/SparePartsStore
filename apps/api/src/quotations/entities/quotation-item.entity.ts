@@ -43,9 +43,14 @@ export class QuotationItem {
   @JoinColumn({ name: 'quotation_id' })
   quotation: Quotation;
 
-  @ManyToOne(() => Product, { nullable: false })
+  // null for a one-off line typed on the quotation (not a catalog product):
+  // then `description` carries its name and there is no stock to move.
+  @ManyToOne(() => Product, { nullable: true })
   @JoinColumn({ name: 'product_id' })
-  product: Product;
+  product: Product | null;
+
+  @Column({ type: 'varchar', length: 255, nullable: true })
+  description: string | null;
 
   @Column({ type: 'int' })
   quantity: number;

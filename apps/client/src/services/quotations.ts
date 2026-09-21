@@ -6,8 +6,9 @@ export type QuotationStatus = 'open' | 'invoiced' | 'cancelled';
 
 export interface QuotationItemResponse {
   id: string;
-  productId: string;
-  productReference: string;
+  /** null for a one-off line (not a catalog product). */
+  productId: string | null;
+  productReference: string | null;
   productDescription: string;
   productBrand: string | null;
   quantity: number;
@@ -52,8 +53,11 @@ export interface QuotationsQuery {
   search?: string;
 }
 
+/** A catalog product (`productId`) or a one-off line (`description` + `customUnitPrice`) — never both. */
 export interface CreateQuotationItemInput {
-  productId: string;
+  productId?: string;
+  description?: string;
+  customUnitPrice?: number;
   quantity: number;
   discount?: number;
 }

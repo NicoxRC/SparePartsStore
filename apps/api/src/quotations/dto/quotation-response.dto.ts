@@ -4,8 +4,14 @@ import { Quotation } from '../entities/quotation.entity';
 
 export class QuotationItemResponseDto {
   @ApiProperty() id: string;
-  @ApiProperty() productId: string;
-  @ApiProperty() productReference: string;
+  @ApiProperty({ nullable: true, type: String })
+  productId: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'null for a one-off line (not a catalog product).',
+  })
+  productReference: string | null;
   @ApiProperty() productDescription: string;
   @ApiProperty({ nullable: true, type: String })
   productBrand: string | null;
@@ -18,10 +24,11 @@ export class QuotationItemResponseDto {
   static fromEntity(item: QuotationItem): QuotationItemResponseDto {
     const dto = new QuotationItemResponseDto();
     dto.id = item.id;
-    dto.productId = item.product.id;
-    dto.productReference = item.product.reference;
-    dto.productDescription = item.product.description;
-    dto.productBrand = item.product.brand?.name ?? null;
+    dto.productId = item.product?.id ?? null;
+    dto.productReference = item.product?.reference ?? null;
+    dto.productDescription =
+      item.product?.description ?? item.description ?? '';
+    dto.productBrand = item.product?.brand?.name ?? null;
     dto.quantity = item.quantity;
     dto.taxRate = Number(item.taxRate);
     dto.discount = item.discount;

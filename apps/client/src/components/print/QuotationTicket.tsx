@@ -109,7 +109,7 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
                 <span className="shrink-0 text-[12px] font-bold">{ticketInt(breakdown.total)}</span>
               </div>
               <p className="mt-1 text-[10px] leading-tight">
-                Cód. {item.productReference} · {item.quantity} × {ticketInt(item.unitPrice)}
+                {item.productReference ? `Cód. ${item.productReference} · ` : ''}{item.quantity} × {ticketInt(item.unitPrice)}
                 {item.taxRate > 0 ? ` · IVA ${item.taxRate}%` : ' · Exento'}
                 {discountPercent > 0 ? ` · Dcto ${discountPercent}%` : ''}
               </p>

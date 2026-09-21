@@ -14,7 +14,7 @@ import { Button } from '../components/Button';
 import { CashMovementDialog } from '../components/CashMovementDialog';
 import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { CustomerPicker } from '../components/CustomerPicker';
-import { QuickCreateProductDialog } from '../components/QuickCreateProductDialog';
+import { CustomLineDialog } from '../components/CustomLineDialog';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
@@ -244,7 +244,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const [productQuery, setProductQuery] = useState('');
   const [filterDepartmentId, setFilterDepartmentId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
-  const [isCreateProductOpen, setIsCreateProductOpen] = useState(false);
+  const [isCustomLineOpen, setIsCustomLineOpen] = useState(false);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
   const [selectedCustomerId, setSelectedCustomerIdState] = useState<string | null>(
     draft.selectedCustomerId,
@@ -388,10 +388,33 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     setFilterGroupId('');
   };
 
-  const handleProductCreated = (product: ProductResponse, quantity: number) => {
-    handleAddProduct(product, quantity);
-    setIsCreateProductOpen(false);
+  // A line for something not in the catalog: it lives only on this sale.
+  const handleAddCustomLine = (line: { description: string; price: number; quantity: number }) => {
+    appendItem({
+      productId: '',
+      reference: '',
+      description: line.description,
+      brand: '',
+      price: line.price,
+      quantity: line.quantity,
+      taxRate: DEFAULT_TAX_RATE,
+    });
+    setProductQuery('');
+    setFilterDepartmentId('');
+    setFilterGroupId('');
+    setIsCustomLineOpen(false);
   };
+
+  // Catalog product by id, or a one-off line by what was typed.
+  const toApiItem = (item: InvoiceFormInput['items'][number], discount: number | undefined) =>
+    item.productId
+      ? { productId: item.productId, quantity: Number(item.quantity), discount }
+      : {
+          description: item.description,
+          customUnitPrice: item.price,
+          quantity: Number(item.quantity),
+          discount,
+        };
 
   // Both fields drive the same discountPercentage — whichever one the user
   // edits, the other is derived from it against the current pre-discount
@@ -500,13 +523,12 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
       customerAddressLine: values.customerAddressLine,
       customerEmail: values.customerEmail,
       customerPhone: values.customerPhone || undefined,
-      items: values.items.map((item) => ({
-        productId: item.productId,
-        quantity: Number(item.quantity),
-        discount:
-          computeItemDiscount(item, Number(values.discountPercentage) || 0) ||
-          undefined,
-      })),
+      items: values.items.map((item) =>
+        toApiItem(
+          item,
+          computeItemDiscount(item, Number(values.discountPercentage) || 0) || undefined,
+        ),
+      ),
       notes: values.notes || undefined,
     });
     // This draft's sale became a quotation instead — close it (auto-
@@ -536,13 +558,12 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
       customerCity: values.customerCity,
       customerAddressLine: values.customerAddressLine,
       customerEmail: values.customerEmail,
-      items: values.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-        discount:
-          computeItemDiscount(item, Number(values.discountPercentage) || 0) ||
-          undefined,
-      })),
+      items: values.items.map((item) =>
+        toApiItem(
+          item,
+          computeItemDiscount(item, Number(values.discountPercentage) || 0) || undefined,
+        ),
+      ),
       notes: values.notes ? [values.notes] : undefined,
     });
     // This draft's sale is done — close it (auto-replaced by a fresh
@@ -640,10 +661,10 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                   )}
                   <button
                     type="button"
-                    onClick={() => setIsCreateProductOpen(true)}
+                    onClick={() => setIsCustomLineOpen(true)}
                     className="w-full border-t border-line px-4 py-2.5 text-left text-sm font-medium text-ink hover:bg-mist"
                   >
-                    + Crear producto nuevo
+                    + No existe: agregar con descripción y precio
                   </button>
                 </div>
               )}
@@ -668,7 +689,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                         return (
                           <tr key={field.id} className="border-b border-dotted border-line-2">
                             <td className="px-3 py-2">
-                              {field.reference} — {field.description}
+                              {field.reference ? `${field.reference} — ` : ''}{field.description}
                               {Number(item?.taxRate) === 0 && (
                                 <span className="ml-2 text-xs font-medium text-fog">
                                   Exenta
@@ -914,11 +935,11 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
         )}
       </form>
 
-      {isCreateProductOpen && (
-        <QuickCreateProductDialog
-          initialReference={productQuery}
-          onClose={() => setIsCreateProductOpen(false)}
-          onCreated={handleProductCreated}
+      {isCustomLineOpen && (
+        <CustomLineDialog
+          initialDescription={productQuery}
+          onClose={() => setIsCustomLineOpen(false)}
+          onAdd={handleAddCustomLine}
         />
       )}
     </>

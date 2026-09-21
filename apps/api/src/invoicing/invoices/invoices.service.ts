@@ -10,8 +10,11 @@ import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-d
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   computeLineAmounts,
+  CUSTOM_LINE_SKU,
   resolveTaxRate,
+  STANDARD_TAX_RATE,
 } from '../../common/utils/invoice-math.util';
+import { assertLineKind } from '../../common/utils/custom-line.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
@@ -58,7 +61,10 @@ interface DataicoInvoiceResponse {
 const DATAICO_TAX_BASE = 100;
 
 interface ResolvedItem {
-  product: Product;
+  /** null for a one-off line typed on the sale (not a catalog product). */
+  product: Product | null;
+  sku: string;
+  description: string;
   quantity: number;
   taxRate: number;
   /** Already net of any per-line discount — see resolveItems(). */
@@ -159,10 +165,10 @@ export class InvoicesService {
           company_name: dto.customerCompanyName ?? '',
         },
         items: items.map((item) => ({
-          sku: item.product.reference,
+          sku: item.sku,
           measuring_unit: '94',
           quantity: item.quantity,
-          description: item.product.description,
+          description: item.description,
           price: item.unitPrice,
           taxes: [
             {
@@ -189,6 +195,8 @@ export class InvoicesService {
     // when converting a quotation — see create()'s docstring.
     if (!options.skipInventoryEffects) {
       for (const item of items) {
+        // A one-off line has no product, so there is no stock to move.
+        if (!item.product) continue;
         const movementDto: CreateMovementDto = {
           productId: item.product.id,
           quantity: -item.quantity,
@@ -379,16 +387,23 @@ export class InvoicesService {
   ): Promise<ResolvedItem[]> {
     return Promise.all(
       dto.items.map(async (itemDto) => {
-        const product = await this.productsService.findOne(itemDto.productId);
-        if (!skipStockCheck && product.stock < itemDto.quantity) {
+        assertLineKind(itemDto);
+
+        // A one-off line has no product: no stock to check, no catalog
+        // price, and it always carries the standard IVA.
+        const product = itemDto.productId
+          ? await this.productsService.findOne(itemDto.productId)
+          : null;
+        if (product && !skipStockCheck && product.stock < itemDto.quantity) {
           throw new BadRequestException(
             `Stock insuficiente para ${product.reference}. Stock actual: ${product.stock}, solicitado: ${itemDto.quantity}.`,
           );
         }
 
-        const basePrice =
-          itemDto.unitPriceOverride ?? Number(product.salePrice);
-        const taxRate = resolveTaxRate(product);
+        const basePrice = product
+          ? (itemDto.unitPriceOverride ?? Number(product.salePrice))
+          : (itemDto.customUnitPrice as number);
+        const taxRate = product ? resolveTaxRate(product) : STANDARD_TAX_RATE;
         const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
           basePrice,
           itemDto.quantity,
@@ -398,6 +413,10 @@ export class InvoicesService {
 
         return {
           product,
+          sku: product ? product.reference : CUSTOM_LINE_SKU,
+          description: product
+            ? product.description
+            : (itemDto.description as string),
           quantity: itemDto.quantity,
           taxRate,
           unitPrice,

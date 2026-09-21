@@ -379,6 +379,61 @@ describe('InvoicesService', () => {
       );
     });
 
+    describe('one-off lines (not a catalog product)', () => {
+      const customLine = {
+        description: 'Instalación de llantas',
+        customUnitPrice: 30000,
+        quantity: 2,
+      };
+
+      it('bills a typed line at its price with standard IVA, sku VARIOS, and never touches the catalog or stock', async () => {
+        await service.create({ ...baseDto, items: [customLine] }, 'user-1');
+
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+        expect(dataicoClient.post).toHaveBeenCalledWith(
+          '/invoices',
+          expect.objectContaining({
+            invoice: expect.objectContaining({
+              items: [
+                expect.objectContaining({
+                  sku: 'VARIOS',
+                  description: 'Instalación de llantas',
+                  price: 30000,
+                  quantity: 2,
+                  taxes: [
+                    expect.objectContaining({
+                      tax_rate: 19,
+                      tax_amount: 11400,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          }),
+        );
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+        expect(productsService.findOne).not.toHaveBeenCalled();
+        expect(inventoryService.createMovement).not.toHaveBeenCalled();
+      });
+
+      it('rejects a line that is a product and a one-off at once, without calling Dataico', async () => {
+        await expect(
+          service.create(
+            { ...baseDto, items: [{ ...customLine, productId: 'prod-1' }] },
+            'user-1',
+          ),
+        ).rejects.toThrow(BadRequestException);
+        expect(dataicoClient.post).not.toHaveBeenCalled();
+      });
+
+      it('rejects a line with neither a product nor a description and price', async () => {
+        await expect(
+          service.create({ ...baseDto, items: [{ quantity: 1 }] }, 'user-1'),
+        ).rejects.toThrow(BadRequestException);
+        expect(dataicoClient.post).not.toHaveBeenCalled();
+      });
+    });
+
     it('persists the invoice with Dataico response fields mapped, excluding the xml blob', async () => {
       await service.create(baseDto, 'user-1');
 

@@ -5,6 +5,13 @@ export interface LineAmounts {
   total: number;
 }
 
+/**
+ * The sku sent for a one-off line: a product typed on a sale or quotation
+ * that isn't in the catalog. It has no reference of its own, but Dataico
+ * wants a sku on every item.
+ */
+export const CUSTOM_LINE_SKU = 'VARIOS';
+
 /** The store's one standard IVA rate — see resolveTaxRate(). */
 export const STANDARD_TAX_RATE = 19;
 

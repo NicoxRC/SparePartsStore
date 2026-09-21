@@ -274,6 +274,130 @@ describe('QuotationsService', () => {
     });
   });
 
+  describe('one-off lines (not a catalog product)', () => {
+    const customLine = {
+      description: 'Instalación de llantas',
+      customUnitPrice: 30000,
+      quantity: 2,
+    };
+
+    it('saves a typed line with its name and price, standard IVA, and moves no stock', async () => {
+      await service.create(
+        {
+          ...baseDto,
+          items: [customLine, { productId: 'prod-a', quantity: 1 }],
+        },
+        'user-1',
+      );
+
+      const savedItems = quotationItemsRepository.save.mock.calls[0][0];
+      expect(savedItems[0]).toEqual(
+        expect.objectContaining({
+          product: null,
+          description: 'Instalación de llantas',
+          unitPrice: 30000,
+          taxRate: 19,
+        }),
+      );
+      expect(inventoryService.createMovement).toHaveBeenCalledTimes(1);
+      expect(inventoryService.createMovement).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'prod-a' }),
+        'user-1',
+      );
+    });
+
+    it('rejects a line that is a product and a one-off at once', async () => {
+      await expect(
+        service.create(
+          {
+            ...baseDto,
+            items: [{ ...customLine, productId: 'prod-a' }],
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
+    it('keeps a one-off line through an edit, without stock movement for it', async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({
+          items: [
+            {
+              id: 'item-c',
+              product: null,
+              description: 'Instalación de llantas',
+              quantity: 2,
+              taxRate: 19,
+              discount: null,
+              unitPrice: 30000,
+            } as unknown as QuotationItem,
+          ],
+        }),
+      );
+
+      await service.updateItems(
+        'q-1',
+        { items: [{ ...customLine, quantity: 3 }] },
+        'user-1',
+      );
+
+      const savedItems = quotationItemsRepository.save.mock.calls[0][0];
+      expect(savedItems[0]).toEqual(
+        expect.objectContaining({
+          product: null,
+          quantity: 3,
+          unitPrice: 30000,
+        }),
+      );
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
+    it('passes a one-off line to the invoice as typed and does not return it to stock on cancel', async () => {
+      const withCustom = openQuotation({
+        items: [
+          {
+            id: 'item-c',
+            product: null,
+            description: 'Instalación de llantas',
+            quantity: 2,
+            taxRate: 19,
+            discount: null,
+            unitPrice: 30000,
+          } as unknown as QuotationItem,
+        ],
+      });
+      queryBuilder.getOne.mockResolvedValue(withCustom);
+
+      await service.invoice(
+        'q-1',
+        {
+          paymentMeans: 'CASH',
+          paymentMeansType: 'DEBITO',
+          useSameCustomer: true,
+        },
+        'user-1',
+      );
+      expect(invoicesService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [
+            expect.objectContaining({
+              description: 'Instalación de llantas',
+              customUnitPrice: 30000,
+              quantity: 2,
+            }),
+          ],
+        }),
+        'user-1',
+        { skipInventoryEffects: true },
+      );
+
+      queryBuilder.getOne.mockResolvedValue(withCustom);
+      await service.cancel('q-1', 'user-1');
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateItems', () => {
     const dto: UpdateQuotationItemsDto = {
       items: [
@@ -349,7 +473,7 @@ describe('QuotationsService', () => {
 
       const savedLine = (productId: string): QuotationItem | undefined =>
         quotationItemsRepository.save.mock.calls[0][0].find(
-          (item) => item.product.id === productId,
+          (item) => item.product?.id === productId,
         );
 
       it('keeps the price a line was quoted at when the product price changed afterward', async () => {
@@ -403,7 +527,7 @@ describe('QuotationsService', () => {
         );
 
         const lines = quotationItemsRepository.save.mock.calls[0][0].filter(
-          (item) => item.product.id === 'prod-a',
+          (item) => item.product?.id === 'prod-a',
         );
         expect(lines.map((line) => line.unitPrice)).toEqual([50000, 50000]);
       });
@@ -434,7 +558,7 @@ describe('QuotationsService', () => {
 
       const savedItems = quotationItemsRepository.save.mock.calls[0][0];
       const lineA = savedItems.find(
-        (item: QuotationItem) => item.product.id === 'prod-a',
+        (item: QuotationItem) => item.product?.id === 'prod-a',
       );
       expect(lineA?.taxRate).toBe(0);
     });
