@@ -111,18 +111,55 @@ export class CashRegisterService {
       throw new ConflictException('La caja de hoy ya fue cerrada.');
     }
 
-    const breakdown = await this.computePaymentBreakdown(today);
+    return this.closeRegister(register, userId, countedCash);
+  }
+
+  /** Closes a register from an earlier day that was never closed. Totals are
+   * computed for *that* day, same as a normal close. `countedCash` may be
+   * left out when nobody counted the drawer back then: the expected cash is
+   * taken as counted (no discrepancy) — it can be corrected afterwards with
+   * `updateCountedCash`. Today's register goes through `close()` instead. */
+  async closePast(
+    id: string,
+    userId: string,
+    countedCash?: number,
+  ): Promise<CashRegisterResponseDto> {
+    const register = await this.cashRegisterRepository.findOne({
+      where: { id },
+    });
+    if (!register) {
+      throw new NotFoundException('Cash register not found');
+    }
+    if (register.closedAt !== null) {
+      throw new ConflictException('Esa caja ya fue cerrada.');
+    }
+    if (register.registerDate >= getStoreToday()) {
+      throw new BadRequestException(
+        'Esa es la caja de hoy: ciérrala con "Cerrar caja".',
+      );
+    }
+    return this.closeRegister(register, userId, countedCash);
+  }
+
+  private async closeRegister(
+    register: CashRegister,
+    userId: string,
+    countedCash?: number,
+  ): Promise<CashRegisterResponseDto> {
+    const day = register.registerDate;
+    const breakdown = await this.computePaymentBreakdown(day);
     const netMovements = await this.computeCashMovementsNet(register.id);
     const expectedCash = register.openingAmount + breakdown.cash + netMovements;
+    const counted = countedCash ?? expectedCash;
 
-    register.totalAmount = await this.computeTotal(today);
-    register.totalOwed = await this.computeOwedTotal(today);
+    register.totalAmount = await this.computeTotal(day);
+    register.totalOwed = await this.computeOwedTotal(day);
     register.totalCash = breakdown.cash;
     register.totalCard = breakdown.card;
     register.totalTransfer = breakdown.transfer;
     register.expectedCash = expectedCash;
-    register.countedCash = countedCash;
-    register.cashDiscrepancy = countedCash - expectedCash;
+    register.countedCash = counted;
+    register.cashDiscrepancy = counted - expectedCash;
     register.closedAt = new Date();
     register.closedBy = { id: userId } as CashRegister['closedBy'];
 

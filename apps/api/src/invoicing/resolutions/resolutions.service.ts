@@ -1,8 +1,13 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-document-type.enum';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
+import { Invoice } from '../invoices/entities/invoice.entity';
 import { DataicoClientService } from '../dataico/dataico-client.service';
 import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { QueryResolutionsDto } from './dto/query-resolutions.dto';
@@ -24,6 +29,8 @@ export class ResolutionsService {
   constructor(
     @InjectRepository(DianResolution)
     private readonly resolutionsRepository: Repository<DianResolution>,
+    @InjectRepository(Invoice)
+    private readonly invoicesRepository: Repository<Invoice>,
     private readonly dataicoClient: DataicoClientService,
   ) {}
 
@@ -86,6 +93,36 @@ export class ResolutionsService {
       where: { prefix, resolutionNumber },
       order: { createdAt: 'DESC' },
     });
+  }
+
+  /**
+   * Removes a resolution from this app only — a wrongly entered one. Dataico
+   * keeps whatever numbering it already accepted (this app has no confirmed
+   * Dataico call to remove one). If it was the active resolution, the one
+   * before it becomes active again. Refused while an invoice was numbered
+   * under it and no other row with the same prefix + resolution number would
+   * remain, since that invoice's receipt reads its range and dates from here.
+   */
+  async remove(id: string): Promise<void> {
+    const resolution = await this.resolutionsRepository.findOne({
+      where: { id },
+    });
+    if (!resolution) {
+      throw new NotFoundException('Resolución no encontrada.');
+    }
+
+    const { prefix, resolutionNumber } = resolution;
+    const [invoices, sameNumberRows] = await Promise.all([
+      this.invoicesRepository.count({ where: { prefix, resolutionNumber } }),
+      this.resolutionsRepository.count({ where: { prefix, resolutionNumber } }),
+    ]);
+    if (invoices > 0 && sameNumberRows <= 1) {
+      throw new ConflictException(
+        'No se puede eliminar: ya hay facturas emitidas con esta resolución.',
+      );
+    }
+
+    await this.resolutionsRepository.delete(id);
   }
 
   async findAll(

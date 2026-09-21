@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import {
   createResolution,
+  deleteResolution,
   getResolutions,
   type CreateResolutionInput,
   type ResolutionsQuery,
@@ -23,6 +24,16 @@ export function useCreateResolution() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (input: CreateResolutionInput) => createResolution(input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['resolutions'] });
+    },
+  });
+}
+
+export function useDeleteResolution() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteResolution(id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['resolutions'] });
     },

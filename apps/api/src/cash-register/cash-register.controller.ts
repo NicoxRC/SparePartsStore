@@ -26,6 +26,7 @@ import { CashRegisterService } from './cash-register.service';
 import { CashRegisterResponseDto } from './dto/cash-register-response.dto';
 import { CashRegisterStatusDto } from './dto/cash-register-status.dto';
 import { CloseCashRegisterDto } from './dto/close-cash-register.dto';
+import { ClosePastCashRegisterDto } from './dto/close-past-cash-register.dto';
 import { CreateCashMovementDto } from './dto/create-cash-movement.dto';
 import { DayInvoicesReportDto } from './dto/day-invoices-report.dto';
 import { OpenCashRegisterDto } from './dto/open-cash-register.dto';
@@ -68,6 +69,24 @@ export class CashRegisterController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<CashRegisterResponseDto> {
     return this.cashRegisterService.close(user.id, dto.countedCash);
+  }
+
+  @ApiOperation({
+    summary:
+      'Cerrar una caja de un día anterior que nunca se cerró (el efectivo contado es opcional)',
+  })
+  @ApiResponse({ status: 200, type: CashRegisterResponseDto })
+  @ApiResponse({ status: 400, description: "That is today's register" })
+  @ApiResponse({ status: 404, description: 'Cash register not found' })
+  @ApiResponse({ status: 409, description: 'Already closed' })
+  @Post(':id/close')
+  @RequirePermission('cash_register.close')
+  closePast(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ClosePastCashRegisterDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<CashRegisterResponseDto> {
+    return this.cashRegisterService.closePast(id, user.id, dto.countedCash);
   }
 
   @ApiOperation({

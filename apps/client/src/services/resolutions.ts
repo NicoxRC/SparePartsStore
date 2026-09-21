@@ -53,3 +53,7 @@ export async function createResolution(
   );
   return data;
 }
+
+export async function deleteResolution(id: string): Promise<void> {
+  await api.delete(`/invoicing/resolutions/${id}`);
+}

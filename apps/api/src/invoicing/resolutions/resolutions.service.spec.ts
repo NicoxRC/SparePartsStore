@@ -1,7 +1,9 @@
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Repository } from 'typeorm';
 import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-document-type.enum';
 import { DataicoClientService } from '../dataico/dataico-client.service';
 import { CreateResolutionDto } from './dto/create-resolution.dto';
+import { Invoice } from '../invoices/entities/invoice.entity';
 import { DianResolution } from './entities/dian-resolution.entity';
 import { ResolutionsService } from './resolutions.service';
 
@@ -11,7 +13,11 @@ describe('ResolutionsService', () => {
     create: jest.Mock;
     save: jest.Mock;
     createQueryBuilder: jest.Mock;
+    findOne: jest.Mock;
+    count: jest.Mock;
+    delete: jest.Mock;
   };
+  let invoicesRepository: { count: jest.Mock };
   let dataicoClient: { post: jest.Mock };
 
   const baseDto: CreateResolutionDto = {
@@ -32,12 +38,17 @@ describe('ResolutionsService', () => {
         Promise.resolve({ ...entity, id: 'res-1', createdAt: new Date() }),
       ),
       createQueryBuilder: jest.fn(),
+      findOne: jest.fn(),
+      count: jest.fn().mockResolvedValue(1),
+      delete: jest.fn().mockResolvedValue(undefined),
     };
+    invoicesRepository = { count: jest.fn().mockResolvedValue(0) };
 
     dataicoClient = { post: jest.fn().mockResolvedValue(undefined) };
 
     service = new ResolutionsService(
       repository as unknown as Repository<DianResolution>,
+      invoicesRepository as unknown as Repository<Invoice>,
       dataicoClient as unknown as DataicoClientService,
     );
   });
@@ -164,6 +175,47 @@ describe('ResolutionsService', () => {
           ],
         },
       );
+    });
+  });
+
+  describe('remove', () => {
+    const stored = {
+      id: 'res-1',
+      prefix: 'FE',
+      resolutionNumber: '18764075467155',
+    } as DianResolution;
+
+    beforeEach(() => repository.findOne.mockResolvedValue(stored));
+
+    it('404s when the resolution does not exist', async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await expect(service.remove('nope')).rejects.toThrow(NotFoundException);
+      expect(repository.delete).not.toHaveBeenCalled();
+    });
+
+    it('deletes a resolution no invoice was numbered under, without calling Dataico', async () => {
+      await service.remove('res-1');
+
+      expect(repository.delete).toHaveBeenCalledWith('res-1');
+      expect(dataicoClient.post).not.toHaveBeenCalled();
+    });
+
+    it('refuses while invoices were issued under it and it is the only row with that number', async () => {
+      invoicesRepository.count.mockResolvedValue(2);
+      repository.count.mockResolvedValue(1);
+
+      await expect(service.remove('res-1')).rejects.toThrow(ConflictException);
+      expect(repository.delete).not.toHaveBeenCalled();
+    });
+
+    it('allows deleting a duplicate row even when invoices exist, since another row with the same number remains', async () => {
+      invoicesRepository.count.mockResolvedValue(2);
+      repository.count.mockResolvedValue(2);
+
+      await service.remove('res-1');
+
+      expect(repository.delete).toHaveBeenCalledWith('res-1');
     });
   });
 });

@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -44,5 +55,19 @@ export class ResolutionsController {
     @Query() query: QueryResolutionsDto,
   ): Promise<PaginatedResponseDto<ResolutionResponseDto>> {
     return this.resolutionsService.findAll(query);
+  }
+
+  @ApiOperation({
+    summary: 'Delete a wrongly entered resolution (local only, not in Dataico)',
+  })
+  @ApiResponse({ status: 204 })
+  @ApiResponse({
+    status: 409,
+    description: 'Invoices were already issued under this resolution',
+  })
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    return this.resolutionsService.remove(id);
   }
 }
