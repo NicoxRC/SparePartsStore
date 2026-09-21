@@ -8,6 +8,7 @@ import {
   createInvoice,
   getInvoice,
   getInvoices,
+  getInvoiceTicket,
   refreshInvoiceStatus,
   resendInvoice,
   type CreateInvoiceInput,
@@ -29,6 +30,11 @@ export function useInvoice(id: string | undefined) {
     queryFn: () => getInvoice(id as string),
     enabled: Boolean(id),
   });
+}
+
+/** Loads the data of an invoice's counter receipt on demand (it is fetched per print, not cached). */
+export function useInvoiceTicket() {
+  return useMutation({ mutationFn: (invoiceId: string) => getInvoiceTicket(invoiceId) });
 }
 
 export function useCreateInvoice() {

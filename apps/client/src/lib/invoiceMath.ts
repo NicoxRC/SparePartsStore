@@ -1,24 +1,49 @@
 /**
- * Final line amount: tax-inclusive (a product's `salePrice` is confirmed to
- * already include IVA — `taxRate: 0` is just the flag for the "excluida"
- * label, not a separate calculation). The fixed discount (a flat COP
- * amount, not a percentage) comes off the pre-tax base before IVA is
- * re-applied — confirmed directly. Mirrors
- * InvoicesService.resolveItems()/computeLineAmounts() on the backend.
- * Shared by InvoiceFormPage (Venta) and QuotationDetailPage (Cotizaciones).
+ * IVA is ADDED on top of a product's sale price (confirmed directly) — the
+ * price stays exactly as entered on the product, and the document computes
+ * the IVA and the final amount that goes to the DIAN. Exempt products
+ * (`taxRate: 0`) get no IVA. The fixed discount (a flat COP amount, not a
+ * percentage) comes off the pre-tax subtotal before IVA is computed.
+ * Mirrors the backend's computeLineAmounts() step by step — including the
+ * per-unit rounding — so what the screen shows is what gets invoiced.
+ * Shared by InvoiceFormPage (Venta), QuotationDetailPage (Cotizaciones) and
+ * the credit/debit note forms.
  */
+export interface LineBreakdown {
+  /** Pre-tax amount after any discount (price × quantity − discount). */
+  subtotal: number;
+  /** IVA on that subtotal. */
+  tax: number;
+  /** subtotal + tax — the amount that reaches the DIAN. */
+  total: number;
+}
+
+export function computeLineBreakdown(item: {
+  price: number;
+  quantity: unknown;
+  taxRate: unknown;
+  discount?: unknown;
+}): LineBreakdown {
+  const quantity = Number(item.quantity) || 0;
+  const taxRate = Number(item.taxRate) || 0;
+  const discount = Number(item.discount) || 0;
+  if (quantity <= 0) return { subtotal: 0, tax: 0, total: 0 };
+
+  const discountedSubtotal = Math.max(0, item.price * quantity - discount);
+  const unitPrice = Math.round(discountedSubtotal / quantity);
+  const subtotal = unitPrice * quantity;
+  const tax = Math.round(subtotal * (taxRate / 100));
+  return { subtotal, tax, total: subtotal + tax };
+}
+
+/** A line's final amount: pre-tax subtotal plus IVA. */
 export function computeItemTotal(item: {
   price: number;
   quantity: unknown;
   taxRate: unknown;
   discount?: unknown;
 }): number {
-  const quantity = Number(item.quantity) || 0;
-  const taxRate = Number(item.taxRate) || 0;
-  const discount = Number(item.discount) || 0;
-  const exclusivePrice = taxRate > 0 ? item.price / (1 + taxRate / 100) : item.price;
-  const discountedBase = Math.max(0, exclusivePrice * quantity - discount);
-  return Math.round(discountedBase * (1 + taxRate / 100));
+  return computeLineBreakdown(item).total;
 }
 
 /** A line's pre-tax subtotal, before any discount — the base a global
@@ -28,10 +53,7 @@ export function computeExclusiveSubtotal(item: {
   quantity: unknown;
   taxRate: unknown;
 }): number {
-  const quantity = Number(item.quantity) || 0;
-  const taxRate = Number(item.taxRate) || 0;
-  const exclusivePrice = taxRate > 0 ? item.price / (1 + taxRate / 100) : item.price;
-  return exclusivePrice * quantity;
+  return item.price * (Number(item.quantity) || 0);
 }
 
 /**
@@ -39,10 +61,9 @@ export function computeExclusiveSubtotal(item: {
  * applies to the whole sale, entered once (see the "Aplicar descuento"
  * control on InvoiceFormPage/QuotationDetailPage). Taking the same
  * percentage off every line's pre-tax subtotal is mathematically
- * identical to taking it off the tax-inclusive grand total (tax is
+ * identical to taking it off the grand total including IVA (tax is
  * linear), so this is the flat, per-line COP amount
- * computeItemTotal()/the backend's computeLineAmounts() already expect —
- * no change needed to that shared math itself.
+ * computeItemTotal()/the backend's computeLineAmounts() already expect.
  */
 export function computeItemDiscount(
   item: { price: number; quantity: unknown; taxRate: unknown },
@@ -50,4 +71,25 @@ export function computeItemDiscount(
 ): number {
   if (!discountPercentage) return 0;
   return Math.round(computeExclusiveSubtotal(item) * (discountPercentage / 100));
+}
+
+/** Subtotal / IVA / total for a whole document, with the sale's discount applied line by line. */
+export function summarizeLines(
+  items: Array<{ price: number; quantity: unknown; taxRate: unknown }>,
+  discountPercentage = 0,
+): LineBreakdown {
+  return items.reduce<LineBreakdown>(
+    (sum, item) => {
+      const line = computeLineBreakdown({
+        ...item,
+        discount: computeItemDiscount(item, discountPercentage),
+      });
+      return {
+        subtotal: sum.subtotal + line.subtotal,
+        tax: sum.tax + line.tax,
+        total: sum.total + line.total,
+      };
+    },
+    { subtotal: 0, tax: 0, total: 0 },
+  );
 }

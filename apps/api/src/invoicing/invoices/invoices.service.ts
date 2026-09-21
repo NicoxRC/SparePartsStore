@@ -10,8 +10,11 @@ import { DianResolutionDocumentType } from '../../common/enums/dian-resolution-d
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
 import {
   computeLineAmounts,
+  CUSTOM_LINE_SKU,
   resolveTaxRate,
+  STANDARD_TAX_RATE,
 } from '../../common/utils/invoice-math.util';
+import { assertLineKind } from '../../common/utils/custom-line.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
@@ -22,6 +25,9 @@ import { DataicoClientService } from '../dataico/dataico-client.service';
 import { DataicoConfig } from '../dataico/dataico.config';
 import { toDataicoDate } from '../dataico/dataico-date.util';
 import { ResolutionsService } from '../resolutions/resolutions.service';
+import { buildInvoiceTicket } from './invoice-ticket.util';
+import { InvoiceTicketDto } from './dto/invoice-ticket.dto';
+import { ELECTRONIC_SUBTYPE } from '../resolutions/resolution.constants';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceResponseDto } from './dto/invoice-response.dto';
 import { QueryInvoicesDto } from './dto/query-invoices.dto';
@@ -44,8 +50,21 @@ interface DataicoInvoiceResponse {
   [key: string]: unknown;
 }
 
+/**
+ * What Dataico expects in an item's `tax_base`. It is NOT the taxable amount
+ * in pesos: Dataico validates it between 1 and 100 (sending a real base got
+ * "El numero '121849' tiene que estar entre 1 y 100"), and the shared
+ * reference example sends 100 on every item while its `tax_amount` is the
+ * real 19% of price x quantity. So 100 (the whole line is taxable) always;
+ * the actual amounts travel in `price`, `quantity` and `tax_amount`.
+ */
+const DATAICO_TAX_BASE = 100;
+
 interface ResolvedItem {
-  product: Product;
+  /** null for a one-off line typed on the sale (not a catalog product). */
+  product: Product | null;
+  sku: string;
+  description: string;
   quantity: number;
   taxRate: number;
   /** Already net of any per-line discount — see resolveItems(). */
@@ -85,17 +104,13 @@ export class InvoicesService {
   ): Promise<InvoiceResponseDto> {
     await this.cashRegisterService.assertOpenToday();
 
-    // subtype: 'ELECTRONICO' is explicit, not incidental — a business can
-    // hold more than one resolution under documentType: invoice (this
-    // store used to also have a 'POS' one, see docs/phases/PHASE_12_POS.md
-    // before its removal), and findActiveForDocumentType() picks whichever
-    // matching row was created most recently. Without this filter, a
-    // resolution created for a different purpose (even by mistake — the
-    // column is a free string, not an enum) could silently become "the"
-    // active one for standard invoicing.
+    // The subtype filter is explicit, not incidental: findActiveForDocumentType()
+    // picks whichever matching row was created most recently, so without it a
+    // row with another subtype (the column is a free string, not an enum)
+    // could silently become "the" active one for standard invoicing.
     const resolution = await this.resolutionsService.findActiveForDocumentType(
       DianResolutionDocumentType.INVOICE,
-      'ELECTRONICO',
+      ELECTRONIC_SUBTYPE,
     );
     if (!resolution) {
       throw new BadRequestException(
@@ -114,7 +129,10 @@ export class InvoicesService {
     const number = await this.resolveNextNumber(resolution.prefix);
 
     const requestPayload = {
-      actions: { send_dian: true, send_email: false },
+      actions: {
+        send_dian: this.dataicoConfig.sendDian,
+        send_email: this.dataicoConfig.sendEmail,
+      },
       invoice: {
         env: 'PRODUCCION',
         dataico_account_id: this.dataicoConfig.accountId,
@@ -147,16 +165,16 @@ export class InvoicesService {
           company_name: dto.customerCompanyName ?? '',
         },
         items: items.map((item) => ({
-          sku: item.product.reference,
+          sku: item.sku,
           measuring_unit: '94',
           quantity: item.quantity,
-          description: item.product.description,
+          description: item.description,
           price: item.unitPrice,
           taxes: [
             {
               tax_category: 'IVA',
               tax_rate: item.taxRate,
-              tax_base: item.taxBase,
+              tax_base: DATAICO_TAX_BASE,
               tax_amount: item.taxAmount,
             },
           ],
@@ -177,6 +195,8 @@ export class InvoicesService {
     // when converting a quotation — see create()'s docstring.
     if (!options.skipInventoryEffects) {
       for (const item of items) {
+        // A one-off line has no product, so there is no stock to move.
+        if (!item.product) continue;
         const movementDto: CreateMovementDto = {
           productId: item.product.id,
           quantity: -item.quantity,
@@ -228,6 +248,16 @@ export class InvoicesService {
     };
   }
 
+  /** Everything the counter receipt (tirilla) of this invoice prints. */
+  async getTicket(id: string): Promise<InvoiceTicketDto> {
+    const invoice = await this.findOne(id);
+    const resolution = await this.resolutionsService.findByNumber(
+      invoice.prefix,
+      invoice.resolutionNumber,
+    );
+    return buildInvoiceTicket(invoice, resolution);
+  }
+
   async findOne(id: string): Promise<Invoice> {
     const invoice = await this.invoicesRepository.findOne({ where: { id } });
     if (!invoice) {
@@ -253,12 +283,14 @@ export class InvoicesService {
       );
     }
 
+    // The DATAICO_SEND_* switches are a ceiling: with one off, an explicit
+    // `true` in the request still isn't sent on.
     const response = await this.dataicoClient.put<DataicoInvoiceResponse>(
       `/invoices/${invoice.dataicoUuid}`,
       {
         actions: {
-          send_dian: dto.sendDian ?? true,
-          send_email: dto.sendEmail ?? false,
+          send_dian: this.dataicoConfig.sendDian && (dto.sendDian ?? true),
+          send_email: this.dataicoConfig.sendEmail && (dto.sendEmail ?? false),
         },
       },
     );
@@ -328,12 +360,11 @@ export class InvoicesService {
    * un-sent, so it's better to fail here than after DIAN has accepted a
    * sale this store can't actually fulfill.
    *
-   * `product.salePrice` is confirmed to already include IVA (it's the
-   * price the store actually sells at) — `taxRate: 0` on a line is only
-   * the flag for the "excluida"/exenta label, not a separate calculation.
-   * DIAN invoices report price/tax_base as the pre-tax amount with
-   * tax_amount broken out separately, so salePrice is first "unwrapped"
-   * back to its pre-tax equivalent before anything else happens.
+   * `product.salePrice` is the price BEFORE IVA, exactly as entered on the
+   * product (confirmed directly): IVA is added on top here, on the
+   * document, and that final amount is what reaches the DIAN. Only an
+   * exempt product (`taxRate: 0`) is left without IVA. Dataico takes `price`
+   * as the pre-tax unit price with `tax_amount` broken out separately.
    *
    * A fixed per-line discount (a flat COP amount, not a percentage) is
    * then subtracted from that pre-tax subtotal, before IVA is computed —
@@ -345,7 +376,7 @@ export class InvoicesService {
    * only the already-final numbers, per direct instruction.
    *
    * `itemDto.unitPriceOverride`, when present, replaces `product.salePrice`
-   * as the gross (IVA-inclusive) starting price — used by
+   * as the starting price (before IVA) — used by
    * QuotationsService.invoice() to honor a quotation's locked-in price
    * instead of the product's current one. `skipStockCheck` is set by the
    * same caller for the same reason — see create()'s docstring.
@@ -356,18 +387,25 @@ export class InvoicesService {
   ): Promise<ResolvedItem[]> {
     return Promise.all(
       dto.items.map(async (itemDto) => {
-        const product = await this.productsService.findOne(itemDto.productId);
-        if (!skipStockCheck && product.stock < itemDto.quantity) {
+        assertLineKind(itemDto);
+
+        // A one-off line has no product: no stock to check, no catalog
+        // price, and it always carries the standard IVA.
+        const product = itemDto.productId
+          ? await this.productsService.findOne(itemDto.productId)
+          : null;
+        if (product && !skipStockCheck && product.stock < itemDto.quantity) {
           throw new BadRequestException(
             `Stock insuficiente para ${product.reference}. Stock actual: ${product.stock}, solicitado: ${itemDto.quantity}.`,
           );
         }
 
-        const grossUnitPrice =
-          itemDto.unitPriceOverride ?? Number(product.salePrice);
-        const taxRate = resolveTaxRate(product);
+        const basePrice = product
+          ? (itemDto.unitPriceOverride ?? Number(product.salePrice))
+          : (itemDto.customUnitPrice as number);
+        const taxRate = product ? resolveTaxRate(product) : STANDARD_TAX_RATE;
         const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
-          grossUnitPrice,
+          basePrice,
           itemDto.quantity,
           taxRate,
           itemDto.discount ?? 0,
@@ -375,6 +413,10 @@ export class InvoicesService {
 
         return {
           product,
+          sku: product ? product.reference : CUSTOM_LINE_SKU,
+          description: product
+            ? product.description
+            : (itemDto.description as string),
           quantity: itemDto.quantity,
           taxRate,
           unitPrice,

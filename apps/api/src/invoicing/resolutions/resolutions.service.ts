@@ -8,6 +8,10 @@ import { CreateResolutionDto } from './dto/create-resolution.dto';
 import { QueryResolutionsDto } from './dto/query-resolutions.dto';
 import { ResolutionResponseDto } from './dto/resolution-response.dto';
 import { DianResolution } from './entities/dian-resolution.entity';
+import {
+  ELECTRONIC_SUBTYPE,
+  RESOLUTION_CODE_MESSAGE,
+} from './resolution.constants';
 
 const NUMBERING_SYNC_PATHS: Record<DianResolutionDocumentType, string> = {
   [DianResolutionDocumentType.INVOICE]: '/numberings/sync_dian/invoice',
@@ -37,13 +41,11 @@ export class ResolutionsService {
     const resolution = this.resolutionsRepository.create({
       documentType: dto.documentType,
       prefix: dto.prefix,
-      subtype: dto.subtype,
+      subtype: ELECTRONIC_SUBTYPE,
       resolutionCode: dto.resolutionCode,
-      resolutionCodeMessage: dto.resolutionCodeMessage ?? null,
       resolutionNumber: dto.resolutionNumber,
       rangeStart: dto.rangeStart,
       rangeEnd: dto.rangeEnd,
-      technicalKey: dto.technicalKey ?? null,
       startDate: dto.startDate,
       endDate: dto.endDate,
       createdBy: { id: createdById } as DianResolution['createdBy'],
@@ -59,10 +61,7 @@ export class ResolutionsService {
    * comment. Used by InvoicesService to auto-fill an invoice's numbering
    * instead of asking the caller to re-type it every time.
    *
-   * `subtype` optionally narrows further — a business can have separate
-   * resolutions for ordinary electronic invoices (`subtype: 'ELECTRONICO'`)
-   * and for POS Electrónico (`subtype: 'POS'`), both under the same
-   * `documentType: invoice` — see docs/phases/PHASE_12_POS.md.
+   * `subtype` optionally narrows further (callers pass `ELECTRONIC_SUBTYPE`).
    */
   async findActiveForDocumentType(
     documentType: DianResolutionDocumentType,
@@ -70,6 +69,21 @@ export class ResolutionsService {
   ): Promise<DianResolution | null> {
     return this.resolutionsRepository.findOne({
       where: subtype ? { documentType, subtype } : { documentType },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * The resolution an invoice was numbered under (the invoice only keeps the
+   * prefix and the resolution number). When the same number was synced more
+   * than once, the most recent row wins.
+   */
+  async findByNumber(
+    prefix: string,
+    resolutionNumber: string,
+  ): Promise<DianResolution | null> {
+    return this.resolutionsRepository.findOne({
+      where: { prefix, resolutionNumber },
       order: { createdAt: 'DESC' },
     });
   }
@@ -104,25 +118,24 @@ export class ResolutionsService {
    * Builds Dataico's request body exactly as confirmed per document type —
    * see docs/phases/PHASE_8_RESOLUTIONS.md. The two types use DIFFERENT
    * field-naming conventions in the shared reference (support_docs:
-   * snake_case; invoice: kebab-case, plus an invoice-only `technical-key`
-   * field) — this is intentional, not a bug, per the reference as given.
+   * snake_case; invoice: kebab-case) — this is intentional, not a bug, per
+   * the reference as given.
    */
   private buildDataicoBody(dto: CreateResolutionDto): unknown {
     const dianResolution =
       dto.documentType === DianResolutionDocumentType.INVOICE
         ? {
             code: dto.resolutionCode,
-            'code-msg': dto.resolutionCodeMessage,
+            'code-msg': RESOLUTION_CODE_MESSAGE,
             number: dto.resolutionNumber,
             start: dto.rangeStart,
             end: dto.rangeEnd,
-            'technical-key': dto.technicalKey,
             'start-date': this.toDataicoDate(dto.startDate),
             'end-date': this.toDataicoDate(dto.endDate),
           }
         : {
             code: dto.resolutionCode,
-            code_msg: dto.resolutionCodeMessage,
+            code_msg: RESOLUTION_CODE_MESSAGE,
             number: dto.resolutionNumber,
             start: dto.rangeStart,
             end: dto.rangeEnd,
@@ -135,7 +148,7 @@ export class ResolutionsService {
         {
           prefix: dto.prefix,
           numbering_type: 'RESOLUCIONES_DIAN',
-          subtype: dto.subtype,
+          subtype: ELECTRONIC_SUBTYPE,
           dian_resolutions: [dianResolution],
         },
       ],

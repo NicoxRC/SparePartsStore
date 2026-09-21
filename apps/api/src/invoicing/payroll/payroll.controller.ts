@@ -26,7 +26,7 @@ import { QueryPayrollEntriesDto } from './dto/query-payroll-entries.dto';
 import { PayrollService } from './payroll.service';
 
 /**
- * Admin-only, unlike invoices/POS — payroll is compensation data, not an
+ * Admin-only, unlike invoices — payroll is compensation data, not an
  * everyday counter-sale action any employee should reach.
  */
 @ApiTags('Invoicing — Nómina Electrónica')

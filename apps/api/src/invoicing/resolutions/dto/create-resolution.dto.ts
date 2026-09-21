@@ -5,7 +5,6 @@ import {
   IsEnum,
   IsInt,
   IsNotEmpty,
-  IsOptional,
   IsString,
   Min,
   MaxLength,
@@ -23,27 +22,11 @@ export class CreateResolutionDto {
   @MaxLength(20)
   prefix: string;
 
-  @ApiProperty({
-    example: 'ELECTRONICO',
-    description:
-      'Only ELECTRONICO and POS are confirmed so far — see docs/phases/PHASE_8_RESOLUTIONS.md.',
-  })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
-  subtype: string;
-
   @ApiProperty({ example: 'SDJ-002' })
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
   resolutionCode: string;
-
-  @ApiProperty({ required: false })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  resolutionCodeMessage?: string;
 
   @ApiProperty({ example: '18764075467155' })
   @IsString()
@@ -62,15 +45,6 @@ export class CreateResolutionDto {
   @IsInt()
   @Min(0)
   rangeEnd: number;
-
-  @ApiProperty({
-    required: false,
-    description: 'Only used for documentType=invoice.',
-  })
-  @IsOptional()
-  @IsString()
-  @MaxLength(255)
-  technicalKey?: string;
 
   @ApiProperty({ example: '2024-07-21' })
   @IsDateString()

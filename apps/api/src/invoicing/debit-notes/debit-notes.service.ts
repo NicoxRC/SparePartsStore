@@ -116,7 +116,10 @@ export class DebitNotesService {
     const number = await this.resolveNextNumber(prefix);
 
     const requestPayload = {
-      actions: { send_dian: true, send_email: false },
+      actions: {
+        send_dian: this.dataicoConfig.sendDian,
+        send_email: this.dataicoConfig.sendEmail,
+      },
       debit_note: {
         env: 'PRODUCCION',
         dataico_account_id: this.dataicoConfig.accountId,

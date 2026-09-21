@@ -1,8 +1,7 @@
 import { Fragment, useState } from 'react';
 import { Alert } from '../components/Alert';
 import { Pagination } from '../components/Pagination';
-import { CashRegisterTicket } from '../components/print/CashRegisterTicket';
-import { PrintTicket } from '../components/print/PrintTicket';
+import { CashRegisterPrint } from '../components/print/CashRegisterPrint';
 import { Spinner } from '../components/Spinner';
 import { useCashRegisterHistory, useUpdateCountedCash } from '../hooks/useCashRegister';
 import { usePermissions } from '../hooks/usePermissions';
@@ -269,9 +268,7 @@ export function CashRegisterHistoryPage() {
       )}
 
       {printingRegister && (
-        <PrintTicket onClose={() => setPrintingId(null)}>
-          <CashRegisterTicket register={printingRegister} />
-        </PrintTicket>
+        <CashRegisterPrint register={printingRegister} onClose={() => setPrintingId(null)} />
       )}
     </div>
   );

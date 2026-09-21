@@ -1,5 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm, useWatch } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
@@ -21,32 +21,24 @@ export function ResolutionFormPage() {
   const {
     register,
     handleSubmit,
-    control,
     formState: { errors },
   } = useForm<ResolutionFormInput, unknown, ResolutionFormValues>({
     resolver: zodResolver(resolutionFormSchema),
     defaultValues: {
       documentType: 'invoice',
       prefix: '',
-      subtype: '',
       resolutionCode: '',
-      resolutionCodeMessage: '',
       resolutionNumber: '',
       rangeStart: 0,
       rangeEnd: 0,
-      technicalKey: '',
       startDate: '',
       endDate: '',
     },
   });
 
-  const documentType = useWatch({ control, name: 'documentType' });
-
   const onSubmit = async (values: ResolutionFormValues) => {
     await createMutation.mutateAsync({
       ...values,
-      resolutionCodeMessage: values.resolutionCodeMessage || undefined,
-      technicalKey: values.technicalKey || undefined,
     });
     navigate('/invoicing/resolutions');
   };
@@ -84,23 +76,10 @@ export function ResolutionFormPage() {
         />
 
         <TextField
-          label="Subtipo"
-          placeholder="ELECTRONICO"
-          error={errors.subtype?.message}
-          {...register('subtype')}
-        />
-
-        <TextField
           label="Código de la resolución"
           placeholder="SDJ-002"
           error={errors.resolutionCode?.message}
           {...register('resolutionCode')}
-        />
-
-        <TextField
-          label="Mensaje del código (opcional)"
-          error={errors.resolutionCodeMessage?.message}
-          {...register('resolutionCodeMessage')}
         />
 
         <TextField
@@ -124,14 +103,6 @@ export function ResolutionFormPage() {
             {...register('rangeEnd')}
           />
         </div>
-
-        {documentType === 'invoice' && (
-          <TextField
-            label="Clave técnica (opcional)"
-            error={errors.technicalKey?.message}
-            {...register('technicalKey')}
-          />
-        )}
 
         <div className="grid grid-cols-2 gap-4">
           <TextField

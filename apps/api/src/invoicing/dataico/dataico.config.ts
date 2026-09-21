@@ -32,6 +32,28 @@ export class DataicoConfig {
     );
   }
 
+  /**
+   * Master switch for submitting documents to the DIAN (`send_dian` on
+   * invoices, credit/debit notes, resends and payroll). Off unless
+   * `DATAICO_SEND_DIAN=true`, so nothing is submitted by accident while
+   * testing: Dataico still creates the document, it just isn't sent on.
+   */
+  get sendDian(): boolean {
+    return this.readFlag('DATAICO_SEND_DIAN');
+  }
+
+  /** Master switch for Dataico emailing the document to the customer. Off by default. */
+  get sendEmail(): boolean {
+    return this.readFlag('DATAICO_SEND_EMAIL');
+  }
+
+  private readFlag(key: string): boolean {
+    return (
+      this.configService.get<string>(key, 'false').trim().toLowerCase() ===
+      'true'
+    );
+  }
+
   get authToken(): string {
     const token = this.configService.get<string>('DATAICO_AUTH_TOKEN');
     if (!token) {

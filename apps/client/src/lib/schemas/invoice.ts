@@ -1,11 +1,15 @@
 import { z } from 'zod';
 
 export const invoiceItemFormSchema = z.object({
-  productId: z.string().min(1, 'Selecciona un producto.'),
+  // '' for a one-off line typed on the sale (not a catalog product).
+  productId: z.string(),
   reference: z.string(),
   description: z.string(),
+  // The product's brand, only to show it in the table (older saved drafts have none).
+  brand: z.string().optional(),
   price: z.number(),
-  stock: z.number(),
+  // Not applicable to a one-off line (no stock behind it).
+  stock: z.number().optional(),
   quantity: z.coerce.number().int().min(1, 'Cantidad mínima 1.'),
   // Derived from the product's taxExempt flag when added (see
   // handleAddProduct) — never a user input, not sent to the backend

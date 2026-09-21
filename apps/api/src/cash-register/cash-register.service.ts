@@ -19,6 +19,8 @@ import { Quotation } from '../quotations/entities/quotation.entity';
 import { CashRegisterNoteResponseDto } from './dto/cash-register-note.dto';
 import { CashRegisterResponseDto } from './dto/cash-register-response.dto';
 import { CashRegisterStatusDto } from './dto/cash-register-status.dto';
+import { DayInvoicesReportDto } from './dto/day-invoices-report.dto';
+import { buildDayInvoicesReport } from './day-invoices-report.util';
 import { CreateCashMovementDto } from './dto/create-cash-movement.dto';
 import { QueryCashRegisterDto } from './dto/query-cash-register.dto';
 import { CashMovement } from './entities/cash-movement.entity';
@@ -431,6 +433,42 @@ export class CashRegisterService {
       ...debitNotes.map((note) => toDto(note, 'debit')),
       ...creditNotes.map((note) => toDto(note, 'credit')),
     ].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  }
+
+  /**
+   * Every invoice of a register's store day, with how they add up — printed
+   * as the second page of the cash-register slip. Uses the same day range as
+   * the closing totals, so its total matches "recaudado".
+   */
+  async getDayInvoicesReport(id: string): Promise<DayInvoicesReportDto> {
+    const register = await this.cashRegisterRepository.findOne({
+      where: { id },
+    });
+    if (!register) {
+      throw new NotFoundException('Cash register not found');
+    }
+
+    const { start, end } = getStoreDayRangeUtc(register.registerDate);
+    const invoices = await this.invoicesRepository
+      .createQueryBuilder('invoice')
+      .select([
+        'invoice.id',
+        'invoice.number',
+        'invoice.prefix',
+        'invoice.dataicoNumber',
+        'invoice.totalAmount',
+        'invoice.requestPayload',
+      ])
+      .where('invoice.createdAt >= :start AND invoice.createdAt < :end', {
+        start,
+        end,
+      })
+      .orderBy('invoice.createdAt', 'ASC')
+      // Invoices created in the same instant would otherwise list in any order.
+      .addOrderBy('invoice.number', 'ASC')
+      .getMany();
+
+    return buildDayInvoicesReport(register.registerDate, invoices);
   }
 
   private async findWithRelations(id: string): Promise<CashRegister> {

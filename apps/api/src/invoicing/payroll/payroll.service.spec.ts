@@ -17,7 +17,7 @@ describe('PayrollService', () => {
     post: jest.Mock<Promise<unknown>, [string, unknown, string?]>;
     get: jest.Mock<Promise<unknown>, [string, string?]>;
   };
-  let dataicoConfig: { payrollBaseUrl: string };
+  let dataicoConfig: { payrollBaseUrl: string; sendDian: boolean };
 
   // Entirely fictitious test data — never real employee data, see
   // docs/phases/PHASE_15_PAYROLL.md's note on the shared reference
@@ -71,6 +71,7 @@ describe('PayrollService', () => {
     };
     dataicoConfig = {
       payrollBaseUrl: 'https://api.dataico.com/direct/payroll-api/v2',
+      sendDian: true,
     };
 
     service = new PayrollService(
@@ -113,6 +114,19 @@ describe('PayrollService', () => {
         }),
         'https://api.dataico.com/direct/payroll-api/v2',
       );
+    });
+
+    it('sends send_dian off when the switch is off (the default)', async () => {
+      dataicoConfig.sendDian = false;
+
+      await service.create(baseDto, 'user-1');
+
+      const body = dataicoClient.post.mock.calls[0][1] as {
+        send_dian: boolean;
+        env: string;
+      };
+      expect(body.send_dian).toBe(false);
+      expect(body.env).toBe('PRODUCCION');
     });
 
     it('builds employeeName from the available name parts', async () => {

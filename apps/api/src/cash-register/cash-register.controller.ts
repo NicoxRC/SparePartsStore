@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseUUIDPipe,
   Patch,
   Post,
   Query,
@@ -26,6 +27,7 @@ import { CashRegisterResponseDto } from './dto/cash-register-response.dto';
 import { CashRegisterStatusDto } from './dto/cash-register-status.dto';
 import { CloseCashRegisterDto } from './dto/close-cash-register.dto';
 import { CreateCashMovementDto } from './dto/create-cash-movement.dto';
+import { DayInvoicesReportDto } from './dto/day-invoices-report.dto';
 import { OpenCashRegisterDto } from './dto/open-cash-register.dto';
 import { QueryCashRegisterDto } from './dto/query-cash-register.dto';
 import { UpdateCountedCashDto } from './dto/update-counted-cash.dto';
@@ -120,6 +122,20 @@ export class CashRegisterController {
   @RequirePermission('cash_register.view')
   getTodayStatus(): Promise<CashRegisterStatusDto> {
     return this.cashRegisterService.getTodayStatus();
+  }
+
+  @ApiOperation({
+    summary:
+      "Every invoice of a register's day plus the totals — the second page of the printed cash-register slip",
+  })
+  @ApiResponse({ status: 200, type: DayInvoicesReportDto })
+  @ApiResponse({ status: 404, description: 'Cash register not found' })
+  @Get(':id/invoices')
+  @RequirePermission('cash_register.view')
+  getDayInvoicesReport(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<DayInvoicesReportDto> {
+    return this.cashRegisterService.getDayInvoicesReport(id);
   }
 
   @ApiOperation({ summary: 'List past cash registers, most recent day first' })

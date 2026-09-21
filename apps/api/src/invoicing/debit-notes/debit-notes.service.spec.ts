@@ -33,7 +33,12 @@ describe('DebitNotesService', () => {
     getManyAndCount: jest.Mock;
   };
   let dataicoClient: { post: jest.Mock<Promise<unknown>, [string, unknown]> };
-  let dataicoConfig: { accountId: string; debitNotePrefix: string };
+  let dataicoConfig: {
+    accountId: string;
+    debitNotePrefix: string;
+    sendDian: boolean;
+    sendEmail: boolean;
+  };
   let invoicesService: { findOne: jest.Mock };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
@@ -108,7 +113,12 @@ describe('DebitNotesService', () => {
       createQueryBuilder: jest.fn(() => queryBuilder),
     };
     dataicoClient = { post: jest.fn<Promise<unknown>, [string, unknown]>() };
-    dataicoConfig = { accountId: 'account-123', debitNotePrefix: 'NDL' };
+    dataicoConfig = {
+      accountId: 'account-123',
+      debitNotePrefix: 'NDL',
+      sendDian: true,
+      sendEmail: false,
+    };
     invoicesService = { findOne: jest.fn().mockResolvedValue(existingInvoice) };
     productsService = { findOne: jest.fn().mockResolvedValue(product) };
     inventoryService = {
@@ -218,9 +228,8 @@ describe('DebitNotesService', () => {
                 measuring_unit: '94',
                 description: 'Filtro de aceite',
                 quantity: 1,
-                // salePrice (50000) is IVA-inclusive, unwrapped to pre-tax:
-                // 50000 / 1.19 = 42016.80..., rounds to 42017.
-                price: 42017,
+                // salePrice (50000) is the price before IVA, sent as-is.
+                price: 50000,
                 taxes: [{ tax_category: 'IVA', tax_rate: 19 }],
               }),
             ],
@@ -228,6 +237,16 @@ describe('DebitNotesService', () => {
         }),
       );
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    });
+
+    it('sends send_dian/send_email off when the switches are off (the default)', async () => {
+      dataicoConfig.sendDian = false;
+      dataicoConfig.sendEmail = false;
+
+      await service.create(baseDto, 'user-1');
+
+      const body = dataicoClient.post.mock.calls[0][1] as { actions: unknown };
+      expect(body.actions).toEqual({ send_dian: false, send_email: false });
     });
 
     it('sends an empty taxes array for a tax-exempt product', async () => {

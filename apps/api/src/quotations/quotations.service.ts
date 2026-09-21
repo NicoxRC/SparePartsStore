@@ -8,9 +8,11 @@ import { Repository } from 'typeorm';
 import { CashRegisterService } from '../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { escapeLike } from '../common/utils/escape-like.util';
+import { assertLineKind } from '../common/utils/custom-line.util';
 import {
   computeLineAmounts,
   resolveTaxRate,
+  STANDARD_TAX_RATE,
 } from '../common/utils/invoice-math.util';
 import { InventoryService } from '../inventory/inventory.service';
 import { CreateInvoiceDto } from '../invoicing/invoices/dto/create-invoice.dto';
@@ -28,7 +30,10 @@ import { QuotationItem } from './entities/quotation-item.entity';
 import { Quotation } from './entities/quotation.entity';
 
 interface ResolvedLine {
-  product: Product;
+  /** null for a one-off line typed on the quotation (not a catalog product). */
+  product: Product | null;
+  /** The one-off line's name; null for a product line. */
+  description: string | null;
   quantity: number;
   taxRate: number;
   discount?: number;
@@ -64,6 +69,8 @@ export class QuotationsService {
     // better an orphaned partial stock change to investigate than a
     // quotation record that overstates what actually left the store).
     for (const item of resolved) {
+      // A one-off line has no product, so no stock leaves.
+      if (!item.product) continue;
       await this.inventoryService.createMovement(
         {
           productId: item.product.id,
@@ -88,7 +95,8 @@ export class QuotationsService {
     const items = resolved.map((item) =>
       this.quotationItemsRepository.create({
         quotation: { id: saved.id } as Quotation,
-        product: { id: item.product.id } as Product,
+        product: item.product ? { id: item.product.id } : null,
+        description: item.product ? null : item.description,
         quantity: item.quantity,
         taxRate: item.taxRate,
         discount: item.discount ?? null,
@@ -171,14 +179,21 @@ export class QuotationsService {
     this.assertOpen(quotation);
 
     const newLines = await Promise.all(
-      dto.items.map(async (itemDto) => ({
-        itemDto,
-        product: await this.productsService.findOne(itemDto.productId),
-      })),
+      dto.items.map(async (itemDto) => {
+        assertLineKind(itemDto);
+        return {
+          itemDto,
+          // null for a one-off line: nothing in the catalog, nothing in stock.
+          product: itemDto.productId
+            ? await this.productsService.findOne(itemDto.productId)
+            : null,
+        };
+      }),
     );
 
     const oldQtyByProduct = new Map<string, number>();
     for (const item of quotation.items) {
+      if (!item.product) continue;
       oldQtyByProduct.set(
         item.product.id,
         (oldQtyByProduct.get(item.product.id) ?? 0) + item.quantity,
@@ -187,14 +202,15 @@ export class QuotationsService {
     const newQtyByProduct = new Map<string, number>();
     const productsById = new Map<string, Product>();
     for (const { itemDto, product } of newLines) {
+      if (!product) continue;
       newQtyByProduct.set(
-        itemDto.productId,
-        (newQtyByProduct.get(itemDto.productId) ?? 0) + itemDto.quantity,
+        product.id,
+        (newQtyByProduct.get(product.id) ?? 0) + itemDto.quantity,
       );
       productsById.set(product.id, product);
     }
     for (const item of quotation.items) {
-      if (!productsById.has(item.product.id)) {
+      if (item.product && !productsById.has(item.product.id)) {
         productsById.set(item.product.id, item.product);
       }
     }
@@ -237,37 +253,42 @@ export class QuotationsService {
 
     const quotedPriceByProduct = new Map<string, number>();
     for (const item of quotation.items) {
-      if (!quotedPriceByProduct.has(item.product.id)) {
+      if (item.product && !quotedPriceByProduct.has(item.product.id)) {
         quotedPriceByProduct.set(item.product.id, item.unitPrice);
       }
     }
     const priceFor = (product: Product): number =>
       quotedPriceByProduct.get(product.id) ?? Number(product.salePrice);
 
+    // One list drives both what is saved and the total, so they can't drift.
+    const finalLines: ResolvedLine[] = newLines.map(({ itemDto, product }) => ({
+      product,
+      description: product ? null : (itemDto.description as string),
+      quantity: itemDto.quantity,
+      taxRate: product ? resolveTaxRate(product) : STANDARD_TAX_RATE,
+      discount: itemDto.discount,
+      unitPrice: product
+        ? priceFor(product)
+        : (itemDto.customUnitPrice as number),
+    }));
+
     await this.quotationItemsRepository.delete({
       quotation: { id: quotation.id },
     });
-    const newItems = newLines.map(({ itemDto, product }) =>
+    const newItems = finalLines.map((line) =>
       this.quotationItemsRepository.create({
         quotation: { id: quotation.id } as Quotation,
-        product: { id: product.id } as Product,
-        quantity: itemDto.quantity,
-        taxRate: resolveTaxRate(product),
-        discount: itemDto.discount ?? null,
-        unitPrice: priceFor(product),
+        product: line.product ? { id: line.product.id } : null,
+        description: line.description,
+        quantity: line.quantity,
+        taxRate: line.taxRate,
+        discount: line.discount ?? null,
+        unitPrice: line.unitPrice,
       }),
     );
     await this.quotationItemsRepository.save(newItems);
 
-    const totalAmount = this.sumTotal(
-      newLines.map(({ itemDto, product }) => ({
-        product,
-        quantity: itemDto.quantity,
-        taxRate: resolveTaxRate(product),
-        discount: itemDto.discount,
-        unitPrice: priceFor(product),
-      })),
-    );
+    const totalAmount = this.sumTotal(finalLines);
     await this.quotationsRepository.update(quotation.id, {
       totalAmount,
       updatedBy: { id: userId },
@@ -321,13 +342,23 @@ export class QuotationsService {
       paymentMeans: dto.paymentMeans,
       paymentMeansType: dto.paymentMeansType,
       ...customer,
-      items: quotation.items.map((item) => ({
-        productId: item.product.id,
-        quantity: item.quantity,
-        taxRate: Number(item.taxRate),
-        discount: item.discount ?? undefined,
-        unitPriceOverride: item.unitPrice,
-      })),
+      items: quotation.items.map((item) =>
+        item.product
+          ? {
+              productId: item.product.id,
+              quantity: item.quantity,
+              taxRate: Number(item.taxRate),
+              discount: item.discount ?? undefined,
+              unitPriceOverride: item.unitPrice,
+            }
+          : {
+              // A one-off line goes to the invoice as typed.
+              description: item.description ?? '',
+              customUnitPrice: item.unitPrice,
+              quantity: item.quantity,
+              discount: item.discount ?? undefined,
+            },
+      ),
       notes: dto.notes,
     };
 
@@ -358,6 +389,8 @@ export class QuotationsService {
     this.assertOpen(quotation);
 
     for (const item of quotation.items) {
+      // Nothing left the store for a one-off line, so nothing comes back.
+      if (!item.product) continue;
       await this.inventoryService.createMovement(
         {
           productId: item.product.id,
@@ -380,7 +413,19 @@ export class QuotationsService {
     itemDtos: CreateQuotationItemDto[],
   ): Promise<ResolvedLine[]> {
     return Promise.all(
-      itemDtos.map(async (itemDto) => {
+      itemDtos.map(async (itemDto): Promise<ResolvedLine> => {
+        assertLineKind(itemDto);
+        if (!itemDto.productId) {
+          // One-off line: as typed, always with standard IVA, no stock.
+          return {
+            product: null,
+            description: itemDto.description as string,
+            quantity: itemDto.quantity,
+            taxRate: STANDARD_TAX_RATE,
+            discount: itemDto.discount,
+            unitPrice: itemDto.customUnitPrice as number,
+          };
+        }
         const product = await this.productsService.findOne(itemDto.productId);
         if (product.stock < itemDto.quantity) {
           throw new BadRequestException(
@@ -389,6 +434,7 @@ export class QuotationsService {
         }
         return {
           product,
+          description: null,
           quantity: itemDto.quantity,
           taxRate: resolveTaxRate(product),
           discount: itemDto.discount,
@@ -443,6 +489,9 @@ export class QuotationsService {
       .withDeleted()
       .leftJoinAndSelect('quotation.items', 'items')
       .leftJoinAndSelect('items.product', 'product')
+      // The printed quotation shows each part's brand and who sold it.
+      .leftJoinAndSelect('product.brand', 'brand')
+      .leftJoinAndSelect('quotation.createdBy', 'createdBy')
       .leftJoinAndSelect('quotation.invoice', 'invoice')
       .where('quotation.id = :id', { id })
       .andWhere('quotation.deletedAt IS NULL')

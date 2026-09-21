@@ -140,7 +140,7 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `id` | UUID | PK |
 | `reference` | VARCHAR(100) | uppercased at the DTO layer; partial-unique among non-deleted rows; doubles as the barcode-scanner target field (see `GLOSSARY.md` "Barcode scanning") — there is no separate barcode column |
 | `description` | VARCHAR(255) | capitalized (first letter upper, rest lower) at the DTO layer |
-| `sale_price` | NUMERIC(12,2) | The only price on a product, **always typed in by the user** — never suggested or derived by the system (not even by a purchase import). Includes IVA, see `GLOSSARY.md`. |
+| `sale_price` | NUMERIC(12,2) | The only price on a product, **always typed in by the user** — never suggested or derived by the system (not even by a purchase import). The price **before IVA**: the invoice/quotation adds IVA on top (see `GLOSSARY.md`, "Sale price"). |
 | `stock` | INT | default `0`; the live/current stock count — see `inventory_movements` for how it changes |
 | `tax_exempt` | BOOLEAN | default `false` — every product existing before this column was added keeps charging IVA. The only source of a line's tax rate on an invoice/quotation/credit-debit-note item: `resolveTaxRate()` (`common/utils/invoice-math.util.ts`) derives `0` or the standard `19` from this flag alone — `taxRate` was removed from every item DTO, it's never client-supplied anymore. |
 | `department_id` | UUID, FK → `departments.id` | `NOT NULL`, `RESTRICT` |
@@ -195,17 +195,16 @@ Added Phase 8 — a DIAN numbering resolution successfully synced to Dataico. Se
 | `id` | UUID | PK |
 | `document_type` | ENUM `dian_resolution_document_type` (`invoice`, `support_docs`) | Which Dataico numbering-sync endpoint this resolution was sent to. |
 | `prefix` | VARCHAR(20) | |
-| `subtype` | VARCHAR(50) | Free validated string, not a TypeScript enum — only `ELECTRONICO`/`POS` are confirmed so far, and locking in a full enum would mean guessing the rest. |
-| `resolution_code`, `resolution_code_message` (nullable), `resolution_number` | VARCHAR | Mirror Dataico's own `code`/`code-msg`(or `code_msg`)/`number` fields — see the phase doc for the exact per-document-type wire format. |
+| `subtype` | VARCHAR(50) | **Always `ELECTRONICO`** — no longer user-entered (`ELECTRONIC_SUBTYPE` in `resolutions/resolution.constants.ts`; the form and DTO dropped the field). Kept as a column because `findActiveForDocumentType()` still filters on it; Still a plain string, not an enum. |
+| `resolution_code`, `resolution_number` | VARCHAR | Mirror Dataico's own `code`/`number` fields (the `code-msg`/`code_msg` message is still sent to Dataico but as a fixed constant, `RESOLUTION_CODE_MESSAGE` — no longer user-entered nor stored; migration 30 removed its column) — see the phase doc for the exact per-document-type wire format. |
 | `range_start`, `range_end` | INT | The resolution's authorized numbering range. |
-| `technical_key` | VARCHAR(255), nullable | Only ever set for `document_type = 'invoice'`, per the confirmed reference. |
 | `start_date`, `end_date` | DATE | The resolution's validity window. |
 | `created_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at` | TIMESTAMPTZ | **No `updated_at`, no `deleted_at` — append-only**, same convention as `inventory_movements`. A resolution is never edited; it's superseded by syncing a new one. The most recently created row for a given `(document_type, subtype)` is the active one — there is no separate "is active" flag. |
 
 **Business logic (`ResolutionsService.create`):** builds Dataico's request body (field names differ by `document_type` — see the phase doc), calls Dataico, and **only inserts the local row if Dataico accepts it** — a rejected sync is never recorded as "on file."
 
-**Business logic (`ResolutionsService.findActiveForDocumentType`):** every caller must pass `subtype` explicitly (e.g. `InvoicesService.create()` passes `'ELECTRONICO'`) — never call it with just `document_type`. `subtype` is a free string, not an enum, so more than one resolution can exist under the same `document_type` (this store's now-removed POS module used `'POS'` under `document_type: invoice` alongside the standard `'ELECTRONICO'` one — see `docs/phases/PHASE_12_POS.md`); omitting `subtype` would let whichever row is most recent silently become "the" active one, regardless of what it was actually meant for. The `IDX_dian_resolutions_document_type_prefix` index predates this — `prefix` is an output of picking the active resolution (which row it lands on), not something a caller filters by going in.
+**Business logic (`ResolutionsService.findActiveForDocumentType`):** every caller must pass `subtype` explicitly (e.g. `InvoicesService.create()` passes `ELECTRONIC_SUBTYPE`) — never call it with just `document_type`. `subtype` is a free string, not an enum; omitting it would let whichever row is most recent silently become "the" active one, regardless of what it was actually meant for. The `IDX_dian_resolutions_document_type_prefix` index predates this — `prefix` is an output of picking the active resolution (which row it lands on), not something a caller filters by going in.
 
 ### `invoices`
 
@@ -404,11 +403,12 @@ Local enhancement (not a numbered roadmap phase, and not a Dataico integration �
 |---|---|---|
 | `id` | UUID | PK |
 | `quotation_id` | UUID, FK → `quotations.id`, `CASCADE` | |
-| `product_id` | UUID, FK → `products.id`, `RESTRICT` | |
+| `product_id` | UUID, nullable, FK → `products.id`, `RESTRICT` | `NULL` for a **one-off line** typed on the quotation (see "Línea libre" in `GLOSSARY.md`) — then `description` carries its name. |
+| `description` | VARCHAR(255), nullable | Only set on a one-off line (`product_id IS NULL`). |
 | `quantity` | INT | |
-| `tax_rate` | NUMERIC(5,2) | **Server-derived**, never client-supplied — `resolveTaxRate()` reads it straight off `products.tax_exempt` at the moment a line is added/edited (see the `products` table above). |
+| `tax_rate` | NUMERIC(5,2) | **Server-derived** (a one-off line is always 19%), never client-supplied — `resolveTaxRate()` reads it straight off `products.tax_exempt` at the moment a line is added/edited (see the `products` table above). |
 | `discount` | NUMERIC(12,2), nullable | Same "flat COP amount, not a percentage" semantics as `CreateInvoiceItemDto.discount` — see the paragraph below on how the client computes it now. |
-| `unit_price` | NUMERIC(12,2) | **The locked price** — a snapshot of `products.sale_price` (gross, IVA-inclusive) taken when the product is first added to the quotation, confirmed with the human: the customer keeps the price they were quoted, even if the product's price changes before they come back to pay. |
+| `unit_price` | NUMERIC(12,2) | **The locked price** — a snapshot of `products.sale_price` (the price before IVA — IVA is added on top when the quotation is totalled) taken when the product is first added to the quotation, confirmed with the human: the customer keeps the price they were quoted, even if the product's price changes before they come back to pay. |
 | `created_at`, `updated_at` | TIMESTAMPTZ | No soft delete — a row removed by an edit has no further use once the inventory movement it triggered (the real audit trail) is recorded. |
 
 **Business logic (`QuotationsService`):**
@@ -417,7 +417,7 @@ Local enhancement (not a numbered roadmap phase, and not a Dataico integration �
 - `invoice()` — only while open. Converts to a real `Invoice` via `InvoicesService.create()`, passing each item's locked `unit_price` through `CreateInvoiceItemDto.unitPriceOverride` (an internal-only field, never set by the normal Venta form) and telling `create()` to skip its own stock check/decrement via an internal-only 3rd parameter — required for correctness, not just to avoid double-counting: by invoice time, `products.stock` no longer includes these reserved units at all, so re-running the normal sufficiency check would fail a legitimate sale. Bills either to the quotation's own customer columns or to a caller-supplied override (`InvoiceQuotationDto.customer`, required when `useSameCustomer` is false).
 - `cancel()` — only while open. One positive (return) movement per line, sets `cancelled_at`.
 
-The shared "unwrap IVA-inclusive price → subtract discount → recompute tax" math (`InvoicesService.resolveItems()` and `QuotationsService` both need it) lives in `common/utils/invoice-math.util.ts`'s `computeLineAmounts()`.
+The shared "subtract discount from price × quantity → add IVA on top" math (`InvoicesService.resolveItems()` and `QuotationsService` both need it) lives in `common/utils/invoice-math.util.ts`'s `computeLineAmounts()`.
 
 **Discount is no longer a per-line input** — there's one "Aplicar descuento" control (% or a COP value, each deriving the other) on the invoice/quotation form, applied once to the whole sale. The client prorates it into each line's flat `discount` before it's sent (`computeItemDiscount()` in `apps/client/src/lib/invoiceMath.ts`): the same percentage taken off every line's pre-tax subtotal is mathematically identical to taking it off the tax-inclusive grand total (tax is linear), so `computeLineAmounts()`/the `discount` column's stored shape didn't need to change at all — only where the per-line number comes from.
 
@@ -511,6 +511,9 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 27 | `CreateSuppliers` | Phase 16. `suppliers` table (audit FKs to `users`, partial unique index `UQ_suppliers_nit_active`), plus nullable `products.supplier_id` (FK `RESTRICT`) and `IDX_products_supplier_id`. Hand-written, same reason as the migrations above. |
 | 28 | `CreatePurchaseImports` | Phase 16. `purchase_imports` (FK to `suppliers` `RESTRICT`, audit FKs, single-outcome `CHECK`, both partial unique indexes, `created_at DESC` and `supplier_id` indexes) and `purchase_import_items` (FK to `purchase_imports` `CASCADE`, FKs to `products`/lookups `RESTRICT`, `match_type` `CHECK`s, unique `(purchase_import_id, line_number)`). Hand-written, same reason as the migrations above. |
 | 29 | `RemoveCostAndSaleTypeFromProducts` | Drops `products.cost`, `products.sale_type` and the `sale_type` enum — the store now enters only the sale price. **Not fully reversible:** `down()` restores the columns with `sale_type = 'normal'` and a cost recomputed at the `normal` factor, not the original values. Hand-written, same reason as the migrations above. |
+| 30 | `RemoveCodeMessageFromDianResolutions` | Drops `dian_resolutions.resolution_code_message` (the optional code message: `code-msg` is still sent to Dataico, but as a fixed constant, so nothing needs storing). `down()` re-adds the empty nullable column — the old texts aren't recoverable. Hand-written, same reason as the migrations above. |
+| 31 | `RemoveTechnicalKeyFromDianResolutions` | Drops `dian_resolutions.technical_key`: the resolution form no longer asks for it and the numbering sync no longer sends `technical-key` (Dataico had already accepted resolutions synced without it). `down()` re-adds the empty nullable column — stored keys aren't recoverable. Hand-written, same reason as the migrations above. |
+| 32 | `AddCustomLinesToQuotationItems` | `quotation_items.product_id` becomes nullable and `description` (VARCHAR 255) is added, so a quotation line can be a one-off (description + price) instead of a catalog product. `down()` deletes the one-off lines before restoring `NOT NULL`. Hand-written, same reason as the migrations above. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

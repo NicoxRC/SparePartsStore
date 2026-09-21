@@ -30,6 +30,8 @@ describe('CashRegisterService', () => {
   let debitNotesRepository: { find: jest.Mock };
   let creditNotesRepository: { find: jest.Mock };
   let invoiceQueryBuilder: {
+    orderBy: jest.Mock;
+    addOrderBy: jest.Mock;
     select: jest.Mock;
     where: jest.Mock;
     getRawOne: jest.Mock;
@@ -78,6 +80,8 @@ describe('CashRegisterService', () => {
     invoiceQueryBuilder = {
       select: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       getRawOne: jest.fn().mockResolvedValue({ sum: '150000' }),
       getMany: jest
         .fn()
@@ -477,6 +481,53 @@ describe('CashRegisterService', () => {
       expect(cashRegisterRepository.findOne).toHaveBeenCalledWith({
         where: { registerDate: '2026-09-16' },
       });
+    });
+  });
+
+  describe('getDayInvoicesReport', () => {
+    it('404s for an unknown register', async () => {
+      cashRegisterRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getDayInvoicesReport('nope')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+
+    it("reports the register's own store day, with the same range the closing totals use", async () => {
+      cashRegisterRepository.findOne.mockResolvedValue({
+        ...openRegister,
+        registerDate: '2026-09-18',
+      });
+      invoiceQueryBuilder.getMany.mockResolvedValue([
+        {
+          ...invoiceWith(119000, 'CASH'),
+          number: 5,
+          prefix: 'FEE',
+          dataicoNumber: 'FEE5',
+        },
+      ]);
+
+      const report = await service.getDayInvoicesReport('reg-1');
+
+      expect(report.registerDate).toBe('2026-09-18');
+      expect(report.invoices).toEqual([
+        { number: 'FEE5', total: 119000, paymentMeans: 'CASH' },
+      ]);
+      // 2026-09-18 in Bogotá: [09-18 00:00 -05:00, 09-19 00:00 -05:00)
+      const range = invoiceQueryBuilder.where.mock.calls.at(-1) as [
+        string,
+        { start: Date; end: Date },
+      ];
+      expect(range[1].start.toISOString()).toBe('2026-09-18T05:00:00.000Z');
+      expect(range[1].end.toISOString()).toBe('2026-09-19T05:00:00.000Z');
+      expect(invoiceQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'invoice.createdAt',
+        'ASC',
+      );
+      expect(invoiceQueryBuilder.addOrderBy).toHaveBeenCalledWith(
+        'invoice.number',
+        'ASC',
+      );
     });
   });
 

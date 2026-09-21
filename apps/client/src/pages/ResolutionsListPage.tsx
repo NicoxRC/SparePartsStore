@@ -49,7 +49,6 @@ export function ResolutionsListPage() {
                   <tr>
                     <th className="px-4 py-3">Tipo</th>
                     <th className="px-4 py-3">Prefijo</th>
-                    <th className="px-4 py-3">Subtipo</th>
                     <th className="px-4 py-3">Número</th>
                     <th className="px-4 py-3">Rango</th>
                     <th className="px-4 py-3">Vigencia</th>
@@ -63,7 +62,6 @@ export function ResolutionsListPage() {
                           resolution.documentType}
                       </td>
                       <td className="px-4 py-3">{resolution.prefix}</td>
-                      <td className="px-4 py-3">{resolution.subtype}</td>
                       <td className="px-4 py-3">{resolution.resolutionNumber}</td>
                       <td className="px-4 py-3">
                         {resolution.rangeStart}–{resolution.rangeEnd}

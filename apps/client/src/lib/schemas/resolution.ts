@@ -10,17 +10,11 @@ export const resolutionFormSchema = z
       .trim()
       .min(1, 'El prefijo es obligatorio.')
       .max(20, 'Máximo 20 caracteres.'),
-    subtype: z
-      .string()
-      .trim()
-      .min(1, 'El subtipo es obligatorio.')
-      .max(50, 'Máximo 50 caracteres.'),
     resolutionCode: z
       .string()
       .trim()
       .min(1, 'El código es obligatorio.')
       .max(50, 'Máximo 50 caracteres.'),
-    resolutionCodeMessage: z.string().trim().max(255).optional().or(z.literal('')),
     resolutionNumber: z
       .string()
       .trim()
@@ -34,7 +28,6 @@ export const resolutionFormSchema = z
       .number({ message: 'El rango final debe ser un número.' })
       .int()
       .min(0),
-    technicalKey: z.string().trim().max(255).optional().or(z.literal('')),
     startDate: z.string().min(1, 'La fecha de inicio es obligatoria.'),
     endDate: z.string().min(1, 'La fecha de fin es obligatoria.'),
   })

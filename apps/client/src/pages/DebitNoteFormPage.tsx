@@ -1,3 +1,4 @@
+import { BrandTag } from '../components/BrandTag';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
@@ -11,7 +12,8 @@ import { useInvoice } from '../hooks/useInvoices';
 import { useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
-import { computeItemTotal } from '../lib/invoiceMath';
+import { summarizeLines } from '../lib/invoiceMath';
+import { TotalsSummary } from '../components/TotalsSummary';
 import type { ProductResponse } from '../services/products';
 
 const DEFAULT_TAX_RATE = 19;
@@ -20,6 +22,7 @@ interface EditableItem {
   productId: string;
   reference: string;
   description: string;
+  brand: string;
   price: number;
   quantity: number;
   /** Derived from the product's taxExempt flag when added — never a user
@@ -65,6 +68,7 @@ export function DebitNoteFormPage() {
           productId: product.id,
           reference: product.reference,
           description: product.description,
+          brand: product.brand?.name ?? '',
           price: product.salePrice,
           quantity,
           taxRate: product.taxExempt ? 0 : DEFAULT_TAX_RATE,
@@ -89,7 +93,6 @@ export function DebitNoteFormPage() {
     setItems((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const total = items.reduce((sum, item) => sum + computeItemTotal(item), 0);
 
   const handleSubmit = async () => {
     if (!invoiceId) return;
@@ -177,7 +180,14 @@ export function DebitNoteFormPage() {
                     {product.reference} — {product.description}
                   </span>
                   <span className="text-xs text-fog">
-                    ${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
+                    {product.brand?.name && (
+                            <>
+                              <span className="font-semibold uppercase text-steel">
+                                {product.brand.name}
+                              </span>
+                              {' · '}
+                            </>
+                          )}${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
                   </span>
                 </button>
               ))
@@ -211,6 +221,7 @@ export function DebitNoteFormPage() {
                       {item.taxRate === 0 && (
                         <span className="ml-2 text-xs font-medium text-fog">Exenta</span>
                       )}
+                      <BrandTag brand={item.brand} />
                     </td>
                     <td className="px-3 py-2">${item.price.toLocaleString('es-CO')}</td>
                     <td className="w-24 px-3 py-2">
@@ -240,11 +251,7 @@ export function DebitNoteFormPage() {
           </div>
         )}
 
-        <div className="flex justify-end">
-          <p className="total-rule px-1 pb-1 font-mono text-lg font-semibold text-ink">
-            Total: ${total.toLocaleString('es-CO')}
-          </p>
-        </div>
+        <TotalsSummary {...summarizeLines(items)} />
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
           <Button

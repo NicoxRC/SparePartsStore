@@ -274,6 +274,130 @@ describe('QuotationsService', () => {
     });
   });
 
+  describe('one-off lines (not a catalog product)', () => {
+    const customLine = {
+      description: 'Instalación de llantas',
+      customUnitPrice: 30000,
+      quantity: 2,
+    };
+
+    it('saves a typed line with its name and price, standard IVA, and moves no stock', async () => {
+      await service.create(
+        {
+          ...baseDto,
+          items: [customLine, { productId: 'prod-a', quantity: 1 }],
+        },
+        'user-1',
+      );
+
+      const savedItems = quotationItemsRepository.save.mock.calls[0][0];
+      expect(savedItems[0]).toEqual(
+        expect.objectContaining({
+          product: null,
+          description: 'Instalación de llantas',
+          unitPrice: 30000,
+          taxRate: 19,
+        }),
+      );
+      expect(inventoryService.createMovement).toHaveBeenCalledTimes(1);
+      expect(inventoryService.createMovement).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'prod-a' }),
+        'user-1',
+      );
+    });
+
+    it('rejects a line that is a product and a one-off at once', async () => {
+      await expect(
+        service.create(
+          {
+            ...baseDto,
+            items: [{ ...customLine, productId: 'prod-a' }],
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
+    it('keeps a one-off line through an edit, without stock movement for it', async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({
+          items: [
+            {
+              id: 'item-c',
+              product: null,
+              description: 'Instalación de llantas',
+              quantity: 2,
+              taxRate: 19,
+              discount: null,
+              unitPrice: 30000,
+            } as unknown as QuotationItem,
+          ],
+        }),
+      );
+
+      await service.updateItems(
+        'q-1',
+        { items: [{ ...customLine, quantity: 3 }] },
+        'user-1',
+      );
+
+      const savedItems = quotationItemsRepository.save.mock.calls[0][0];
+      expect(savedItems[0]).toEqual(
+        expect.objectContaining({
+          product: null,
+          quantity: 3,
+          unitPrice: 30000,
+        }),
+      );
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
+    it('passes a one-off line to the invoice as typed and does not return it to stock on cancel', async () => {
+      const withCustom = openQuotation({
+        items: [
+          {
+            id: 'item-c',
+            product: null,
+            description: 'Instalación de llantas',
+            quantity: 2,
+            taxRate: 19,
+            discount: null,
+            unitPrice: 30000,
+          } as unknown as QuotationItem,
+        ],
+      });
+      queryBuilder.getOne.mockResolvedValue(withCustom);
+
+      await service.invoice(
+        'q-1',
+        {
+          paymentMeans: 'CASH',
+          paymentMeansType: 'DEBITO',
+          useSameCustomer: true,
+        },
+        'user-1',
+      );
+      expect(invoicesService.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          items: [
+            expect.objectContaining({
+              description: 'Instalación de llantas',
+              customUnitPrice: 30000,
+              quantity: 2,
+            }),
+          ],
+        }),
+        'user-1',
+        { skipInventoryEffects: true },
+      );
+
+      queryBuilder.getOne.mockResolvedValue(withCustom);
+      await service.cancel('q-1', 'user-1');
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+  });
+
   describe('updateItems', () => {
     const dto: UpdateQuotationItemsDto = {
       items: [
@@ -349,7 +473,7 @@ describe('QuotationsService', () => {
 
       const savedLine = (productId: string): QuotationItem | undefined =>
         quotationItemsRepository.save.mock.calls[0][0].find(
-          (item) => item.product.id === productId,
+          (item) => item.product?.id === productId,
         );
 
       it('keeps the price a line was quoted at when the product price changed afterward', async () => {
@@ -381,12 +505,13 @@ describe('QuotationsService', () => {
           'user-1',
         );
 
-        // 2 x 50000 gross at 19% IVA — same total as before the price rose.
+        // 2 x 50000 quoted, before IVA: 100000 + 19% (19000) = 119000 — the
+        // quoted price, not the product's new one (60000 would give 142800).
         const [, changes] = quotationsRepository.update.mock.calls[0] as [
           string,
           { totalAmount: number },
         ];
-        expect(changes.totalAmount).toBe(100000);
+        expect(changes.totalAmount).toBe(119000);
       });
 
       it('keeps the price of a re-added product after it was removed and added back in the same edit', async () => {
@@ -402,7 +527,7 @@ describe('QuotationsService', () => {
         );
 
         const lines = quotationItemsRepository.save.mock.calls[0][0].filter(
-          (item) => item.product.id === 'prod-a',
+          (item) => item.product?.id === 'prod-a',
         );
         expect(lines.map((line) => line.unitPrice)).toEqual([50000, 50000]);
       });
@@ -433,9 +558,43 @@ describe('QuotationsService', () => {
 
       const savedItems = quotationItemsRepository.save.mock.calls[0][0];
       const lineA = savedItems.find(
-        (item: QuotationItem) => item.product.id === 'prod-a',
+        (item: QuotationItem) => item.product?.id === 'prod-a',
       );
       expect(lineA?.taxRate).toBe(0);
+    });
+  });
+
+  describe('printout data', () => {
+    it("exposes each line's product brand and who made the quotation", async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({
+          createdBy: { firstName: 'Jose', lastName: 'Moncayo' } as never,
+          items: [
+            {
+              id: 'item-1',
+              product: { ...productA, brand: { name: 'VICTOR REINZ' } },
+              quantity: 1,
+              taxRate: 19,
+              discount: null,
+              unitPrice: 50000,
+            } as unknown as QuotationItem,
+          ],
+        }),
+      );
+
+      const result = await service.findOne('q-1');
+
+      expect(result.createdByName).toBe('Jose Moncayo');
+      expect(result.items?.[0].productBrand).toBe('VICTOR REINZ');
+    });
+
+    it('leaves brand and seller null when they are not there', async () => {
+      queryBuilder.getOne.mockResolvedValue(openQuotation());
+
+      const result = await service.findOne('q-1');
+
+      expect(result.createdByName).toBeNull();
+      expect(result.items?.[0].productBrand).toBeNull();
     });
   });
 

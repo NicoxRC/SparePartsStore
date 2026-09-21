@@ -15,7 +15,7 @@ Content-Type: application/json
 Auth-token: <DATAICO_AUTH_TOKEN>
 ```
 
-**Field-naming note, recorded as given, not "fixed":** the two document types use genuinely different field-naming conventions in the shared reference — `support_docs` uses snake_case (`code_msg`, `start_date`, `end_date`), `invoice` uses kebab-case (`code-msg`, `start-date`, `end-date`) plus an invoice-only `technical-key` field. This looked like it could be a Postman placeholder artifact (see the git history of this doc for the original analysis), but per explicit instruction from the human, both are implemented exactly as documented rather than normalized to one convention. **If Dataico rejects the `invoice` numbering sync in practice, this is the first thing to revisit** — see `ResolutionsService.buildDataicoBody()`.
+**Field-naming note, recorded as given, not "fixed":** the two document types use genuinely different field-naming conventions in the shared reference — `support_docs` uses snake_case (`code_msg`, `start_date`, `end_date`), `invoice` uses kebab-case (`code-msg`, `start-date`, `end-date`). *(The invoice-only `technical-key` field of the original reference is no longer asked for nor sent — see below.)* This looked like it could be a Postman placeholder artifact (see the git history of this doc for the original analysis), but per explicit instruction from the human, both are implemented exactly as documented rather than normalized to one convention. **If Dataico rejects the `invoice` numbering sync in practice, this is the first thing to revisit** — see `ResolutionsService.buildDataicoBody()`.
 
 ## What shipped
 
@@ -28,7 +28,7 @@ Auth-token: <DATAICO_AUTH_TOKEN>
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
 
 - No edit/delete UI or endpoint for a resolution — matches the append-only backend model; a correction is a new sync, not an edit.
-- `subtype` is a free validated string, not a locked enum — only two values (`ELECTRONICO`, `POS`) are confirmed, and this store likely only ever uses one. Locking it into an enum now would need guessing the full valid-value list.
+- `subtype` is **fixed to `ELECTRONICO`** (decided later by the human: "siempre electrónico") — no longer a user-entered field; the column stays for the active-resolution lookup. The **code message** input was removed from the form, but Dataico's `code-msg` (`code_msg` for support docs) is still sent — as a fixed constant, `RESOLUTION_CODE_MESSAGE` in `resolutions/resolution.constants.ts` ("Resolución agregada correctamente", the text of the shared reference's example) — so nothing is asked or stored and the `resolution_code_message` column was dropped (migration 30). Change the constant if Dataico wants a different text.
 - No "active resolution" endpoint/flag — the frontend just shows the list newest-first; Phase 10 can decide how it picks "the" active resolution when that phase starts.
 
 ## Exit criteria (met)
@@ -38,3 +38,7 @@ An admin can see which DIAN resolution(s) this business is currently authorized 
 ## Related documents
 
 - `docs/phasesClient/PHASE_8_RESOLUTIONS.md`, `docs/GLOSSARY.md` ("Resolución DIAN"), `docs/DATABASE.md` (`dian_resolutions`), `docs/phases/PHASE_10_INVOICING_STANDARD.md` (the confirmed invoice payload's `numbering` block, which this phase's data feeds)
+
+## Follow-up: no technical key
+
+The **Clave técnica** field was removed end to end (form, DTO, entity, `dian_resolutions.technical_key` column via migration 31, and the `technical-key` entry of the invoice sync body). It was optional and the first resolutions synced through the app were accepted by Dataico without it, so the request is identical to the one that already worked. *If invoices later turn out to need it, this is a place to revisit.*

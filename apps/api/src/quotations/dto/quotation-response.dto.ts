@@ -4,9 +4,17 @@ import { Quotation } from '../entities/quotation.entity';
 
 export class QuotationItemResponseDto {
   @ApiProperty() id: string;
-  @ApiProperty() productId: string;
-  @ApiProperty() productReference: string;
+  @ApiProperty({ nullable: true, type: String })
+  productId: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'null for a one-off line (not a catalog product).',
+  })
+  productReference: string | null;
   @ApiProperty() productDescription: string;
+  @ApiProperty({ nullable: true, type: String })
+  productBrand: string | null;
   @ApiProperty() quantity: number;
   @ApiProperty() taxRate: number;
   @ApiProperty({ nullable: true }) discount: number | null;
@@ -16,9 +24,11 @@ export class QuotationItemResponseDto {
   static fromEntity(item: QuotationItem): QuotationItemResponseDto {
     const dto = new QuotationItemResponseDto();
     dto.id = item.id;
-    dto.productId = item.product.id;
-    dto.productReference = item.product.reference;
-    dto.productDescription = item.product.description;
+    dto.productId = item.product?.id ?? null;
+    dto.productReference = item.product?.reference ?? null;
+    dto.productDescription =
+      item.product?.description ?? item.description ?? '';
+    dto.productBrand = item.product?.brand?.name ?? null;
     dto.quantity = item.quantity;
     dto.taxRate = Number(item.taxRate);
     dto.discount = item.discount;
@@ -51,6 +61,12 @@ export class QuotationResponseDto {
   @ApiProperty() totalAmount: number;
   @ApiProperty({ nullable: true }) invoiceId: string | null;
   @ApiProperty() createdAt: string;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description: 'Who made the quotation (the "vendedor" on the printout).',
+  })
+  createdByName: string | null;
   @ApiProperty({ type: [QuotationItemResponseDto], required: false })
   items?: QuotationItemResponseDto[];
 
@@ -85,6 +101,9 @@ export class QuotationResponseDto {
     dto.totalAmount = quotation.totalAmount;
     dto.invoiceId = quotation.invoice?.id ?? null;
     dto.createdAt = quotation.createdAt.toISOString();
+    dto.createdByName = quotation.createdBy
+      ? `${quotation.createdBy.firstName} ${quotation.createdBy.lastName}`.trim()
+      : null;
     if (includeItems) {
       dto.items = quotation.items.map((item) =>
         QuotationItemResponseDto.fromEntity(item),

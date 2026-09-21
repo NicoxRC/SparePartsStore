@@ -31,8 +31,15 @@ describe('InvoicesService', () => {
     put: jest.Mock<Promise<unknown>, [string, unknown]>;
     get: jest.Mock<Promise<unknown>, [string]>;
   };
-  let dataicoConfig: { accountId: string };
-  let resolutionsService: { findActiveForDocumentType: jest.Mock };
+  let dataicoConfig: {
+    accountId: string;
+    sendDian: boolean;
+    sendEmail: boolean;
+  };
+  let resolutionsService: {
+    findActiveForDocumentType: jest.Mock;
+    findByNumber: jest.Mock;
+  };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
   let cashRegisterService: { assertOpenToday: jest.Mock };
@@ -95,8 +102,17 @@ describe('InvoicesService', () => {
       put: jest.fn<Promise<unknown>, [string, unknown]>(),
       get: jest.fn<Promise<unknown>, [string]>(),
     };
-    dataicoConfig = { accountId: 'account-123' };
-    resolutionsService = { findActiveForDocumentType: jest.fn() };
+    // The switches default to off in real config; most tests exercise the
+    // "submitting" path, and the switch-off behavior has its own tests.
+    dataicoConfig = {
+      accountId: 'account-123',
+      sendDian: true,
+      sendEmail: false,
+    };
+    resolutionsService = {
+      findActiveForDocumentType: jest.fn(),
+      findByNumber: jest.fn(),
+    };
     productsService = { findOne: jest.fn().mockResolvedValue(product) };
     inventoryService = {
       createMovement: jest.fn().mockResolvedValue(undefined),
@@ -199,6 +215,39 @@ describe('InvoicesService', () => {
       });
     });
 
+    it('sends the create request with send_dian/send_email off when the switches are off (the default)', async () => {
+      dataicoConfig.sendDian = false;
+      dataicoConfig.sendEmail = false;
+
+      await service.create(baseDto, 'user-1');
+
+      const body = dataicoClient.post.mock.calls[0][1] as {
+        actions: unknown;
+        invoice: { env: string };
+      };
+      expect(body.actions).toEqual({ send_dian: false, send_email: false });
+      expect(body.invoice.env).toBe('PRODUCCION');
+    });
+
+    it("sends tax_base as Dataico's 1-100 value (100), never the amount in pesos, while tax_amount stays the real IVA", async () => {
+      await service.create(
+        { ...baseDto, items: [{ productId: 'prod-1', quantity: 10 }] },
+        'user-1',
+      );
+
+      const body = dataicoClient.post.mock.calls[0][1] as {
+        invoice: {
+          items: Array<{
+            taxes: Array<{ tax_base: number; tax_amount: number }>;
+          }>;
+        };
+      };
+      const [tax] = body.invoice.items[0].taxes;
+      expect(tax.tax_base).toBe(100);
+      // 10 x 50000 = 500,000 pre-tax -> 19% = 95,000: a real amount, not 100.
+      expect(tax.tax_amount).toBe(95000);
+    });
+
     it('sends the invoice to Dataico with the confirmed field names and computed tax', async () => {
       await service.create(baseDto, 'user-1');
 
@@ -224,18 +273,16 @@ describe('InvoicesService', () => {
               expect.objectContaining({
                 sku: 'REP-001',
                 description: 'Filtro de aceite',
-                // salePrice (50000) is confirmed IVA-inclusive; Dataico
-                // wants the pre-tax price with tax broken out separately,
-                // so it's unwrapped first: 50000 / 1.19 = 42016.80..., ×2
-                // / 2 (no discount) rounds to 42017 per unit.
-                price: 42017,
+                // salePrice (50000) is the price BEFORE IVA: IVA is added on
+                // top (2 × 50000 = 100000 base, 19% = 19000).
+                price: 50000,
                 quantity: 2,
                 taxes: [
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
-                    tax_base: 84034,
-                    tax_amount: 15966,
+                    tax_base: 100,
+                    tax_amount: 19000,
                   },
                 ],
                 retentions: [],
@@ -263,20 +310,18 @@ describe('InvoicesService', () => {
           invoice: expect.objectContaining({
             items: [
               expect.objectContaining({
-                // Unwrap salePrice first (50000 / 1.19 = 42016.80... per
-                // unit, ×2 = 84033.61... pre-tax subtotal), then subtract
-                // the discount: (84033.61... - 20000) / 2 = 32016.80...,
-                // rounds to 32017 — price itself reflects the discount, so
-                // price × quantity on the actual invoice already equals
-                // the discounted total; Dataico never sees a separate
-                // "discount" field.
-                price: 32017,
+                // 2 × 50000 = 100000 pre-tax subtotal, minus the 20000
+                // discount = 80000, / 2 = 40000 per unit — price itself
+                // reflects the discount, so price × quantity on the actual
+                // invoice already equals the discounted total; Dataico never
+                // sees a separate "discount" field.
+                price: 40000,
                 taxes: [
                   {
                     tax_category: 'IVA',
                     tax_rate: 19,
-                    tax_base: 64034,
-                    tax_amount: 12166,
+                    tax_base: 100,
+                    tax_amount: 15200,
                   },
                 ],
               }),
@@ -313,7 +358,7 @@ describe('InvoicesService', () => {
                   {
                     tax_category: 'IVA',
                     tax_rate: 0,
-                    tax_base: 100000,
+                    tax_base: 100,
                     tax_amount: 0,
                   },
                 ],
@@ -334,6 +379,88 @@ describe('InvoicesService', () => {
       );
     });
 
+    describe('one-off lines (not a catalog product)', () => {
+      const customLine = {
+        description: 'Instalación de llantas',
+        customUnitPrice: 30000,
+        quantity: 2,
+      };
+
+      it('bills a typed line at its price with standard IVA, sku VARIOS, and never touches the catalog or stock', async () => {
+        await service.create({ ...baseDto, items: [customLine] }, 'user-1');
+
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+        expect(dataicoClient.post).toHaveBeenCalledWith(
+          '/invoices',
+          expect.objectContaining({
+            invoice: expect.objectContaining({
+              items: [
+                expect.objectContaining({
+                  sku: 'VARIOS',
+                  description: 'Instalación de llantas',
+                  price: 30000,
+                  quantity: 2,
+                  taxes: [
+                    expect.objectContaining({
+                      tax_rate: 19,
+                      tax_amount: 11400,
+                    }),
+                  ],
+                }),
+              ],
+            }),
+          }),
+        );
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+        expect(productsService.findOne).not.toHaveBeenCalled();
+        expect(inventoryService.createMovement).not.toHaveBeenCalled();
+      });
+
+      it('applies the sale discount to a one-off line and adds IVA on top of what is left, like any product', async () => {
+        await service.create(
+          { ...baseDto, items: [{ ...customLine, discount: 10000 }] },
+          'user-1',
+        );
+
+        /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+        expect(dataicoClient.post).toHaveBeenCalledWith(
+          '/invoices',
+          expect.objectContaining({
+            invoice: expect.objectContaining({
+              items: [
+                expect.objectContaining({
+                  // 2 × 30000 = 60000, minus 10000 = 50000 → 25000 per unit;
+                  // IVA 19% of 50000 = 9500.
+                  price: 25000,
+                  taxes: [
+                    expect.objectContaining({ tax_rate: 19, tax_amount: 9500 }),
+                  ],
+                }),
+              ],
+            }),
+          }),
+        );
+        /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      });
+
+      it('rejects a line that is a product and a one-off at once, without calling Dataico', async () => {
+        await expect(
+          service.create(
+            { ...baseDto, items: [{ ...customLine, productId: 'prod-1' }] },
+            'user-1',
+          ),
+        ).rejects.toThrow(BadRequestException);
+        expect(dataicoClient.post).not.toHaveBeenCalled();
+      });
+
+      it('rejects a line with neither a product nor a description and price', async () => {
+        await expect(
+          service.create({ ...baseDto, items: [{ quantity: 1 }] }, 'user-1'),
+        ).rejects.toThrow(BadRequestException);
+        expect(dataicoClient.post).not.toHaveBeenCalled();
+      });
+    });
+
     it('persists the invoice with Dataico response fields mapped, excluding the xml blob', async () => {
       await service.create(baseDto, 'user-1');
 
@@ -341,9 +468,9 @@ describe('InvoicesService', () => {
       expect(created.dianStatus).toBe('DIAN_ACEPTADO');
       expect(created.cufe).toBe('abc123');
       expect(created.dataicoUuid).toBe('dataico-uuid-1');
-      // salePrice (50000) is IVA-inclusive, so the invoice total matches
-      // it exactly (×2 = 100000) — not 50000×2 plus tax on top.
-      expect(created.totalAmount).toBe(100000);
+      // salePrice (50000) is before IVA, so IVA goes on top:
+      // 2 × 50000 = 100000 + 19% (19000) = 119000.
+      expect(created.totalAmount).toBe(119000);
       expect(created.responsePayload).not.toHaveProperty('xml');
     });
 
@@ -387,6 +514,52 @@ describe('InvoicesService', () => {
     });
   });
 
+  describe('getTicket', () => {
+    it('builds the ticket from the invoice and the resolution it was numbered under', async () => {
+      resolutionsService.findByNumber.mockResolvedValue({
+        startDate: '2019-01-19',
+        endDate: '2030-01-19',
+        rangeStart: 1,
+        rangeEnd: 1900000000,
+      });
+      invoicesRepository.findOne.mockResolvedValue({
+        id: 'inv-1',
+        number: 1789500028,
+        prefix: 'FEE',
+        dataicoNumber: 'FEE1789500028',
+        resolutionNumber: '18760000001',
+        customerIdentificationType: 'CC',
+        customerIdentification: '79456123',
+        customerEmail: 'c@example.com',
+        issueDate: '2026-09-21',
+        paymentDate: '2026-09-21',
+        totalAmount: 172550,
+        dianStatus: null,
+        cufe: null,
+        qrCode: null,
+        requestPayload: null,
+        responsePayload: null,
+        createdAt: new Date('2026-09-21T18:03:48.000Z'),
+      });
+
+      const ticket = await service.getTicket('inv-1');
+
+      expect(resolutionsService.findByNumber).toHaveBeenCalledWith(
+        'FEE',
+        '18760000001',
+      );
+      expect(ticket.authorization?.rangeEnd).toBe(1900000000);
+    });
+
+    it('404s when the invoice does not exist', async () => {
+      invoicesRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.getTicket('nope')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
   describe('findOne', () => {
     it('throws NotFoundException when the invoice does not exist', async () => {
       invoicesRepository.findOne.mockResolvedValue(null);
@@ -426,12 +599,58 @@ describe('InvoicesService', () => {
         cufe: 'new-cufe',
       });
 
+      dataicoConfig.sendEmail = true;
+
       await service.resend('inv-1', { sendDian: true, sendEmail: true });
 
       expect(dataicoClient.put).toHaveBeenCalledWith(
         '/invoices/dataico-uuid-1',
         { actions: { send_dian: true, send_email: true } },
       );
+    });
+
+    describe('DATAICO_SEND_* switches act as a ceiling', () => {
+      beforeEach(() => {
+        invoicesRepository.findOne.mockResolvedValue({ ...existingInvoice });
+        invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+          Promise.resolve(entity as Invoice),
+        );
+        dataicoClient.put.mockResolvedValue({ dian_status: 'X' });
+      });
+
+      it('never submits to the DIAN or emails while both switches are off, even if the request asks to', async () => {
+        dataicoConfig.sendDian = false;
+        dataicoConfig.sendEmail = false;
+
+        await service.resend('inv-1', { sendDian: true, sendEmail: true });
+
+        expect(dataicoClient.put).toHaveBeenCalledWith(
+          '/invoices/dataico-uuid-1',
+          { actions: { send_dian: false, send_email: false } },
+        );
+      });
+
+      it('with the DIAN switch on, a resend defaults to submitting (the usual reason to resend)', async () => {
+        dataicoConfig.sendDian = true;
+
+        await service.resend('inv-1', {});
+
+        expect(dataicoClient.put).toHaveBeenCalledWith(
+          '/invoices/dataico-uuid-1',
+          { actions: { send_dian: true, send_email: false } },
+        );
+      });
+
+      it('a switch that is on still lets the request opt out', async () => {
+        dataicoConfig.sendDian = true;
+
+        await service.resend('inv-1', { sendDian: false });
+
+        expect(dataicoClient.put).toHaveBeenCalledWith(
+          '/invoices/dataico-uuid-1',
+          { actions: { send_dian: false, send_email: false } },
+        );
+      });
     });
 
     it('updates the existing row in place rather than creating a new one', async () => {
