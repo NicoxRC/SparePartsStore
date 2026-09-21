@@ -202,10 +202,10 @@ export function InventoryPage() {
                       className="flex items-center justify-between gap-3 rounded border border-line bg-paper px-4 py-3"
                     >
                       <div className="min-w-0 flex-1">
-                        <p className="truncate font-mono text-sm font-semibold text-ink">
+                        <p className="break-words font-mono text-sm font-semibold text-ink">
                           {product.reference}
                         </p>
-                        <p className="truncate text-sm text-steel">
+                        <p className="break-words text-sm text-steel">
                           {product.description}
                         </p>
                         <p className="mt-0.5 text-sm text-fog">
@@ -268,10 +268,10 @@ export function InventoryPage() {
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="truncate font-mono text-sm font-semibold text-ink">
+                          <p className="break-words font-mono text-sm font-semibold text-ink">
                             {m.productReference}
                           </p>
-                          <p className="truncate text-sm text-steel">
+                          <p className="break-words text-sm text-steel">
                             {m.productDescription}
                           </p>
                         </div>

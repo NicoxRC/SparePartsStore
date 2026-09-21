@@ -27,7 +27,7 @@ export function ProductCard({
     <div className="flex h-full flex-col rounded border border-line bg-paper p-4 transition-colors hover:border-fog">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="truncate text-base font-semibold text-ink">
+          <p className="break-words text-base font-semibold text-ink">
             {product.description}
           </p>
           <span className="mt-1 inline-block rounded border border-line bg-canvas px-1.5 py-0.5 font-mono text-xs text-steel">
@@ -40,26 +40,26 @@ export function ProductCard({
       </div>
 
       <dl className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-sm text-steel">
-        <div>
+        <div className="min-w-0">
           <dt className="text-xs uppercase tracking-wide text-fog">Stock</dt>
           <dd className="font-mono">{product.stock}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-xs uppercase tracking-wide text-fog">Departamento</dt>
-          <dd className="truncate">{product.department.name}</dd>
+          <dd className="break-words">{product.department.name}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-xs uppercase tracking-wide text-fog">Grupo</dt>
-          <dd className="truncate">{product.group.name}</dd>
+          <dd className="break-words">{product.group.name}</dd>
         </div>
-        <div>
+        <div className="min-w-0">
           <dt className="text-xs uppercase tracking-wide text-fog">Marca</dt>
-          <dd className="truncate">{product.brand.name}</dd>
+          <dd className="break-words">{product.brand.name}</dd>
         </div>
         {product.supplier && (
-          <div>
+          <div className="min-w-0">
             <dt className="text-xs uppercase tracking-wide text-fog">Proveedor</dt>
-            <dd className="truncate">{product.supplier.name}</dd>
+            <dd className="break-words">{product.supplier.name}</dd>
           </div>
         )}
       </dl>
