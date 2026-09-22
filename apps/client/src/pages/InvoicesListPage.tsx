@@ -2,6 +2,7 @@ import { PrintInvoiceTicketButton } from '../components/print/PrintInvoiceTicket
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
+import { InvoiceDetailDialog } from '../components/InvoiceDetailDialog';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
 import {
@@ -55,6 +56,7 @@ export function InvoicesListPage() {
   const [page, setPage] = useState(1);
   const [actioningId, setActioningId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
   const invoicesQuery = useInvoices({ page, limit: PAGE_SIZE });
   const resendMutation = useResendInvoice();
   const refreshMutation = useRefreshInvoiceStatus();
@@ -180,6 +182,13 @@ export function InvoicesListPage() {
                                     Ver PDF
                                   </a>
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={() => setDetailId(invoice.id)}
+                                  className="text-xs font-medium text-ink hover:underline"
+                                >
+                                  Ver detalle
+                                </button>
                                 <PrintInvoiceTicketButton
                                   invoiceId={invoice.id}
                                   className="text-xs font-medium text-ink hover:underline"
@@ -237,6 +246,10 @@ export function InvoicesListPage() {
 
           <Pagination meta={invoicesQuery.data.meta} onPageChange={setPage} />
         </>
+      )}
+
+      {detailId && (
+        <InvoiceDetailDialog invoiceId={detailId} onClose={() => setDetailId(null)} />
       )}
     </div>
   );
