@@ -369,17 +369,19 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   };
 
   // What the DIAN tercero lookup returns only ever covers identity fields
-  // (name/razón social, email) — never address, phone or tax regime — so
-  // the rest is filled with this store's own sensible defaults for a
-  // walk-in customer, confirmed with the human: a CC is always treated as
-  // persona natural/régimen simplificado, and defaults to this store's own
-  // city (Pasto, Nariño) since that's who mostly walks in. A NIT is always
-  // persona jurídica/régimen común. Either way staff can still edit
+  // (name/razón social, email) — never address, phone, city or tax regime —
+  // so the rest is filled with this store's own sensible defaults,
+  // confirmed with the human: a CC is always treated as persona natural/
+  // régimen simplificado, a NIT as persona jurídica/régimen común, and
+  // either way departamento/ciudad default to this store's own city (Pasto,
+  // Nariño) since that's where its customers are. Staff can still edit
   // anything afterward — these are starting values, not locked-in ones.
   const handleDianResult = (result: ThirdPartyResponse) => {
     setValue('customerIdentificationType', result.identificationType);
     setValue('customerIdentification', result.identification);
     if (result.email) setValue('customerEmail', toLowerCase(result.email));
+    setValue('customerDepartment', DEFAULT_DANE_DEPARTMENT_CODE);
+    setValue('customerCity', DEFAULT_DANE_CITY_CODE);
 
     if (result.identificationType === 'CC') {
       setValue('customerPartyType', 'PERSONA_NATURAL');
@@ -391,8 +393,6 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
         .filter(Boolean)
         .join(' ');
       if (familyName) setValue('customerFamilyName', toUpperCase(familyName));
-      setValue('customerDepartment', DEFAULT_DANE_DEPARTMENT_CODE);
-      setValue('customerCity', DEFAULT_DANE_CITY_CODE);
     } else if (result.identificationType === 'NIT') {
       setValue('customerPartyType', 'PERSONA_JURIDICA');
       setValue('customerTaxLevelCode', 'COMUN');
