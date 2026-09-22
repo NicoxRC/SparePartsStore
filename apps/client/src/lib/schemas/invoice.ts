@@ -7,7 +7,13 @@ export const invoiceItemFormSchema = z.object({
   description: z.string(),
   // The product's brand, only to show it in the table (older saved drafts have none).
   brand: z.string().optional(),
-  price: z.number(),
+  // Editable in the items table — charges this line at a different price
+  // for this sale/quotation only, never touching the product's own
+  // salePrice (see toApiItem's unitPriceOverride in InvoiceFormPage).
+  price: z.coerce
+    .number({ message: 'El precio debe ser un número.' })
+    .int('El precio debe ser un número entero.')
+    .min(1, 'El precio mínimo es $1.'),
   // Not applicable to a one-off line (no stock behind it).
   stock: z.number().optional(),
   quantity: z.coerce.number().int().min(1, 'Cantidad mínima 1.'),

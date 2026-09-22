@@ -29,17 +29,18 @@ function roundTo(value: number, decimals: number): number {
 }
 
 export function computeLineBreakdown(item: {
-  price: number;
+  price: unknown;
   quantity: unknown;
   taxRate: unknown;
   discount?: unknown;
 }): LineBreakdown {
+  const price = Number(item.price) || 0;
   const quantity = Number(item.quantity) || 0;
   const taxRate = Number(item.taxRate) || 0;
   const discount = Number(item.discount) || 0;
   if (quantity <= 0) return { subtotal: 0, tax: 0, total: 0, exempt: 0 };
 
-  const total = Math.max(0, item.price * quantity - discount);
+  const total = Math.max(0, price * quantity - discount);
   const exclusiveTotal = taxRate > 0 ? total / (1 + taxRate / 100) : total;
   // The server keeps the base and the IVA in centavos (IVA = what is left of
   // the total); on screen they are shown in whole pesos, with the subtotal
@@ -51,7 +52,7 @@ export function computeLineBreakdown(item: {
 
 /** A line's final amount: what the customer pays for it (IVA included). */
 export function computeItemTotal(item: {
-  price: number;
+  price: unknown;
   quantity: unknown;
   taxRate: unknown;
   discount?: unknown;
@@ -62,11 +63,11 @@ export function computeItemTotal(item: {
 /** A line's price × quantity, IVA included and before any discount — the
  * base a global discount percentage is prorated against (see computeItemDiscount). */
 export function computeGrossSubtotal(item: {
-  price: number;
+  price: unknown;
   quantity: unknown;
   taxRate: unknown;
 }): number {
-  return item.price * (Number(item.quantity) || 0);
+  return (Number(item.price) || 0) * (Number(item.quantity) || 0);
 }
 
 /**
@@ -78,7 +79,7 @@ export function computeGrossSubtotal(item: {
  * computeItemTotal()/the backend's computeLineAmounts() expect.
  */
 export function computeItemDiscount(
-  item: { price: number; quantity: unknown; taxRate: unknown },
+  item: { price: unknown; quantity: unknown; taxRate: unknown },
   discountPercentage: number,
 ): number {
   if (!discountPercentage) return 0;
@@ -87,7 +88,7 @@ export function computeItemDiscount(
 
 /** Subtotal / IVA / total for a whole document, with the sale's discount applied line by line. */
 export function summarizeLines(
-  items: Array<{ price: number; quantity: unknown; taxRate: unknown }>,
+  items: Array<{ price: unknown; quantity: unknown; taxRate: unknown }>,
   discountPercentage = 0,
 ): LineBreakdown {
   return items.reduce<LineBreakdown>(

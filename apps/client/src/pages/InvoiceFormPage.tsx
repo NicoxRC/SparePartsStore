@@ -443,13 +443,21 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     setIsCustomLineOpen(false);
   };
 
-  // Catalog product by id, or a one-off line by what was typed.
+  // Catalog product by id, or a one-off line by what was typed. Either way
+  // the price shown in the items table is what gets charged — staff can
+  // edit it there, for this sale/quotation only, without ever changing the
+  // product's own catalog price (see the items table's price input below).
   const toApiItem = (item: InvoiceFormInput['items'][number], discount: number | undefined) =>
     item.productId
-      ? { productId: item.productId, quantity: Number(item.quantity), discount }
+      ? {
+          productId: item.productId,
+          quantity: Number(item.quantity),
+          discount,
+          unitPriceOverride: Number(item.price),
+        }
       : {
           description: item.description,
-          customUnitPrice: item.price,
+          customUnitPrice: Number(item.price),
           quantity: Number(item.quantity),
           discount,
         };
@@ -735,8 +743,15 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                               )}
                               <BrandTag brand={field.brand} />
                             </td>
-                            <td className="px-3 py-2 font-mono">
-                              ${field.price.toLocaleString('es-CO')}
+                            <td className="w-28 px-3 py-2">
+                              <input
+                                type="number"
+                                min={1}
+                                step={1}
+                                title="Precio para esta venta — no cambia el precio del producto en el catálogo."
+                                className="w-24 border border-line-2 bg-canvas px-2 py-1 font-mono"
+                                {...register(`items.${index}.price`)}
+                              />
                             </td>
                             <td className="w-24 px-3 py-2">
                               <input

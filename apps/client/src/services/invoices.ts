@@ -42,6 +42,8 @@ export interface CreateInvoiceItemInput {
   quantity: number;
   /** Fixed COP amount, not a percentage — see CreateInvoiceItemDto. */
   discount?: number;
+  /** Charges a catalog line at a different price than the product's own, for this sale only — never written back to the product. */
+  unitPriceOverride?: number;
 }
 
 export interface CreateInvoiceInput {
