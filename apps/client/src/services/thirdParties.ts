@@ -7,6 +7,8 @@ export interface ThirdPartyResponse {
   email?: string;
   firstName?: string;
   familyName?: string;
+  /** Colombian identification carries two surnames; Dataico keeps them separate. */
+  secondLastName?: string;
 }
 
 export interface ThirdPartyLookupQuery {

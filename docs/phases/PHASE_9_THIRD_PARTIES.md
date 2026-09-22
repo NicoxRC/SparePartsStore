@@ -24,7 +24,20 @@ Response (confirmed for a NIT lookup):
 }
 ```
 
-**Not confirmed**: the response shape for a non-NIT identification type (e.g. `CC` for a persona natural) — likely `first_name`/`family_name` instead of `company_name`, by analogy with Phase 10's confirmed invoice `customer` block, but this is an inference, not verified. `ThirdPartyResponseDto` models both as optional so the mapping doesn't break either way, but don't assume the persona-natural shape is correct without testing it.
+**Also confirmed (2026-09-22), for a CC (persona natural) lookup** — the shape is `first_name`/`family_name` as guessed, plus one extra field not previously known about:
+
+```json
+{
+  "email": "...",
+  "first_name": "...",
+  "family_name": "...",
+  "second_last_name": "...",
+  "identification": "...",
+  "identification_type": "CC"
+}
+```
+
+`second_last_name` is the second of the two surnames Colombian identification carries — Dataico keeps it separate from `family_name` rather than combined. `ThirdPartyResponseDto` maps it to `secondLastName`; the client joins `familyName` + `secondLastName` into the invoice form's single Apellidos field.
 
 ## What shipped
 

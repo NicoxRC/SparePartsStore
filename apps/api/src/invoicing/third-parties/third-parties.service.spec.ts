@@ -53,6 +53,33 @@ describe('ThirdPartiesService', () => {
       email: 'facturacion-recepcion@dataico.com',
       firstName: undefined,
       familyName: undefined,
+      secondLastName: undefined,
+    });
+  });
+
+  it('maps a persona natural (CC) response, including the second surname', async () => {
+    dataicoClient.get.mockResolvedValue({
+      identification: '1234567890',
+      identification_type: 'CC',
+      first_name: 'Juan',
+      family_name: 'Pérez',
+      second_last_name: 'Gómez',
+      email: 'juan@example.com',
+    });
+
+    const result = await service.lookup({
+      identification: '1234567890',
+      identificationType: 'CC',
+    });
+
+    expect(result).toEqual({
+      identification: '1234567890',
+      identificationType: 'CC',
+      companyName: undefined,
+      email: 'juan@example.com',
+      firstName: 'Juan',
+      familyName: 'Pérez',
+      secondLastName: 'Gómez',
     });
   });
 });
