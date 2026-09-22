@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
@@ -15,6 +15,34 @@ import type { ProductResponse, ProductsQuery } from '../services/products';
 
 const PAGE_SIZE = 20;
 
+// Kept in sessionStorage (not state) so the search/filters survive
+// navigating away to edit a product and back — cleared when the tab closes.
+const FILTERS_STORAGE_KEY = 'casarespuestos.productsFilters';
+
+interface StoredProductsFilters {
+  filters: ProductsQuery;
+  supplierName: string;
+}
+
+function loadStoredFilters(): StoredProductsFilters | null {
+  try {
+    const raw = sessionStorage.getItem(FILTERS_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as StoredProductsFilters) : null;
+  } catch {
+    return null;
+  }
+}
+
+const defaultFilters: ProductsQuery = {
+  page: 1,
+  limit: PAGE_SIZE,
+  search: '',
+  departmentId: '',
+  groupId: '',
+  brandId: '',
+  supplierId: '',
+};
+
 export function ProductsListPage() {
   const { user } = useAuth();
   const { has } = usePermissions();
@@ -22,18 +50,27 @@ export function ProductsListPage() {
   const canCreate = has('products.create');
   const canEdit = has('products.update');
 
-  const [filters, setFilters] = useState<ProductsQuery>({
-    page: 1,
-    limit: PAGE_SIZE,
-    search: '',
-    departmentId: '',
-    groupId: '',
-    brandId: '',
-    supplierId: '',
-  });
+  const [filters, setFilters] = useState<ProductsQuery>(
+    () => loadStoredFilters()?.filters ?? defaultFilters,
+  );
   // The supplier select can't resolve a name from an id (no get-by-id
-  // endpoint), so the page remembers the picked name across show/hide.
-  const [supplierName, setSupplierName] = useState('');
+  // endpoint), so the page remembers the picked name across show/hide
+  // and across the round trip to the edit page.
+  const [supplierName, setSupplierName] = useState(
+    () => loadStoredFilters()?.supplierName ?? '',
+  );
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(
+        FILTERS_STORAGE_KEY,
+        JSON.stringify({ filters, supplierName }),
+      );
+    } catch {
+      // Ignore storage errors (private browsing, quota, etc.) — the
+      // filters just won't survive navigation in that case.
+    }
+  }, [filters, supplierName]);
   const [showFilters, setShowFilters] = useState(false);
   const [productPendingDelete, setProductPendingDelete] =
     useState<ProductResponse | null>(null);
