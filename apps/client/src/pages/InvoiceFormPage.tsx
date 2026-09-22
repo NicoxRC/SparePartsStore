@@ -35,6 +35,8 @@ import { useProducts } from '../hooks/useProducts';
 import {
   DANE_CITIES,
   DANE_DEPARTMENTS,
+  DEFAULT_DANE_CITY_CODE,
+  DEFAULT_DANE_DEPARTMENT_CODE,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
@@ -115,7 +117,7 @@ function CustomerSection({
         {customerIdentificationType === 'NIT' && (
           <TextField
             label="Dígito de verificación"
-            placeholder="7"
+            placeholder="0"
             error={errors.customerIdentificationDv?.message}
             {...register('customerIdentificationDv')}
           />
@@ -197,6 +199,7 @@ function CustomerSection({
         <div className="sm:col-span-2">
           <TextField
             label="Dirección"
+            placeholder="Dirección"
             error={errors.customerAddressLine?.message}
             {...register('customerAddressLine')}
           />
@@ -210,7 +213,7 @@ function CustomerSection({
         <TextField
           label="Celular (opcional)"
           type="tel"
-          placeholder="3001234567"
+          placeholder="0000000000"
           error={errors.customerPhone?.message}
           {...register('customerPhone')}
         />
@@ -365,11 +368,36 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     setValue('customerCity', cities[0]?.code ?? '');
   };
 
+  // What the DIAN tercero lookup returns only ever covers identity fields
+  // (name/razón social, email) — never address, phone or tax regime — so
+  // the rest is filled with this store's own sensible defaults for a
+  // walk-in customer, confirmed with the human: a CC is always treated as
+  // persona natural/régimen simplificado, and defaults to this store's own
+  // city (Pasto, Nariño) since that's who mostly walks in. A NIT is always
+  // persona jurídica/régimen común. Either way staff can still edit
+  // anything afterward — these are starting values, not locked-in ones.
   const handleDianResult = (result: ThirdPartyResponse) => {
-    if (result.companyName) setValue('customerCompanyName', toUpperCase(result.companyName));
-    if (result.firstName) setValue('customerFirstName', toUpperCase(result.firstName));
-    if (result.familyName) setValue('customerFamilyName', toUpperCase(result.familyName));
+    setValue('customerIdentificationType', result.identificationType);
+    setValue('customerIdentification', result.identification);
     if (result.email) setValue('customerEmail', toLowerCase(result.email));
+
+    if (result.identificationType === 'CC') {
+      setValue('customerPartyType', 'PERSONA_NATURAL');
+      setValue('customerTaxLevelCode', 'SIMPLIFICADO');
+      if (result.firstName) setValue('customerFirstName', toUpperCase(result.firstName));
+      // Colombian identification carries two surnames; Dataico keeps them
+      // as two fields, this form as one — joined the way they're written.
+      const familyName = [result.familyName, result.secondLastName]
+        .filter(Boolean)
+        .join(' ');
+      if (familyName) setValue('customerFamilyName', toUpperCase(familyName));
+      setValue('customerDepartment', DEFAULT_DANE_DEPARTMENT_CODE);
+      setValue('customerCity', DEFAULT_DANE_CITY_CODE);
+    } else if (result.identificationType === 'NIT') {
+      setValue('customerPartyType', 'PERSONA_JURIDICA');
+      setValue('customerTaxLevelCode', 'COMUN');
+      if (result.companyName) setValue('customerCompanyName', toUpperCase(result.companyName));
+    }
   };
 
   const handleAddProduct = (product: ProductResponse, quantity = 1) => {
