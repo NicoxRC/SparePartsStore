@@ -12,15 +12,13 @@ function customerLabel(quotation: QuotationResponse): string {
   );
 }
 
-/** A label on the left and its value in a bordered box on the right (the customer block). */
-function BoxedField({ label, value }: { label: string; value: string }) {
+/** One row of the customer block: a label and its value, both left-aligned. */
+function CustomerRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="grid grid-cols-[38%_1fr] items-center gap-2">
-      <span className="text-right text-[11px]">{label}</span>
-      <span className="border-2 border-black px-1 py-0.5 text-[12px] font-semibold uppercase">
-        {value || '—'}
-      </span>
-    </div>
+    <p className="text-[12px]">
+      <span className="text-[11px]">{label} </span>
+      <span className="font-semibold uppercase">{value || '—'}</span>
+    </p>
   );
 }
 
@@ -87,10 +85,10 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
         COTIZACION No. COT-{String(quotation.number).padStart(4, '0')}
       </p>
 
-      <div className="mt-3 flex flex-col gap-1">
-        <BoxedField label="Cliente:" value={customerLabel(quotation)} />
-        <BoxedField label="Cédula/Nit:" value={idNumber} />
-        <BoxedField label="Teléfono:" value={quotation.customerPhone ?? ''} />
+      <div className="mt-3 border-2 border-black px-2 py-1">
+        <CustomerRow label="Cliente:" value={customerLabel(quotation)} />
+        <CustomerRow label="Cédula/Nit:" value={idNumber} />
+        <CustomerRow label="Teléfono:" value={quotation.customerPhone ?? ''} />
       </div>
 
       <div className="mt-3 border-2 border-black">
