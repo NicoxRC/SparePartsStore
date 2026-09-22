@@ -16,6 +16,10 @@ export interface LineBreakdown {
   tax: number;
   /** subtotal + tax — the price the customer pays (after any discount). */
   total: number;
+  /** Of `total`, the part that came from exempt lines (taxRate 0) — already
+   * included in `subtotal`/`total`, broken out only so the screen can show
+   * an "Exentos" figure grouping them, same as the printed slip does. */
+  exempt: number;
 }
 
 /** Same rounding as the server's `round()`. */
@@ -33,7 +37,7 @@ export function computeLineBreakdown(item: {
   const quantity = Number(item.quantity) || 0;
   const taxRate = Number(item.taxRate) || 0;
   const discount = Number(item.discount) || 0;
-  if (quantity <= 0) return { subtotal: 0, tax: 0, total: 0 };
+  if (quantity <= 0) return { subtotal: 0, tax: 0, total: 0, exempt: 0 };
 
   const total = Math.max(0, item.price * quantity - discount);
   const exclusiveTotal = taxRate > 0 ? total / (1 + taxRate / 100) : total;
@@ -42,7 +46,7 @@ export function computeLineBreakdown(item: {
   // being the rest so the three figures always add up.
   const taxBase = roundTo(exclusiveTotal, 2);
   const tax = Math.round(roundTo(total - taxBase, 2));
-  return { subtotal: total - tax, tax, total };
+  return { subtotal: total - tax, tax, total, exempt: taxRate > 0 ? 0 : total };
 }
 
 /** A line's final amount: what the customer pays for it (IVA included). */
@@ -96,8 +100,9 @@ export function summarizeLines(
         subtotal: sum.subtotal + line.subtotal,
         tax: sum.tax + line.tax,
         total: sum.total + line.total,
+        exempt: sum.exempt + line.exempt,
       };
     },
-    { subtotal: 0, tax: 0, total: 0 },
+    { subtotal: 0, tax: 0, total: 0, exempt: 0 },
   );
 }

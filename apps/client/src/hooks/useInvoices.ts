@@ -37,6 +37,17 @@ export function useInvoiceTicket() {
   return useMutation({ mutationFn: (invoiceId: string) => getInvoiceTicket(invoiceId) });
 }
 
+/** Same data as `useInvoiceTicket()`, as a query instead of a mutation — for
+ * the on-screen "Ver detalle" dialog, which opens/closes rather than firing
+ * once per print click. */
+export function useInvoiceTicketQuery(invoiceId: string | undefined) {
+  return useQuery({
+    queryKey: ['invoices', invoiceId, 'ticket'],
+    queryFn: () => getInvoiceTicket(invoiceId as string),
+    enabled: Boolean(invoiceId),
+  });
+}
+
 export function useCreateInvoice() {
   const queryClient = useQueryClient();
   return useMutation({

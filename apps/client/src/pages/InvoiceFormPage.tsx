@@ -1,6 +1,6 @@
 import { BrandTag } from '../components/BrandTag';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   useFieldArray,
   useForm,
@@ -302,7 +302,17 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const customerDepartment = useWatch({ control, name: 'customerDepartment' });
   const paymentMeans = useWatch({ control, name: 'paymentMeans' });
   const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
-  const watchedItems = useWatch({ control, name: 'items' });
+  // `useWatch` can briefly lag one render behind `itemFields` right after
+  // appendItem() (a known react-hook-form timing gap): the new index exists
+  // in `itemFields` before it exists in the watched array, so `watchedItems`
+  // can be shorter for one render. Falling back to the field's own values
+  // (appendItem already gave it everything: price, quantity, taxRate...)
+  // avoids reading `.price` off `undefined` and crashing the page.
+  const watchedItemsRaw = useWatch({ control, name: 'items' });
+  const watchedItems = useMemo(
+    () => itemFields.map((field, index) => watchedItemsRaw[index] ?? field),
+    [watchedItemsRaw, itemFields],
+  );
   const discountPercentage = Number(useWatch({ control, name: 'discountPercentage' })) || 0;
 
   // "Tipo de pago" (DEBITO/CREDITO) is DIAN's forma de pago — contado vs.

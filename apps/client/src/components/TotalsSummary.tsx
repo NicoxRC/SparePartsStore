@@ -8,9 +8,15 @@ interface TotalsSummaryProps extends LineBreakdown {
 const money = (amount: number) => `$${amount.toLocaleString('es-CO')}`;
 
 /** Subtotal / IVA / Total of a sale, quotation or note — the prices already include IVA; it is shown broken out of them. */
-export function TotalsSummary({ subtotal, tax, total, undiscountedTotal }: TotalsSummaryProps) {
+export function TotalsSummary({ subtotal, tax, total, exempt, undiscountedTotal }: TotalsSummaryProps) {
   return (
     <dl className="ml-auto flex w-full max-w-xs flex-col gap-1 font-mono text-sm text-steel">
+      {Boolean(exempt) && (
+        <div className="flex justify-between gap-4">
+          <dt>Exentos</dt>
+          <dd>{money(exempt)}</dd>
+        </div>
+      )}
       <div className="flex justify-between gap-4">
         <dt>Subtotal</dt>
         <dd>{money(subtotal)}</dd>

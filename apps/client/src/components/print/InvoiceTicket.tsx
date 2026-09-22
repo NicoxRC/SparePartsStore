@@ -125,7 +125,7 @@ export function InvoiceTicket({ ticket }: { ticket: InvoiceTicketData }) {
           <span>{item.unit}</span>
           <span className="break-words">
             {item.description}
-            {item.taxRate <= 0 ? ' *' : ''}
+            {item.taxRate <= 0 ? ' E' : ''}
           </span>
           <span className="text-right">{ticketMoney(item.value)}</span>
         </div>
@@ -151,7 +151,7 @@ export function InvoiceTicket({ ticket }: { ticket: InvoiceTicketData }) {
 
       <Dotted />
 
-      <p className="text-[9px]">Unidades de medida: EA = cada{hasExempt ? ' · * Exento de IVA' : ''}</p>
+      <p className="text-[9px]">Unidades de medida: EA = cada{hasExempt ? ' · E = Exento de IVA' : ''}</p>
 
       {authorization && (
         <p className="mt-3 text-center text-[10px] leading-snug">
