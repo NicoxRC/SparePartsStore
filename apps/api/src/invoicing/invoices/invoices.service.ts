@@ -375,10 +375,12 @@ export class InvoicesService {
    * already-final numbers, per direct instruction.
    *
    * `itemDto.unitPriceOverride`, when present, replaces `product.salePrice`
-   * as the starting price (IVA included) — used by
+   * as the starting price (IVA included) — sent by the Venta/Cotización
+   * forms when staff edits a line's price for this sale only (never writes
+   * back to `products.sale_price`), and internally by
    * QuotationsService.invoice() to honor a quotation's locked-in price
-   * instead of the product's current one. `skipStockCheck` is set by the
-   * same caller for the same reason — see create()'s docstring.
+   * instead of the product's current one. `skipStockCheck` is set by that
+   * same internal caller for the same reason — see create()'s docstring.
    */
   private async resolveItems(
     dto: CreateInvoiceDto,

@@ -70,12 +70,13 @@ export class CreateInvoiceItemDto {
   discount?: number;
 
   @ApiPropertyOptional({
+    example: 45000,
     description:
-      "Internal only — never sent by the Venta form. Set by QuotationsService.invoice() to lock the price a quotation was created/edited at, instead of using the product's current salePrice.",
+      "Charges this line at a different price than `product.salePrice`, for this sale only — the product's own catalog price is never touched. Sent by the Venta form when staff edits a line's price, and internally by QuotationsService.invoice() to lock in the price a quotation was created/edited at.",
   })
   @IsOptional()
   @Type(() => Number)
   @IsNumber()
-  @Min(0)
+  @Min(500)
   unitPriceOverride?: number;
 }

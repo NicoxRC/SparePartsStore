@@ -438,7 +438,7 @@ export class QuotationsService {
           quantity: itemDto.quantity,
           taxRate: resolveTaxRate(product),
           discount: itemDto.discount,
-          unitPrice: Number(product.salePrice),
+          unitPrice: itemDto.unitPriceOverride ?? Number(product.salePrice),
         };
       }),
     );

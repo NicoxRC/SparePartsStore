@@ -272,6 +272,22 @@ describe('QuotationsService', () => {
       const savedItems = quotationItemsRepository.save.mock.calls[0][0];
       expect(savedItems[0].taxRate).toBe(0);
     });
+
+    it("locks a line's price at a per-line unitPriceOverride instead of the product's current salePrice, without touching the product", async () => {
+      await service.create(
+        {
+          ...baseDto,
+          items: [
+            { productId: 'prod-a', quantity: 2, unitPriceOverride: 45000 },
+          ],
+        },
+        'user-1',
+      );
+
+      const savedItems = quotationItemsRepository.save.mock.calls[0][0];
+      expect(savedItems[0].unitPrice).toBe(45000);
+      expect(productA.salePrice).toBe(50000);
+    });
   });
 
   describe('one-off lines (not a catalog product)', () => {

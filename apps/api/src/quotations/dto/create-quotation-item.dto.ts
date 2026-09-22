@@ -66,4 +66,15 @@ export class CreateQuotationItemDto {
   @IsNumber()
   @Min(0)
   discount?: number;
+
+  @ApiPropertyOptional({
+    example: 45000,
+    description:
+      "Charges this line at a different price than `product.salePrice`, for this quotation only — the product's own catalog price is never touched. Only honored on the initial POST /quotations (QuotationsService.create()); PATCH .../items ignores it, since an existing quoted line always keeps the price it was already locked at, and a line added by that edit is priced at the product's current salePrice — see QuotationsService.updateItems().",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(500)
+  unitPriceOverride?: number;
 }

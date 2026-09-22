@@ -60,6 +60,8 @@ export interface CreateQuotationItemInput {
   customUnitPrice?: number;
   quantity: number;
   discount?: number;
+  /** Charges a catalog line at a different price than the product's own, for this quotation only — never written back to the product. Only honored when the line is first added — see CreateQuotationItemDto. */
+  unitPriceOverride?: number;
 }
 
 export interface CreateQuotationInput {

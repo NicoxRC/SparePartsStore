@@ -335,6 +335,44 @@ describe('InvoicesService', () => {
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
     });
 
+    it("charges a catalog line at unitPriceOverride instead of the product's salePrice, without touching the product", async () => {
+      await service.create(
+        {
+          ...baseDto,
+          items: [
+            { productId: 'prod-1', quantity: 1, unitPriceOverride: 45000 },
+          ],
+        },
+        'user-1',
+      );
+
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(dataicoClient.post).toHaveBeenCalledWith(
+        '/invoices',
+        expect.objectContaining({
+          invoice: expect.objectContaining({
+            items: [
+              expect.objectContaining({
+                // 45000 (override, IVA included), not the product's 50000
+                // salePrice -> pre-tax 45000 / 1.19 = 37815.1261.
+                price: 37815.1261,
+                taxes: [
+                  {
+                    tax_category: 'IVA',
+                    tax_rate: 19,
+                    tax_base: 100,
+                    tax_amount: 7184.87,
+                  },
+                ],
+              }),
+            ],
+          }),
+        }),
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      expect(product.salePrice).toBe(50000);
+    });
+
     it('leaves price untouched for a tax-exempt product — it only flags the "excluida" label, not a calculation', async () => {
       productsService.findOne.mockResolvedValue({
         ...product,
