@@ -432,10 +432,11 @@ export class InvoicesService {
    * Auto-increments the invoice number, scoped to the resolution's prefix
    * (a DIAN resolution's numbering range is per-prefix). Not client-supplied
    * anymore — continues from the highest number already recorded locally
-   * for this prefix, or from `INVOICE_NUMBER_START` if nothing has been
-   * recorded yet (the store already has invoices issued before this app's
-   * local history starts, so the real sequence can't be inferred from an
-   * empty table). No dedicated counter table — this app is the only writer
+   * for this prefix, or from `INVOICE_NUMBER_START` if that's higher (the
+   * store already has invoices issued outside this app's local history —
+   * and during testing the shared Dataico account keeps advancing the
+   * sequence — so raising the env var lets the local count jump ahead).
+   * No dedicated counter table — this app is the only writer
    * of `invoices.number`, and at this store's scale a simple `MAX()` read
    * is an acceptable simplification over a fully race-proof counter.
    */
@@ -446,10 +447,11 @@ export class InvoicesService {
       .where('invoice.prefix = :prefix', { prefix })
       .getRawOne<{ max: string | null }>();
 
-    if (result?.max) {
-      return Number(result.max) + 1;
-    }
+    const start = Number(
+      this.configService.get<string>('INVOICE_NUMBER_START', '1'),
+    );
+    const nextLocal = result?.max ? Number(result.max) + 1 : 0;
 
-    return Number(this.configService.get<string>('INVOICE_NUMBER_START', '1'));
+    return Math.max(nextLocal, start);
   }
 }
