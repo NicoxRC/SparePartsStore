@@ -521,7 +521,7 @@ describe('InvoicesService', () => {
       expect(created.responsePayload).not.toHaveProperty('xml');
     });
 
-    it('auto-increments the number from the highest local one for this prefix, ignoring INVOICE_NUMBER_START', async () => {
+    it('auto-increments the number from the highest local one for this prefix when it is past INVOICE_NUMBER_START', async () => {
       numberQueryBuilder.getRawOne.mockResolvedValue({ max: '1300' });
 
       await service.create(baseDto, 'user-1');
@@ -532,6 +532,15 @@ describe('InvoicesService', () => {
       );
       const created = invoicesRepository.create.mock.calls[0][0];
       expect(created.number).toBe(1301);
+    });
+
+    it('jumps to INVOICE_NUMBER_START when it is higher than the next local number', async () => {
+      numberQueryBuilder.getRawOne.mockResolvedValue({ max: '1100' });
+
+      await service.create(baseDto, 'user-1');
+
+      const created = invoicesRepository.create.mock.calls[0][0];
+      expect(created.number).toBe(1225);
     });
 
     it('falls back to INVOICE_NUMBER_START when nothing is recorded locally yet for this prefix', async () => {
