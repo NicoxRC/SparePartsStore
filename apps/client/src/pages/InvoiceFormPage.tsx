@@ -138,8 +138,8 @@ function CustomerSection({
           error={errors.customerTaxLevelCode?.message}
           {...register('customerTaxLevelCode')}
         >
-          <option value="COMUN">Común</option>
-          <option value="SIMPLIFICADO">Simplificado</option>
+          <option value="COMUN">Responsable de IVA</option>
+          <option value="SIMPLIFICADO">No responsable de IVA</option>
         </SelectField>
 
         {customerPartyType === 'PERSONA_JURIDICA' ? (

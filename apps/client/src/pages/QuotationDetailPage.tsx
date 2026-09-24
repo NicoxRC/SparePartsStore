@@ -667,8 +667,8 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                       }))
                     }
                   >
-                    <option value="COMUN">Común</option>
-                    <option value="SIMPLIFICADO">Simplificado</option>
+                    <option value="COMUN">Responsable de IVA</option>
+                    <option value="SIMPLIFICADO">No responsable de IVA</option>
                   </SelectField>
 
                   {overrideCustomer.customerPartyType === 'PERSONA_JURIDICA' ? (

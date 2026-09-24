@@ -187,8 +187,8 @@ export function CustomerFormPage() {
             {...register('taxLevelCode')}
           >
             <option value="">Sin especificar</option>
-            <option value="COMUN">Común</option>
-            <option value="SIMPLIFICADO">Simplificado</option>
+            <option value="COMUN">Responsable de IVA</option>
+            <option value="SIMPLIFICADO">No responsable de IVA</option>
           </SelectField>
 
           {partyType === 'PERSONA_JURIDICA' ? (
