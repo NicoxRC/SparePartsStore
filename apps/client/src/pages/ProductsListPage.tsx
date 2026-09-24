@@ -49,6 +49,7 @@ export function ProductsListPage() {
   const isAdmin = user?.role === 'admin';
   const canCreate = has('products.create');
   const canEdit = has('products.update');
+  const canFilterByCatalogs = user?.role === 'auditor' || has('catalogs.view');
 
   const [filters, setFilters] = useState<ProductsQuery>(
     () => loadStoredFilters()?.filters ?? defaultFilters,
@@ -139,30 +140,36 @@ export function ProductsListPage() {
 
         {showFilters && (
           <div className="grid grid-cols-1 gap-2 rounded-sm border border-line bg-paper p-3 sm:grid-cols-2 sm:gap-3 sm:p-4 lg:grid-cols-4">
-            <SearchableSelect
-              label="Departamento"
-              resource="departments"
-              value={filters.departmentId ?? ''}
-              onChange={(value) => updateFilter({ departmentId: value })}
-              placeholder="Todos"
-              clearLabel="Todos"
-            />
-            <SearchableSelect
-              label="Grupo"
-              resource="groups"
-              value={filters.groupId ?? ''}
-              onChange={(value) => updateFilter({ groupId: value })}
-              placeholder="Todos"
-              clearLabel="Todos"
-            />
-            <SearchableSelect
-              label="Marca"
-              resource="brands"
-              value={filters.brandId ?? ''}
-              onChange={(value) => updateFilter({ brandId: value })}
-              placeholder="Todas"
-              clearLabel="Todas"
-            />
+            {/* Department/group/brand lists need catalogs.view — hidden
+                rather than shown as a dropdown that fails to load. */}
+            {canFilterByCatalogs && (
+              <>
+                <SearchableSelect
+                  label="Departamento"
+                  resource="departments"
+                  value={filters.departmentId ?? ''}
+                  onChange={(value) => updateFilter({ departmentId: value })}
+                  placeholder="Todos"
+                  clearLabel="Todos"
+                />
+                <SearchableSelect
+                  label="Grupo"
+                  resource="groups"
+                  value={filters.groupId ?? ''}
+                  onChange={(value) => updateFilter({ groupId: value })}
+                  placeholder="Todos"
+                  clearLabel="Todos"
+                />
+                <SearchableSelect
+                  label="Marca"
+                  resource="brands"
+                  value={filters.brandId ?? ''}
+                  onChange={(value) => updateFilter({ brandId: value })}
+                  placeholder="Todas"
+                  clearLabel="Todas"
+                />
+              </>
+            )}
             <SearchableSelect
               label="Proveedor"
               resource="suppliers"

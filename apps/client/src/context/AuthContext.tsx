@@ -18,15 +18,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const hasTokens = Boolean(getAccessToken());
 
+  // Kept live (not just a one-time rehydrate) so a permission change made
+  // by an admin reaches an employee's open session — otherwise the menu
+  // keeps showing items from the login-time snapshot until they log out.
   const meQuery = useQuery({
     queryKey: ['auth', 'me'],
     queryFn: getMe,
-    enabled: hasTokens && user === null,
+    enabled: hasTokens,
     retry: false,
+    refetchOnWindowFocus: true,
+    refetchInterval: 60_000,
   });
 
-  // Rehydrate user from /auth/me response without useEffect.
-  if (meQuery.data && user === null) {
+  // Sync user from each fresh /auth/me response without useEffect. Tracks
+  // the last synced response so local updates (e.g. mustChangePassword
+  // after changing it) aren't overwritten by an older cached one.
+  const [syncedMe, setSyncedMe] = useState<AuthUser | null>(null);
+  if (meQuery.data && meQuery.data !== syncedMe) {
+    setSyncedMe(meQuery.data);
     setUser(meQuery.data);
   }
 

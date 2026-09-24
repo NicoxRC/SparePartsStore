@@ -72,8 +72,12 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
+    // A 403 can mean the access token still carries the permissions from
+    // before an admin granted a new one — refreshing re-reads them from the
+    // DB, so try once before giving up (a real 403 just fails again).
+    const status = error.response?.status;
     if (
-      error.response?.status !== 401 ||
+      (status !== 401 && status !== 403) ||
       !originalRequest ||
       originalRequest._retry ||
       originalRequest.url?.includes('/auth/refresh') ||
@@ -84,7 +88,9 @@ api.interceptors.response.use(
 
     const refreshToken = getRefreshToken();
     if (!refreshToken) {
-      redirectToLogin();
+      if (status === 401) {
+        redirectToLogin();
+      }
       return Promise.reject(error);
     }
 

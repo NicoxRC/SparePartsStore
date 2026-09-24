@@ -32,10 +32,15 @@ export function AuthenticatedLayout() {
     ...(isAuditor || has('products.view')
       ? [{ to: '/products', label: 'Productos', Icon: IconBox }]
       : []),
-    ...(isAuditor || has('inventory.view')
+    // The inventory page lists products, so it needs products.view too.
+    ...(isAuditor || (has('inventory.view') && has('products.view'))
       ? [{ to: '/inventory', label: 'Inventario', Icon: IconLayers }]
       : []),
-    ...(!isAuditor && has('invoices.create')
+    // Same "either grant" rule as the /ventas route; the whole page sits
+    // behind the day's cash register, so it's useless without Caja view.
+    ...(!isAuditor &&
+    (has('invoices.create') || has('quotations.create')) &&
+    has('cash_register.view')
       ? [{ to: '/ventas', label: 'Venta', Icon: IconCart }]
       : []),
     ...(!isAuditor && has('quotations.view')

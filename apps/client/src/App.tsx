@@ -70,7 +70,9 @@ function App() {
                   <Route path="/products" element={<ProductsListPage />} />
                 </Route>
                 <Route element={<PermissionRoute permission="inventory.view" />}>
-                  <Route path="/inventory" element={<InventoryPage />} />
+                  <Route element={<PermissionRoute permission="products.view" />}>
+                    <Route path="/inventory" element={<InventoryPage />} />
+                  </Route>
                 </Route>
 
                 <Route element={<EmployeeRoute />}>
@@ -98,7 +100,9 @@ function App() {
                   <Route
                     element={<PermissionRoute permission={['invoices.create', 'quotations.create']} />}
                   >
-                    <Route path="/ventas" element={<InvoiceFormPage />} />
+                    <Route element={<PermissionRoute permission="cash_register.view" />}>
+                      <Route path="/ventas" element={<InvoiceFormPage />} />
+                    </Route>
                   </Route>
                   <Route element={<PermissionRoute permission="quotations.view" />}>
                     <Route path="/cotizaciones" element={<QuotationsListPage />} />
