@@ -78,6 +78,14 @@ npm run dev
 
 The client runs at Vite's default port (`http://localhost:5173`).
 
+### Demo mode (for presentations / onboarding)
+
+```bash
+./scripts/demo/start-demo.sh           # --reset to wipe and re-seed
+```
+
+Starts API (`:3300`), client (`http://localhost:5300`) and a **local fake Dataico** (`:4010`) against a separate `casarespuestos_demo` database seeded with a fictional product catalog and one login per role (`admin@`, `empleado@`, `bodega@`, `contador@demo.com`, password `Demo1234!`). Live sales work end to end but never reach the real Dataico/DIAN. Needs Postgres running (`docker compose up -d`) and `apps/api/.env` filled in (only its DB and JWT values are used).
+
 ### 4. Run the tests
 
 ```bash

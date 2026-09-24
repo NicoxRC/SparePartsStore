@@ -92,3 +92,6 @@ pids/
 # =============================================================================
 # Keep docker-compose.yml committed; ignore local overrides
 docker-compose.override.yml
+
+# Demo environment (scripts/demo/start-demo.sh): logs and generated files
+scripts/demo/output/
