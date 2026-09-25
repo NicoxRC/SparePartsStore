@@ -2,15 +2,8 @@ import { BUSINESS_PROFILE } from '../../config/business';
 import { amountInWords } from '../../lib/amountInWords';
 import { computeLineBreakdown } from '../../lib/invoiceMath';
 import { ticketInt, ticketTime } from '../../lib/ticketFormat';
+import { quotationCustomerLabel } from '../../lib/quotationLabels';
 import type { QuotationResponse } from '../../services/quotations';
-
-function customerLabel(quotation: QuotationResponse): string {
-  return (
-    quotation.customerCompanyName ||
-    [quotation.customerFirstName, quotation.customerFamilyName].filter(Boolean).join(' ') ||
-    quotation.customerIdentification
-  );
-}
 
 /** One row of the customer block: a label and its value, both left-aligned. */
 function CustomerRow({ label, value }: { label: string; value: string }) {
@@ -66,7 +59,8 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
   const tax = lines.reduce((sum, l) => sum + l.breakdown.tax, 0);
   const discount = lines.reduce((sum, l) => sum + l.discount, 0);
   const total = lines.reduce((sum, l) => sum + l.breakdown.total, 0);
-  const idNumber = `${quotation.customerIdentification}${
+  const isEmployee = quotation.borrowerType === 'empleado';
+  const idNumber = `${quotation.customerIdentification ?? ''}${
     quotation.customerIdentificationDv ? `-${quotation.customerIdentificationDv}` : ''
   }`;
 
@@ -86,8 +80,11 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
       </p>
 
       <div className="mt-3 border-2 border-black px-2 py-1">
-        <CustomerRow label="Cliente:" value={customerLabel(quotation)} />
-        <CustomerRow label="Cédula/Nit:" value={idNumber} />
+        <CustomerRow
+          label={isEmployee ? 'Empleado:' : 'Cliente:'}
+          value={quotationCustomerLabel(quotation)}
+        />
+        {!isEmployee && <CustomerRow label="Cédula/Nit:" value={idNumber} />}
         <CustomerRow label="Teléfono:" value={quotation.customerPhone ?? ''} />
       </div>
 

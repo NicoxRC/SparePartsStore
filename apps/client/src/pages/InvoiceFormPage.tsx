@@ -1,6 +1,6 @@
 import { BrandTag } from '../components/BrandTag';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   useFieldArray,
   useForm,
@@ -8,7 +8,7 @@ import {
   type FieldErrors,
   type UseFormRegister,
 } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { CashMovementDialog } from '../components/CashMovementDialog';
@@ -42,6 +42,7 @@ import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
 import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
 import { FINAL_CONSUMER_INVOICE_CAP, isFinalConsumer } from '../lib/finalConsumer';
+import { BORROWER_TYPE_LABEL } from '../lib/quotationLabels';
 import { computeItemDiscount, computeItemTotal, summarizeLines } from '../lib/invoiceMath';
 import { TotalsSummary } from '../components/TotalsSummary';
 import {
@@ -52,6 +53,7 @@ import {
 import { lowerCaseField, toLowerCase, toUpperCase, upperCaseField } from '../lib/textCase';
 import type { CustomerInput, CustomerPartyType, CustomerResponse } from '../services/customers';
 import type { ProductResponse } from '../services/products';
+import type { QuotationBorrowerType } from '../services/quotations';
 import type { ThirdPartyResponse } from '../services/thirdParties';
 
 const DEFAULT_TAX_RATE = 19;
@@ -223,6 +225,70 @@ function CustomerSection({
   );
 }
 
+interface BorrowerTypeToggleProps {
+  value: QuotationBorrowerType;
+  onChange: (value: QuotationBorrowerType) => void;
+}
+
+/**
+ * Who a quotation (a loan of merchandise) is for. Almacén is the normal
+ * customer form, needed to invoice too; Empleado only asks for a name and
+ * can only be quoted, not invoiced.
+ */
+function BorrowerTypeToggle({ value, onChange }: BorrowerTypeToggleProps) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {(['almacen', 'empleado'] as const).map((option) => (
+        <button
+          key={option}
+          type="button"
+          aria-pressed={value === option}
+          onClick={() => onChange(option)}
+          className={`rounded-full border px-3 py-1.5 text-sm ${
+            value === option
+              ? 'border-ink bg-ink text-paper'
+              : 'border-line bg-paper text-steel hover:bg-mist'
+          }`}
+        >
+          {BORROWER_TYPE_LABEL[option]}
+        </button>
+      ))}
+      {value === 'empleado' && (
+        <p className="text-sm text-fog">Préstamo a un empleado: solo se cotiza, con su nombre.</p>
+      )}
+    </div>
+  );
+}
+
+interface EmployeeSectionProps {
+  register: UseFormRegister<InvoiceFormInput>;
+  errors: FieldErrors<InvoiceFormInput>;
+}
+
+function EmployeeSection({ register, errors }: EmployeeSectionProps) {
+  return (
+    <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Empleado</h2>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <TextField
+          label="Nombres"
+          error={errors.customerFirstName?.message}
+          {...upperCaseField(register('customerFirstName'))}
+        />
+        <TextField
+          label="Apellidos (opcional)"
+          {...upperCaseField(register('customerFamilyName'))}
+        />
+        <TextField
+          label="Celular (opcional)"
+          inputMode="tel"
+          {...register('customerPhone')}
+        />
+      </div>
+    </section>
+  );
+}
+
 interface InvoiceDraftFormProps {
   draft: InvoiceDraft;
   /** `pdfUrl` only when the sale produced a single invoice. */
@@ -280,6 +346,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     watch,
     trigger,
     getValues,
+    setError,
     formState: { errors },
   } = useForm<InvoiceFormInput, unknown, InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
@@ -301,6 +368,9 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     remove: removeItem,
   } = useFieldArray({ control, name: 'items' });
 
+  // A quotation to an empleado needs only a name — see handleCotizar().
+  const borrowerType = useWatch({ control, name: 'borrowerType' });
+  const isEmployeeLoan = canQuote && borrowerType === 'empleado';
   const customerPartyType = useWatch({ control, name: 'customerPartyType' });
   const customerIdentification = useWatch({ control, name: 'customerIdentification' });
   const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
@@ -536,6 +606,31 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   };
 
   const handleCotizar = async () => {
+    if (isEmployeeLoan) {
+      const values = getValues();
+      if (!values.customerFirstName?.trim()) {
+        setError('customerFirstName', { message: 'El nombre del empleado es obligatorio.' });
+        return;
+      }
+      // No invoice data, so nothing to save to the customer address book.
+      const quotation = await createQuotationMutation.mutateAsync({
+        borrowerType: 'empleado',
+        customerFirstName: values.customerFirstName,
+        customerFamilyName: values.customerFamilyName || undefined,
+        customerPhone: values.customerPhone || undefined,
+        items: values.items.map((item) =>
+          toApiItem(
+            item,
+            computeItemDiscount(item, Number(values.discountPercentage) || 0) || undefined,
+          ),
+        ),
+        notes: values.notes || undefined,
+      });
+      closeDraft(draft.id);
+      navigate(`/cotizaciones/${quotation.id}`);
+      return;
+    }
+
     const valid = await trigger([
       'customerIdentificationType',
       'customerIdentification',
@@ -556,6 +651,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     await saveCustomerBestEffort(values);
 
     const quotation = await createQuotationMutation.mutateAsync({
+      borrowerType: 'almacen',
       customerIdentificationType: values.customerIdentificationType,
       customerIdentification: values.customerIdentification,
       customerIdentificationDv: values.customerIdentificationDv || undefined,
@@ -840,6 +936,16 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
           </>
         ) : step === 'customer' ? (
           <>
+            {canQuote && (
+              <BorrowerTypeToggle
+                value={isEmployeeLoan ? 'empleado' : 'almacen'}
+                onChange={(value) => setValue('borrowerType', value)}
+              />
+            )}
+
+            {isEmployeeLoan ? (
+              <EmployeeSection register={register} errors={errors} />
+            ) : (
             <CustomerSection
               register={register}
               errors={errors}
@@ -853,6 +959,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
               onSelectCustomer={handleSelectCustomer}
               onDianResult={handleDianResult}
             />
+            )}
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
               <Button
@@ -882,7 +989,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
                   Cotizar
                 </Button>
               )}
-              {canInvoice && (
+              {canInvoice && !isEmployeeLoan && (
                 <Button
                   type="button"
                   className="sm:w-auto sm:px-6"
@@ -1032,6 +1139,22 @@ export function InvoiceFormPage() {
     invoiceIds: string[];
   } | null>(null);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
+
+  // "Nueva cotización" on Cotizaciones lands here asking for a fresh tab —
+  // unless the current one is still empty, which already is one. The ref
+  // keeps StrictMode's double effect run from opening two.
+  const location = useLocation();
+  const navigate = useNavigate();
+  const handledNewDraftRef = useRef(false);
+  const wantsNewDraft = (location.state as { newDraft?: boolean } | null)?.newDraft === true;
+  const activeDraftIsEmpty =
+    drafts.find((draft) => draft.id === activeDraftId)?.values.items?.length === 0;
+  useEffect(() => {
+    if (!wantsNewDraft || handledNewDraftRef.current) return;
+    handledNewDraftRef.current = true;
+    if (!activeDraftIsEmpty) addDraft();
+    navigate('.', { replace: true, state: null });
+  }, [wantsNewDraft, activeDraftIsEmpty, addDraft, navigate]);
 
   if (cashRegisterQuery.isPending) {
     return <Spinner label="Cargando…" />;

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CustomerPicker } from '../components/CustomerPicker';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
 import { PrintTicket } from '../components/print/PrintTicket';
 import { QuotationTicket } from '../components/print/QuotationTicket';
@@ -33,8 +34,11 @@ import {
   summarizeLines,
 } from '../lib/invoiceMath';
 import { TotalsSummary } from '../components/TotalsSummary';
+import { BORROWER_TYPE_LABEL, quotationCustomerLabel } from '../lib/quotationLabels';
 import { toLowerCase, toUpperCase } from '../lib/textCase';
+import type { CustomerResponse } from '../services/customers';
 import type { ProductResponse } from '../services/products';
+import type { ThirdPartyResponse } from '../services/thirdParties';
 import type {
   CreateQuotationItemInput,
   InvoiceQuotationCustomerInput,
@@ -60,12 +64,6 @@ function quotationNumberLabel(number: number): string {
   return `COT-${String(number).padStart(4, '0')}`;
 }
 
-function customerLabelFor(quotation: QuotationResponse): string {
-  const personName = [quotation.customerFirstName, quotation.customerFamilyName]
-    .filter(Boolean)
-    .join(' ');
-  return quotation.customerCompanyName || personName || quotation.customerIdentification;
-}
 
 interface EditableItem {
   /** '' for a one-off line typed on the quotation (not a catalog product). */
@@ -168,7 +166,44 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
     customerAddressLine: '',
     customerEmail: '',
   });
+  const [overrideSearchQuery, setOverrideSearchQuery] = useState('');
   const invoiceMutation = useInvoiceQuotation();
+
+  // Same "find a customer" widget as Venta, filling the override customer.
+  const handleSelectOverrideCustomer = (customer: CustomerResponse) => {
+    setOverrideCustomer({
+      customerIdentificationType: customer.identificationType,
+      customerIdentification: customer.identification,
+      customerPartyType: customer.partyType,
+      customerTaxLevelCode: customer.taxLevelCode || 'COMUN',
+      customerRegimen: customer.regimen ?? undefined,
+      customerCompanyName: toUpperCase(customer.companyName ?? '') || undefined,
+      customerFirstName: toUpperCase(customer.firstName ?? '') || undefined,
+      customerFamilyName: toUpperCase(customer.familyName ?? '') || undefined,
+      customerCountryCode: customer.countryCode ?? 'CO',
+      customerDepartment: customer.department ?? DEFAULT_DANE_DEPARTMENT_CODE,
+      customerCity: customer.city ?? DEFAULT_DANE_CITY_CODE,
+      customerAddressLine: customer.addressLine ?? '',
+      customerEmail: toLowerCase(customer.email),
+    });
+    setOverrideSearchQuery('');
+  };
+
+  const handleOverrideDianResult = (result: ThirdPartyResponse) => {
+    const isPerson = result.identificationType === 'CC';
+    const familyName = [result.familyName, result.secondLastName].filter(Boolean).join(' ');
+    setOverrideCustomer((prev) => ({
+      ...prev,
+      customerIdentificationType: result.identificationType,
+      customerIdentification: result.identification,
+      customerEmail: result.email ? toLowerCase(result.email) : prev.customerEmail,
+      customerPartyType: isPerson ? 'PERSONA_NATURAL' : 'PERSONA_JURIDICA',
+      customerTaxLevelCode: isPerson ? 'SIMPLIFICADO' : 'COMUN',
+      customerCompanyName: isPerson ? undefined : toUpperCase(result.companyName ?? ''),
+      customerFirstName: isPerson ? toUpperCase(result.firstName ?? '') : undefined,
+      customerFamilyName: isPerson ? toUpperCase(familyName) : undefined,
+    }));
+  };
 
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
@@ -277,6 +312,11 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
     navigate('/cotizaciones');
   };
 
+  // An empleado quotation has no invoice data, so it's always billed to
+  // another customer.
+  const isEmployee = quotation.borrowerType === 'empleado';
+  const billsSameCustomer = useSameCustomer && !isEmployee;
+
   const handleInvoice = async () => {
     await invoiceMutation.mutateAsync({
       id: quotation.id,
@@ -284,8 +324,8 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
         paymentDate: paymentMeansType === 'CREDITO' ? paymentDate : undefined,
         paymentMeans,
         paymentMeansType,
-        useSameCustomer,
-        customer: useSameCustomer ? undefined : overrideCustomer,
+        useSameCustomer: billsSameCustomer,
+        customer: billsSameCustomer ? undefined : overrideCustomer,
       },
     });
     navigate('/invoicing/invoices');
@@ -305,7 +345,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
             {quotationNumberLabel(quotation.number)}
           </h1>
-          <p className="text-sm text-fog">{customerLabelFor(quotation)}</p>
+          <p className="text-sm text-fog">{quotationCustomerLabel(quotation)}</p>
         </div>
         <div className="flex items-center gap-3">
           <span
@@ -342,7 +382,21 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
       )}
 
       <section className="flex flex-col gap-3 rounded border border-line bg-paper p-4 sm:p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
+          {BORROWER_TYPE_LABEL[quotation.borrowerType]}
+        </h2>
+        {isEmployee ? (
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-fog">Nombre</dt>
+              <dd className="text-ink">{quotationCustomerLabel(quotation)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs uppercase tracking-wide text-fog">Teléfono</dt>
+              <dd className="text-ink">{quotation.customerPhone || '—'}</dd>
+            </div>
+          </dl>
+        ) : (
         <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-xs uppercase tracking-wide text-fog">Identificación</dt>
@@ -364,6 +418,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
             <dd className="text-ink">{quotation.customerAddressLine}</dd>
           </div>
         </dl>
+        )}
       </section>
 
       <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
@@ -600,6 +655,11 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                 )}
               </div>
 
+              {isEmployee ? (
+                <p className="text-sm text-steel">
+                  Préstamo a un empleado: indica el cliente al que se factura.
+                </p>
+              ) : (
               <div className="flex flex-col gap-2">
                 <label className="flex items-center gap-2 text-sm text-ink">
                   <input
@@ -618,9 +678,20 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                   Facturar a nombre de otro cliente
                 </label>
               </div>
+              )}
 
-              {!useSameCustomer && (
+              {!billsSameCustomer && (
                 <div className="grid grid-cols-1 gap-4 rounded-sm border border-line p-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <CustomerPicker
+                      searchQuery={overrideSearchQuery}
+                      onSearchQueryChange={setOverrideSearchQuery}
+                      identification={overrideCustomer.customerIdentification}
+                      identificationType={overrideCustomer.customerIdentificationType}
+                      onSelectCustomer={handleSelectOverrideCustomer}
+                      onDianResult={handleOverrideDianResult}
+                    />
+                  </div>
                   <SelectField
                     label="Tipo de identificación"
                     value={overrideCustomer.customerIdentificationType}

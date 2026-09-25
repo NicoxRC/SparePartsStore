@@ -29,6 +29,7 @@ export function createEmptyInvoiceDraft(): InvoiceDraft {
       paymentDate: new Date().toISOString().slice(0, 10),
       paymentMeans: 'CASH',
       paymentMeansType: 'DEBITO',
+      borrowerType: 'almacen',
       customerIdentificationType: 'NIT',
       customerIdentification: '',
       customerIdentificationDv: '',
