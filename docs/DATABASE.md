@@ -284,7 +284,7 @@ Added Phase 12, **dropped** by the `DropPosInvoices` migration once POS Electró
 
 ### `customers`
 
-Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap phase) — a persisted local "customer address book" so store staff can search/reuse a customer across sales instead of retyping or re-looking-up every time. See `docs/GLOSSARY.md` ("Cliente / Customer (local)") for how this differs from "Tercero."
+Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap phase) — a persisted local "customer address book" so store staff can search/reuse a customer across sales instead of retyping or re-looking-up every time. See `docs/GLOSSARY.md` ("Cliente / Customer (local)") for how this differs from "Tercero." One row always exists from migration 33: the "Consumidor final" customer (`222222222222`) — see `GLOSSARY.md`.
 
 | Column | Type | Notes |
 |---|---|---|
@@ -516,6 +516,7 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 30 | `RemoveCodeMessageFromDianResolutions` | Drops `dian_resolutions.resolution_code_message` (the optional code message: `code-msg` is still sent to Dataico, but as a fixed constant, so nothing needs storing). `down()` re-adds the empty nullable column — the old texts aren't recoverable. Hand-written, same reason as the migrations above. |
 | 31 | `RemoveTechnicalKeyFromDianResolutions` | Drops `dian_resolutions.technical_key`: the resolution form no longer asks for it and the numbering sync no longer sends `technical-key` (Dataico had already accepted resolutions synced without it). `down()` re-adds the empty nullable column — stored keys aren't recoverable. Hand-written, same reason as the migrations above. |
 | 32 | `AddCustomLinesToQuotationItems` | `quotation_items.product_id` becomes nullable and `description` (VARCHAR 255) is added, so a quotation line can be a one-off (description + price) instead of a catalog product. `down()` deletes the one-off lines before restoring `NOT NULL`. Hand-written, same reason as the migrations above. |
+| 33 | `AddFinalConsumerCustomer` | Data-only: inserts the "Consumidor final" customer (`CC 222222222222`, the store's own address/city/email) unless one with that identification already exists. `down()` is a no-op — invoices may already point at it. See `GLOSSARY.md`'s "Consumidor final". |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

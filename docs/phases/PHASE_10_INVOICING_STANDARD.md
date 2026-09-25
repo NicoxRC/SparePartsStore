@@ -209,8 +209,11 @@ A close sibling of the debit note shape above, with real, deliberate differences
 - [x] `DATAICO_CREDIT_NOTE_PREFIX` (required) and `CREDIT_NOTE_NUMBER_START` (default `1`) added as new env vars.
 - [x] Unit tests: same coverage shape as debit notes, plus a rejection when the invoice's stored payload is missing `payment_means`, and a case confirming insufficient stock does NOT block a credit note.
 - [x] Frontend: "Nota crédito" action on `InvoicesListPage`, a dedicated form (pick products to return, quantities — tax rate is derived from each product, not typed), and a `CreditNotesListPage` linked from Facturas.
+- [x] **Consumidor final split** (follow-up, 2026-09-25): a sale to `222222222222` over $235.000 (IVA included) is sent as several invoices of at most that amount — `POST /api/invoicing/invoices` and `POST /api/quotations/:id/invoice` now return an **array** of invoices (one element for every other sale). Stock is checked for the whole sale before the first one goes out. See `GLOSSARY.md`'s "Consumidor final" for the rules.
 
 ## Deliberately left out (keep it simple — see `CLAUDE.md`)
+
+- **No rollback of a half-sent Consumidor final split.** If invoice 3 of 5 fails at Dataico, 1–2 are already legal documents; the error lists them and the rest of the sale is not invoiced. No automatic retry or "resume" — staff checks Facturas and invoices what's left. A quotation keeps a single link (to the first invoice) rather than a new one-to-many table.
 
 - **Dry-run is a server setting, not a UI concept.** `actions.send_dian` / `send_email` come from `DATAICO_SEND_DIAN` / `DATAICO_SEND_EMAIL` (both default `false`): with them off, an invoice created through this app exists in Dataico but is neither submitted to the DIAN nor emailed. Turn `DATAICO_SEND_DIAN` on for a real submission. There is still no per-invoice "test send" toggle in the UI.
 - **No DANE department/city catalog.** The form takes raw DANE codes as free text (e.g. `"11"`, `"001"`) rather than a searchable lookup — this store's customer base is small enough that typing the code is acceptable for now.
