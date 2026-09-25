@@ -2,24 +2,25 @@ import { useState } from 'react';
 import { Alert } from '../Alert';
 import { InvoiceTicket } from './InvoiceTicket';
 import { PrintTicket } from './PrintTicket';
-import { useInvoiceTicket } from '../../hooks/useInvoices';
+import { useInvoiceTickets } from '../../hooks/useInvoices';
 import { getApiErrorMessage } from '../../lib/errors';
 import type { InvoiceTicket as InvoiceTicketData } from '../../services/invoices';
 
 interface PrintInvoiceTicketButtonProps {
-  invoiceId: string;
+  /** Usually one; several print one after another in the same print job. */
+  invoiceIds: string[];
   className?: string;
   label?: string;
 }
 
-/** Fetches the invoice's receipt data and hands it to the browser's print dialog. */
+/** Fetches the invoices' receipt data and hands it to the browser's print dialog. */
 export function PrintInvoiceTicketButton({
-  invoiceId,
+  invoiceIds,
   className = 'font-medium text-ink hover:underline',
   label = 'Imprimir tirilla',
 }: PrintInvoiceTicketButtonProps) {
-  const ticketMutation = useInvoiceTicket();
-  const [ticket, setTicket] = useState<InvoiceTicketData | null>(null);
+  const ticketMutation = useInvoiceTickets();
+  const [tickets, setTickets] = useState<InvoiceTicketData[] | null>(null);
 
   return (
     <>
@@ -27,16 +28,24 @@ export function PrintInvoiceTicketButton({
         type="button"
         className={className}
         disabled={ticketMutation.isPending}
-        onClick={() => ticketMutation.mutate(invoiceId, { onSuccess: setTicket })}
+        onClick={() => ticketMutation.mutate(invoiceIds, { onSuccess: setTickets })}
       >
         {ticketMutation.isPending ? 'Preparando…' : label}
       </button>
       {ticketMutation.isError && (
         <Alert variant="error">{getApiErrorMessage(ticketMutation.error)}</Alert>
       )}
-      {ticket && (
-        <PrintTicket onClose={() => setTicket(null)}>
-          <InvoiceTicket ticket={ticket} />
+      {tickets && (
+        <PrintTicket onClose={() => setTickets(null)}>
+          {/* Each receipt on its own page, so the printer cuts between them. */}
+          {tickets.map((ticket, index) => (
+            <div
+              key={invoiceIds[index]}
+              style={index < tickets.length - 1 ? { breakAfter: 'page' } : undefined}
+            >
+              <InvoiceTicket ticket={ticket} />
+            </div>
+          ))}
         </PrintTicket>
       )}
     </>

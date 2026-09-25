@@ -41,6 +41,7 @@ import {
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
 import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
+import { FINAL_CONSUMER_INVOICE_CAP, isFinalConsumer } from '../lib/finalConsumer';
 import { computeItemDiscount, computeItemTotal, summarizeLines } from '../lib/invoiceMath';
 import { TotalsSummary } from '../components/TotalsSummary';
 import {
@@ -224,7 +225,8 @@ function CustomerSection({
 
 interface InvoiceDraftFormProps {
   draft: InvoiceDraft;
-  onInvoiced: (message: string, pdfUrl: string | null, invoiceId: string) => void;
+  /** `pdfUrl` only when the sale produced a single invoice. */
+  onInvoiced: (message: string, pdfUrl: string | null, invoiceIds: string[]) => void;
 }
 
 /**
@@ -587,7 +589,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const onSubmit = async (values: InvoiceFormValues) => {
     await saveCustomerBestEffort(values);
 
-    const invoice = await createMutation.mutateAsync({
+    const invoices = await createMutation.mutateAsync({
       paymentDate: values.paymentMeansType === 'CREDITO' ? values.paymentDate : undefined,
       paymentMeans: values.paymentMeans,
       paymentMeansType: values.paymentMeansType,
@@ -617,8 +619,16 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     // the next sale) and stay on Venta, confirming via toast instead of
     // navigating away.
     closeDraft(draft.id);
-    const invoiceNumber = invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`;
-    onInvoiced(`Factura ${invoiceNumber} creada correctamente.`, invoice.pdfUrl, invoice.id);
+    const numbers = invoices.map(
+      (invoice) => invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`,
+    );
+    onInvoiced(
+      invoices.length === 1
+        ? `Factura ${numbers[0]} creada correctamente.`
+        : `Se crearon ${invoices.length} facturas: ${numbers.join(', ')}.`,
+      invoices.length === 1 ? invoices[0].pdfUrl : null,
+      invoices.map((invoice) => invoice.id),
+    );
   };
 
   const total = watchedItems.reduce((sum, item) => sum + computeItemTotal(item), 0);
@@ -961,6 +971,15 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
               <TotalsSummary {...summary} undiscountedTotal={total} />
             </section>
 
+            {isFinalConsumer(customerIdentification) &&
+              summary.total > FINAL_CONSUMER_INVOICE_CAP && (
+                <Alert variant="info">
+                  Supera ${FINAL_CONSUMER_INVOICE_CAP.toLocaleString('es-CO')}: a Consumidor final
+                  se enviará dividida en varias facturas de máximo $
+                  {FINAL_CONSUMER_INVOICE_CAP.toLocaleString('es-CO')} cada una.
+                </Alert>
+              )}
+
             <TextField label="Notas (opcional)" {...register('notes')} />
 
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
@@ -1010,7 +1029,7 @@ export function InvoiceFormPage() {
   const [toast, setToast] = useState<{
     message: string;
     pdfUrl: string | null;
-    invoiceId: string;
+    invoiceIds: string[];
   } | null>(null);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
 
@@ -1251,7 +1270,7 @@ export function InvoiceFormPage() {
           <InvoiceDraftForm
             key={activeDraft.id}
             draft={activeDraft}
-            onInvoiced={(message, pdfUrl, invoiceId) => setToast({ message, pdfUrl, invoiceId })}
+            onInvoiced={(message, pdfUrl, invoiceIds) => setToast({ message, pdfUrl, invoiceIds })}
           />
         </div>
       </div>
@@ -1262,7 +1281,8 @@ export function InvoiceFormPage() {
           onDismiss={() => setToast(null)}
           extra={
             <PrintInvoiceTicketButton
-              invoiceId={toast.invoiceId}
+              invoiceIds={toast.invoiceIds}
+              label={toast.invoiceIds.length > 1 ? 'Imprimir tirillas' : undefined}
               className="font-medium underline hover:opacity-70"
             />
           }

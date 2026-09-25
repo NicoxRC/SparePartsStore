@@ -164,7 +164,9 @@ describe('QuotationsService', () => {
       assertOpenToday: jest.fn().mockResolvedValue(undefined),
     };
     invoicesService = {
-      create: jest.fn().mockResolvedValue({ id: 'inv-1', totalAmount: 100000 }),
+      create: jest
+        .fn()
+        .mockResolvedValue([{ id: 'inv-1', totalAmount: 100000 }]),
     };
 
     service = new QuotationsService(

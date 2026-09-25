@@ -4,7 +4,9 @@ import { Button } from './Button';
 import { TextField } from './TextField';
 import { useCustomers } from '../hooks/useCustomers';
 import { useThirdPartyLookup } from '../hooks/useThirdPartyLookup';
-import type { CustomerResponse } from '../services/customers';
+import { getApiErrorMessage } from '../lib/errors';
+import { FINAL_CONSUMER_IDENTIFICATION } from '../lib/finalConsumer';
+import { getCustomers, type CustomerResponse } from '../services/customers';
 import type { ThirdPartyResponse } from '../services/thirdParties';
 
 interface CustomerPickerProps {
@@ -62,9 +64,41 @@ export function CustomerPicker({
     }
   };
 
+  const [isLoadingFinalConsumer, setIsLoadingFinalConsumer] = useState(false);
+  const [finalConsumerError, setFinalConsumerError] = useState<string | null>(null);
+
+  // One click for the most common "customer" at the counter: whoever
+  // doesn't want to give their data.
+  const handleFinalConsumer = async () => {
+    setIsLoadingFinalConsumer(true);
+    setFinalConsumerError(null);
+    try {
+      const { data } = await getCustomers({ search: FINAL_CONSUMER_IDENTIFICATION, limit: 1 });
+      const match = data.find((customer) => customer.identification === FINAL_CONSUMER_IDENTIFICATION);
+      if (match) {
+        onSelectCustomer(match);
+      } else {
+        setFinalConsumerError('No se encontró el cliente Consumidor final.');
+      }
+    } catch (error) {
+      setFinalConsumerError(getApiErrorMessage(error));
+    } finally {
+      setIsLoadingFinalConsumer(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          className="sm:w-auto sm:px-4"
+          isLoading={isLoadingFinalConsumer}
+          onClick={() => void handleFinalConsumer()}
+        >
+          Consumidor final
+        </Button>
         <Button
           type="button"
           variant="secondary"
@@ -76,6 +110,8 @@ export function CustomerPicker({
           Buscar en DIAN
         </Button>
       </div>
+
+      {finalConsumerError && <Alert variant="error">{finalConsumerError}</Alert>}
 
       {thirdPartyLookup.isFetched && !thirdPartyLookup.data && (
         <Alert variant="info">No se encontró un tercero con esa identificación en la DIAN.</Alert>

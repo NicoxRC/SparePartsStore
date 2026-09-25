@@ -1,5 +1,7 @@
 import {
   BadRequestException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -26,6 +28,10 @@ import { DataicoClientService } from '../dataico/dataico-client.service';
 import { DataicoConfig } from '../dataico/dataico.config';
 import { toDataicoDate } from '../dataico/dataico-date.util';
 import { ResolutionsService } from '../resolutions/resolutions.service';
+import {
+  isFinalConsumer,
+  splitFinalConsumerItems,
+} from './final-consumer.util';
 import { buildInvoiceTicket } from './invoice-ticket.util';
 import { InvoiceTicketDto } from './dto/invoice-ticket.dto';
 import { ELECTRONIC_SUBTYPE } from '../resolutions/resolution.constants';
@@ -72,6 +78,8 @@ interface ResolvedItem {
   unitPrice: number;
   taxBase: number;
   taxAmount: number;
+  /** What the customer pays for the line (IVA included, after discount). */
+  total: number;
 }
 
 @Injectable()
@@ -89,6 +97,14 @@ export class InvoicesService {
   ) {}
 
   /**
+   * Sends the sale to Dataico and returns every invoice it produced — always
+   * one, except for a "Consumidor final" sale over
+   * FINAL_CONSUMER_INVOICE_CAP, which is split into several invoices of at
+   * most that amount (see splitFinalConsumerItems()). Each piece is a full,
+   * separate invoice with its own number. If one of them fails after others
+   * already went out, those can't be un-sent: the error says which were
+   * issued, and the rest of the sale was NOT invoiced (nor its stock moved).
+   *
    * `skipInventoryEffects` is internal-only — never set by the public
    * controller. QuotationsService.invoice() sets it when converting an
    * already-decremented quotation into an invoice: the stock for those
@@ -102,6 +118,40 @@ export class InvoicesService {
     dto: CreateInvoiceDto,
     createdById: string,
     options: { skipInventoryEffects?: boolean } = {},
+  ): Promise<InvoiceResponseDto[]> {
+    if (!isFinalConsumer(dto.customerIdentification)) {
+      return [await this.createOne(dto, createdById, options)];
+    }
+
+    // Resolving the whole sale first also checks stock for all of it before
+    // the first invoice goes out, not group by group.
+    const resolved = await this.resolveItems(dto, options.skipInventoryEffects);
+    const groups = splitFinalConsumerItems(
+      dto.items.map((item, index) => ({ item, total: resolved[index].total })),
+    );
+
+    const invoices: InvoiceResponseDto[] = [];
+    for (const items of groups) {
+      try {
+        invoices.push(
+          await this.createOne({ ...dto, items }, createdById, options),
+        );
+      } catch (error) {
+        if (invoices.length === 0) throw error;
+        throw this.partialSplitError(invoices, groups.length, error);
+      }
+    }
+    return invoices;
+  }
+
+  /**
+   * One invoice to Dataico. `create()` calls it once per invoice — just once
+   * unless a "Consumidor final" sale has to be split.
+   */
+  private async createOne(
+    dto: CreateInvoiceDto,
+    createdById: string,
+    options: { skipInventoryEffects?: boolean },
   ): Promise<InvoiceResponseDto> {
     await this.cashRegisterService.assertOpenToday();
 
@@ -327,6 +377,28 @@ export class InvoicesService {
     return InvoiceResponseDto.fromEntity(saved);
   }
 
+  private partialSplitError(
+    issued: InvoiceResponseDto[],
+    expected: number,
+    cause: unknown,
+  ): HttpException {
+    const numbers = issued
+      .map(
+        (invoice) =>
+          invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`,
+      )
+      .join(', ');
+    const status =
+      cause instanceof HttpException
+        ? cause.getStatus()
+        : HttpStatus.BAD_GATEWAY;
+    return new HttpException(
+      `La venta se dividió en ${expected} facturas y solo se emitieron ${issued.length} (${numbers}); la siguiente falló. Los productos restantes NO se facturaron — revisa Facturas antes de volver a intentar para no facturarlos dos veces.`,
+      status,
+      { cause },
+    );
+  }
+
   /**
    * Maps the fields this app tracks out of any Dataico invoice response
    * (shared by create/resend/refresh — all three hit the same resource,
@@ -405,7 +477,7 @@ export class InvoicesService {
           ? (itemDto.unitPriceOverride ?? Number(product.salePrice))
           : (itemDto.customUnitPrice as number);
         const taxRate = product ? resolveTaxRate(product) : STANDARD_TAX_RATE;
-        const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
+        const { unitPrice, taxBase, taxAmount, total } = computeLineAmounts(
           basePrice,
           itemDto.quantity,
           taxRate,
@@ -423,6 +495,7 @@ export class InvoicesService {
           unitPrice,
           taxBase,
           taxAmount,
+          total,
         };
       }),
     );

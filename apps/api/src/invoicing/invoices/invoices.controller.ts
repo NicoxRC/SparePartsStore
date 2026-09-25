@@ -39,7 +39,12 @@ export class InvoicesController {
     summary:
       'Send a standard electronic invoice (Factura electrónica estándar)',
   })
-  @ApiResponse({ status: 201, type: InvoiceResponseDto })
+  @ApiResponse({
+    status: 201,
+    type: [InvoiceResponseDto],
+    description:
+      'Every invoice the sale produced — one, unless a "Consumidor final" sale over $235.000 was split into several',
+  })
   @ApiResponse({
     status: 400,
     description: 'Insufficient stock or no active DIAN resolution',
@@ -53,7 +58,7 @@ export class InvoicesController {
   create(
     @Body() dto: CreateInvoiceDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<InvoiceResponseDto> {
+  ): Promise<InvoiceResponseDto[]> {
     return this.invoicesService.create(dto, user.id);
   }
 

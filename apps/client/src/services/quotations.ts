@@ -149,8 +149,8 @@ export async function updateQuotationItems(
 export async function invoiceQuotation(
   id: string,
   input: InvoiceQuotationInput,
-): Promise<InvoiceResponse> {
-  const { data } = await api.post<InvoiceResponse>(
+): Promise<InvoiceResponse[]> {
+  const { data } = await api.post<InvoiceResponse[]>(
     `/quotations/${id}/invoice`,
     input,
   );
