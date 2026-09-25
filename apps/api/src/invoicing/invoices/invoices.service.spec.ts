@@ -568,6 +568,105 @@ describe('InvoicesService', () => {
       const created = invoicesRepository.create.mock.calls[0][0];
       expect(created.paymentDate).toBe('2026-09-07');
     });
+
+    it('returns a single invoice for a normal customer, however big the sale', async () => {
+      const invoices = await service.create(
+        { ...baseDto, items: [{ productId: 'prod-1', quantity: 10 }] },
+        'user-1',
+      );
+
+      expect(invoices).toHaveLength(1);
+      expect(dataicoClient.post).toHaveBeenCalledTimes(1);
+    });
+
+    describe('Consumidor final', () => {
+      const finalConsumerDto: CreateInvoiceDto = {
+        ...baseDto,
+        customerIdentificationType: 'CC',
+        customerIdentification: '222222222222',
+        customerPartyType: 'PERSONA_NATURAL',
+        customerCompanyName: undefined,
+        customerFirstName: 'CONSUMIDOR',
+        customerFamilyName: 'FINAL',
+      };
+
+      const sentQuantities = () =>
+        dataicoClient.post.mock.calls.map(
+          ([, body]) =>
+            (body as { invoice: { items: Array<{ quantity: number }> } })
+              .invoice.items[0].quantity,
+        );
+
+      it('sends one invoice when the sale is within $235.000', async () => {
+        const invoices = await service.create(finalConsumerDto, 'user-1');
+
+        expect(invoices).toHaveLength(1);
+        expect(sentQuantities()).toEqual([2]);
+      });
+
+      it('splits a bigger sale into several invoices of at most $235.000, each numbered and stocked on its own', async () => {
+        let lastNumber = 1224;
+        numberQueryBuilder.getRawOne.mockImplementation(() =>
+          Promise.resolve({ max: String(lastNumber++) }),
+        );
+
+        // 10 × 50.000 = 500.000 → 4 + 4 + 2 units.
+        const invoices = await service.create(
+          {
+            ...finalConsumerDto,
+            items: [{ productId: 'prod-1', quantity: 10 }],
+          },
+          'user-1',
+        );
+
+        expect(invoices).toHaveLength(3);
+        expect(sentQuantities()).toEqual([4, 4, 2]);
+        const totals = invoicesRepository.create.mock.calls.map(
+          ([entity]) => entity.totalAmount,
+        );
+        expect(totals).toEqual([200000, 200000, 100000]);
+        expect(invoices.map((invoice) => invoice.number)).toEqual([
+          1225, 1226, 1227,
+        ]);
+        expect(inventoryService.createMovement).toHaveBeenCalledTimes(3);
+      });
+
+      it('checks stock for the whole sale before sending the first invoice', async () => {
+        productsService.findOne.mockResolvedValue({ ...product, stock: 5 });
+
+        await expect(
+          service.create(
+            {
+              ...finalConsumerDto,
+              items: [{ productId: 'prod-1', quantity: 10 }],
+            },
+            'user-1',
+          ),
+        ).rejects.toThrow(BadRequestException);
+        expect(dataicoClient.post).not.toHaveBeenCalled();
+      });
+
+      it('says which invoices were already issued when a later one fails', async () => {
+        dataicoClient.post
+          .mockResolvedValueOnce({ number: 'FVE1225' })
+          .mockRejectedValueOnce(new BadRequestException('Dataico rejected'));
+
+        const promise = service.create(
+          {
+            ...finalConsumerDto,
+            items: [{ productId: 'prod-1', quantity: 10 }],
+          },
+          'user-1',
+        );
+
+        await expect(promise).rejects.toThrow(
+          /se dividió en 3 facturas y solo se emitieron 1 \(FVE1225\)/,
+        );
+        expect(dataicoClient.post).toHaveBeenCalledTimes(2);
+        // Only the first invoice's stock left the store.
+        expect(inventoryService.createMovement).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 
   describe('getTicket', () => {

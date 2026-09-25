@@ -83,14 +83,19 @@ export class QuotationsController {
   }
 
   @ApiOperation({ summary: 'Convert a quotation into a real invoice' })
-  @ApiResponse({ status: 201, type: InvoiceResponseDto })
+  @ApiResponse({
+    status: 201,
+    type: [InvoiceResponseDto],
+    description:
+      'Every invoice produced — several only for a "Consumidor final" sale over $235.000',
+  })
   @Post(':id/invoice')
   @RequirePermission('quotations.invoice')
   invoice(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: InvoiceQuotationDto,
     @CurrentUser() user: AuthenticatedUser,
-  ): Promise<InvoiceResponseDto> {
+  ): Promise<InvoiceResponseDto[]> {
     return this.quotationsService.invoice(id, dto, user.id);
   }
 

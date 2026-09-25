@@ -309,7 +309,7 @@ export class QuotationsService {
     id: string,
     dto: InvoiceQuotationDto,
     userId: string,
-  ): Promise<InvoiceResponseDto> {
+  ): Promise<InvoiceResponseDto[]> {
     const quotation = await this.loadWithItems(id);
     this.assertOpen(quotation);
 
@@ -362,7 +362,7 @@ export class QuotationsService {
       notes: dto.notes,
     };
 
-    const invoice = await this.invoicesService.create(
+    const invoices = await this.invoicesService.create(
       createInvoiceDto,
       userId,
       {
@@ -370,17 +370,19 @@ export class QuotationsService {
       },
     );
 
+    // A "Consumidor final" sale may have been split into several invoices;
+    // the quotation keeps a single link, to the first one.
     // .save() (not .update()) — TypeORM's QueryDeepPartialEntity inference
     // trips on Invoice's `unknown`-typed JSONB columns when a relation to
     // it is included in an .update() payload.
     await this.quotationsRepository.save({
       id: quotation.id,
       invoicedAt: new Date(),
-      invoice: { id: invoice.id } as Quotation['invoice'],
+      invoice: { id: invoices[0].id } as Quotation['invoice'],
       updatedBy: { id: userId } as Quotation['updatedBy'],
     });
 
-    return invoice;
+    return invoices;
   }
 
   /** Returns every line's stock to inventory and closes the quotation. */
