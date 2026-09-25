@@ -81,6 +81,7 @@ describe('QuotationsService', () => {
     return {
       id: 'q-1',
       number: 1,
+      borrowerType: 'almacen',
       customerIdentificationType: 'NIT',
       customerIdentification: '830033494',
       customerIdentificationDv: null,
@@ -230,7 +231,67 @@ describe('QuotationsService', () => {
     });
   });
 
+  it('filters by borrower type (almacén / empleado)', async () => {
+    await service.findAll({ page: 1, limit: 20, borrowerType: 'empleado' });
+
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      'quotation.borrowerType = :borrowerType',
+      { borrowerType: 'empleado' },
+    );
+  });
+
   describe('create', () => {
+    it('saves an almacén quotation with its invoice data by default', async () => {
+      await service.create(baseDto, 'user-1');
+
+      expect(quotationsRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          borrowerType: 'almacen',
+          customerIdentification: '830033494',
+          customerEmail: 'cliente@acme.com',
+        }),
+      );
+    });
+
+    it('saves an empleado quotation with just the name and phone, dropping any invoice data', async () => {
+      await service.create(
+        {
+          ...baseDto,
+          borrowerType: 'empleado',
+          customerFirstName: 'Jose',
+          customerFamilyName: 'Moncayo',
+          customerPhone: '3001234567',
+        },
+        'user-1',
+      );
+
+      expect(quotationsRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          borrowerType: 'empleado',
+          customerFirstName: 'Jose',
+          customerFamilyName: 'Moncayo',
+          customerPhone: '3001234567',
+          customerIdentification: null,
+          customerCompanyName: null,
+          customerEmail: null,
+        }),
+      );
+    });
+
+    it("rejects an empleado quotation without the employee's name, without touching stock", async () => {
+      await expect(
+        service.create(
+          {
+            borrowerType: 'empleado',
+            customerFirstName: '  ',
+            items: [{ productId: 'prod-a', quantity: 1 }],
+          },
+          'user-1',
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
     it('rejects when there is no open cash register for today, without touching stock', async () => {
       cashRegisterService.assertOpenToday.mockRejectedValue(
         new BadRequestException('No hay una caja abierta para hoy.'),
@@ -631,6 +692,22 @@ describe('QuotationsService', () => {
       await expect(
         service.invoice('q-1', invoiceDto, 'user-1'),
       ).rejects.toThrow(BadRequestException);
+      expect(invoicesService.create).not.toHaveBeenCalled();
+    });
+
+    it('requires a customer to bill when the quotation is an empleado one (it has no invoice data)', async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({
+          borrowerType: 'empleado',
+          customerIdentification: null,
+          customerCompanyName: null,
+          customerFirstName: 'Jose',
+        }),
+      );
+
+      await expect(
+        service.invoice('q-1', invoiceDto, 'user-1'),
+      ).rejects.toThrow(/empleado/);
       expect(invoicesService.create).not.toHaveBeenCalled();
     });
 

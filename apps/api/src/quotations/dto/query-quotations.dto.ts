@@ -1,6 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import {
+  QUOTATION_BORROWER_TYPES,
+  type QuotationBorrowerType,
+} from '../entities/quotation.entity';
 
 export class QueryQuotationsDto {
   @ApiPropertyOptional({ default: 1 })
@@ -30,4 +34,9 @@ export class QueryQuotationsDto {
   @IsOptional()
   @IsString()
   search?: string;
+
+  @ApiPropertyOptional({ enum: QUOTATION_BORROWER_TYPES })
+  @IsOptional()
+  @IsIn(QUOTATION_BORROWER_TYPES)
+  borrowerType?: QuotationBorrowerType;
 }

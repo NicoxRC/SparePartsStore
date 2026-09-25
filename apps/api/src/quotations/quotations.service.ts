@@ -58,6 +58,12 @@ export class QuotationsService {
     dto: CreateQuotationDto,
     userId: string,
   ): Promise<QuotationResponseDto> {
+    if (dto.borrowerType === 'empleado' && !dto.customerFirstName?.trim()) {
+      throw new BadRequestException(
+        'Indica el nombre del empleado al que se presta la mercancía.',
+      );
+    }
+
     // Stock is leaving the store today, same as a real sale.
     await this.cashRegisterService.assertOpenToday();
 
@@ -124,6 +130,12 @@ export class QuotationsService {
       qb.andWhere('quotation.invoicedAt IS NOT NULL');
     } else if (query.status === 'cancelled') {
       qb.andWhere('quotation.cancelledAt IS NOT NULL');
+    }
+
+    if (query.borrowerType) {
+      qb.andWhere('quotation.borrowerType = :borrowerType', {
+        borrowerType: query.borrowerType,
+      });
     }
 
     if (query.search) {
@@ -318,22 +330,29 @@ export class QuotationsService {
         'Debes indicar los datos del cliente al que se factura.',
       );
     }
+    // An empleado quotation has no invoice data to reuse.
+    if (dto.useSameCustomer && quotation.borrowerType === 'empleado') {
+      throw new BadRequestException(
+        'Esta cotización es de un empleado y no tiene datos de factura: indica el cliente al que se factura.',
+      );
+    }
 
+    // Non-null below: an almacén quotation always carries its invoice data.
     const customer = dto.useSameCustomer
       ? {
-          customerIdentificationType: quotation.customerIdentificationType,
-          customerIdentification: quotation.customerIdentification,
-          customerPartyType: quotation.customerPartyType,
-          customerTaxLevelCode: quotation.customerTaxLevelCode,
+          customerIdentificationType: quotation.customerIdentificationType!,
+          customerIdentification: quotation.customerIdentification!,
+          customerPartyType: quotation.customerPartyType!,
+          customerTaxLevelCode: quotation.customerTaxLevelCode!,
           customerRegimen: quotation.customerRegimen ?? undefined,
           customerCompanyName: quotation.customerCompanyName ?? undefined,
           customerFirstName: quotation.customerFirstName ?? undefined,
           customerFamilyName: quotation.customerFamilyName ?? undefined,
-          customerCountryCode: quotation.customerCountryCode,
-          customerDepartment: quotation.customerDepartment,
-          customerCity: quotation.customerCity,
-          customerAddressLine: quotation.customerAddressLine,
-          customerEmail: quotation.customerEmail,
+          customerCountryCode: quotation.customerCountryCode!,
+          customerDepartment: quotation.customerDepartment!,
+          customerCity: quotation.customerCity!,
+          customerAddressLine: quotation.customerAddressLine!,
+          customerEmail: quotation.customerEmail!,
         }
       : dto.customer!;
 
@@ -460,23 +479,49 @@ export class QuotationsService {
     );
   }
 
+  /**
+   * An empleado quotation keeps only the person's name and phone — whatever
+   * invoice data came along is dropped, so a row never looks half-filled.
+   */
   private customerColumns(dto: CreateQuotationDto) {
-    return {
-      customerIdentificationType: dto.customerIdentificationType,
-      customerIdentification: dto.customerIdentification,
-      customerIdentificationDv: dto.customerIdentificationDv ?? null,
-      customerPartyType: dto.customerPartyType,
-      customerTaxLevelCode: dto.customerTaxLevelCode,
-      customerRegimen: dto.customerRegimen ?? null,
-      customerCompanyName: dto.customerCompanyName ?? null,
+    const borrowerType = dto.borrowerType ?? 'almacen';
+    const person = {
+      borrowerType,
       customerFirstName: dto.customerFirstName ?? null,
       customerFamilyName: dto.customerFamilyName ?? null,
-      customerCountryCode: dto.customerCountryCode,
-      customerDepartment: dto.customerDepartment,
-      customerCity: dto.customerCity,
-      customerAddressLine: dto.customerAddressLine,
-      customerEmail: dto.customerEmail,
       customerPhone: dto.customerPhone ?? null,
+    };
+    if (borrowerType === 'empleado') {
+      return {
+        ...person,
+        customerIdentificationType: null,
+        customerIdentification: null,
+        customerIdentificationDv: null,
+        customerPartyType: null,
+        customerTaxLevelCode: null,
+        customerRegimen: null,
+        customerCompanyName: null,
+        customerCountryCode: null,
+        customerDepartment: null,
+        customerCity: null,
+        customerAddressLine: null,
+        customerEmail: null,
+      };
+    }
+    return {
+      ...person,
+      customerIdentificationType: dto.customerIdentificationType ?? null,
+      customerIdentification: dto.customerIdentification ?? null,
+      customerIdentificationDv: dto.customerIdentificationDv ?? null,
+      customerPartyType: dto.customerPartyType ?? null,
+      customerTaxLevelCode: dto.customerTaxLevelCode ?? null,
+      customerRegimen: dto.customerRegimen ?? null,
+      customerCompanyName: dto.customerCompanyName ?? null,
+      customerCountryCode: dto.customerCountryCode ?? null,
+      customerDepartment: dto.customerDepartment ?? null,
+      customerCity: dto.customerCity ?? null,
+      customerAddressLine: dto.customerAddressLine ?? null,
+      customerEmail: dto.customerEmail ?? null,
     };
   }
 
