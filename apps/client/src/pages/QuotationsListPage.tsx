@@ -81,7 +81,7 @@ export function QuotationsListPage() {
           // "Cotizar") — this opens a fresh tab there instead of a second form.
           <Button
             type="button"
-            className="w-auto px-4"
+            className="sm:w-auto sm:px-6"
             onClick={() => navigate('/ventas', { state: { newDraft: true } })}
           >
             Nueva cotización
