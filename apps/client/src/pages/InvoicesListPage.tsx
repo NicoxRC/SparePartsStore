@@ -190,7 +190,7 @@ export function InvoicesListPage() {
                                   Ver detalle
                                 </button>
                                 <PrintInvoiceTicketButton
-                                  invoiceId={invoice.id}
+                                  invoiceIds={[invoice.id]}
                                   className="text-xs font-medium text-ink hover:underline"
                                 />
                                 {has('invoices.refresh') && (

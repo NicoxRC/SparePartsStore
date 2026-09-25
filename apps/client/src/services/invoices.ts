@@ -82,10 +82,11 @@ export async function getInvoice(id: string): Promise<InvoiceResponse> {
   return data;
 }
 
+/** Usually one invoice; several when a "Consumidor final" sale over the cap was split. */
 export async function createInvoice(
   input: CreateInvoiceInput,
-): Promise<InvoiceResponse> {
-  const { data } = await api.post<InvoiceResponse>(
+): Promise<InvoiceResponse[]> {
+  const { data } = await api.post<InvoiceResponse[]>(
     '/invoicing/invoices',
     input,
   );

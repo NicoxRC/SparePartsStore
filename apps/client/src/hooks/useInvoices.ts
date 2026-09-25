@@ -33,11 +33,14 @@ export function useInvoice(id: string | undefined) {
 }
 
 /** Loads the data of an invoice's counter receipt on demand (it is fetched per print, not cached). */
-export function useInvoiceTicket() {
-  return useMutation({ mutationFn: (invoiceId: string) => getInvoiceTicket(invoiceId) });
+/** Several at once when a "Consumidor final" sale was split into several invoices. */
+export function useInvoiceTickets() {
+  return useMutation({
+    mutationFn: (invoiceIds: string[]) => Promise.all(invoiceIds.map(getInvoiceTicket)),
+  });
 }
 
-/** Same data as `useInvoiceTicket()`, as a query instead of a mutation — for
+/** Same data as `useInvoiceTickets()`, as a query instead of a mutation — for
  * the on-screen "Ver detalle" dialog, which opens/closes rather than firing
  * once per print click. */
 export function useInvoiceTicketQuery(invoiceId: string | undefined) {
