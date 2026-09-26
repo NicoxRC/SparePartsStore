@@ -1,10 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { QuotationItem } from '../entities/quotation-item.entity';
-import {
-  Quotation,
-  QUOTATION_BORROWER_TYPES,
-  type QuotationBorrowerType,
-} from '../entities/quotation.entity';
+import { Quotation } from '../entities/quotation.entity';
 
 export class QuotationItemResponseDto {
   @ApiProperty() id: string;
@@ -46,22 +42,20 @@ export class QuotationResponseDto {
   @ApiProperty() number: number;
   @ApiProperty({ enum: ['open', 'invoiced', 'cancelled'] })
   status: 'open' | 'invoiced' | 'cancelled';
-  @ApiProperty({ enum: QUOTATION_BORROWER_TYPES })
-  borrowerType: QuotationBorrowerType;
-  @ApiProperty({ nullable: true }) customerIdentificationType: string | null;
-  @ApiProperty({ nullable: true }) customerIdentification: string | null;
+  @ApiProperty() customerIdentificationType: string;
+  @ApiProperty() customerIdentification: string;
   @ApiProperty({ nullable: true }) customerIdentificationDv: string | null;
-  @ApiProperty({ nullable: true }) customerPartyType: string | null;
-  @ApiProperty({ nullable: true }) customerTaxLevelCode: string | null;
+  @ApiProperty() customerPartyType: string;
+  @ApiProperty() customerTaxLevelCode: string;
   @ApiProperty({ nullable: true }) customerRegimen: string | null;
   @ApiProperty({ nullable: true }) customerCompanyName: string | null;
   @ApiProperty({ nullable: true }) customerFirstName: string | null;
   @ApiProperty({ nullable: true }) customerFamilyName: string | null;
-  @ApiProperty({ nullable: true }) customerCountryCode: string | null;
-  @ApiProperty({ nullable: true }) customerDepartment: string | null;
-  @ApiProperty({ nullable: true }) customerCity: string | null;
-  @ApiProperty({ nullable: true }) customerAddressLine: string | null;
-  @ApiProperty({ nullable: true }) customerEmail: string | null;
+  @ApiProperty() customerCountryCode: string;
+  @ApiProperty() customerDepartment: string;
+  @ApiProperty() customerCity: string;
+  @ApiProperty() customerAddressLine: string;
+  @ApiProperty() customerEmail: string;
   @ApiProperty({ nullable: true }) customerPhone: string | null;
   @ApiProperty({ nullable: true }) notes: string | null;
   @ApiProperty() totalAmount: number;
@@ -88,7 +82,6 @@ export class QuotationResponseDto {
       : quotation.invoicedAt
         ? 'invoiced'
         : 'open';
-    dto.borrowerType = quotation.borrowerType;
     dto.customerIdentificationType = quotation.customerIdentificationType;
     dto.customerIdentification = quotation.customerIdentification;
     dto.customerIdentificationDv = quotation.customerIdentificationDv;

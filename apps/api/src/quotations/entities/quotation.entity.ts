@@ -12,9 +12,6 @@ const decimalTransformer = {
     value === null || value === undefined ? value : Number(value),
 };
 
-export const QUOTATION_BORROWER_TYPES = ['almacen', 'empleado'] as const;
-export type QuotationBorrowerType = (typeof QUOTATION_BORROWER_TYPES)[number];
-
 /**
  * A "cotización" — store credit: merchandise handed over before the
  * customer actually pays. Local-only, never touches Dataico directly;
@@ -31,34 +28,11 @@ export class Quotation extends BaseEntity {
   @Column({ type: 'int' })
   number: number;
 
-  /**
-   * Who the merchandise is lent to: an "almacén" (a business — always with
-   * full invoice data) or an "empleado" (a person, identified by name only;
-   * the invoice-data columns below stay null for them).
-   */
-  @Column({
-    name: 'borrower_type',
-    type: 'varchar',
-    length: 20,
-    default: 'almacen',
-  })
-  borrowerType: QuotationBorrowerType;
+  @Column({ name: 'customer_identification_type', type: 'varchar', length: 20 })
+  customerIdentificationType: string;
 
-  @Column({
-    name: 'customer_identification_type',
-    type: 'varchar',
-    length: 20,
-    nullable: true,
-  })
-  customerIdentificationType: string | null;
-
-  @Column({
-    name: 'customer_identification',
-    type: 'varchar',
-    length: 50,
-    nullable: true,
-  })
-  customerIdentification: string | null;
+  @Column({ name: 'customer_identification', type: 'varchar', length: 50 })
+  customerIdentification: string;
 
   // NIT check digit — local-only, same as customers.identification_dv.
   @Column({
@@ -69,21 +43,11 @@ export class Quotation extends BaseEntity {
   })
   customerIdentificationDv: string | null;
 
-  @Column({
-    name: 'customer_party_type',
-    type: 'varchar',
-    length: 30,
-    nullable: true,
-  })
-  customerPartyType: string | null;
+  @Column({ name: 'customer_party_type', type: 'varchar', length: 30 })
+  customerPartyType: string;
 
-  @Column({
-    name: 'customer_tax_level_code',
-    type: 'varchar',
-    length: 30,
-    nullable: true,
-  })
-  customerTaxLevelCode: string | null;
+  @Column({ name: 'customer_tax_level_code', type: 'varchar', length: 30 })
+  customerTaxLevelCode: string;
 
   @Column({
     name: 'customer_regimen',
@@ -117,45 +81,20 @@ export class Quotation extends BaseEntity {
   })
   customerFamilyName: string | null;
 
-  @Column({
-    name: 'customer_country_code',
-    type: 'varchar',
-    length: 5,
-    nullable: true,
-  })
-  customerCountryCode: string | null;
+  @Column({ name: 'customer_country_code', type: 'varchar', length: 5 })
+  customerCountryCode: string;
 
-  @Column({
-    name: 'customer_department',
-    type: 'varchar',
-    length: 10,
-    nullable: true,
-  })
-  customerDepartment: string | null;
+  @Column({ name: 'customer_department', type: 'varchar', length: 10 })
+  customerDepartment: string;
 
-  @Column({
-    name: 'customer_city',
-    type: 'varchar',
-    length: 10,
-    nullable: true,
-  })
-  customerCity: string | null;
+  @Column({ name: 'customer_city', type: 'varchar', length: 10 })
+  customerCity: string;
 
-  @Column({
-    name: 'customer_address_line',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-  })
-  customerAddressLine: string | null;
+  @Column({ name: 'customer_address_line', type: 'varchar', length: 255 })
+  customerAddressLine: string;
 
-  @Column({
-    name: 'customer_email',
-    type: 'varchar',
-    length: 255,
-    nullable: true,
-  })
-  customerEmail: string | null;
+  @Column({ name: 'customer_email', type: 'varchar', length: 255 })
+  customerEmail: string;
 
   @Column({
     name: 'customer_phone',

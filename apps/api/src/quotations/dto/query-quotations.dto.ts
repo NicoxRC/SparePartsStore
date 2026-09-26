@@ -1,10 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
-import {
-  QUOTATION_BORROWER_TYPES,
-  type QuotationBorrowerType,
-} from '../entities/quotation.entity';
 
 export class QueryQuotationsDto {
   @ApiPropertyOptional({ default: 1 })
@@ -35,8 +31,12 @@ export class QueryQuotationsDto {
   @IsString()
   search?: string;
 
-  @ApiPropertyOptional({ enum: QUOTATION_BORROWER_TYPES })
+  @ApiPropertyOptional({
+    enum: ['empresa', 'empleado'],
+    description:
+      'Derived from the identification type: NIT is an empresa, anything else (cédula) an empleado.',
+  })
   @IsOptional()
-  @IsIn(QUOTATION_BORROWER_TYPES)
-  borrowerType?: QuotationBorrowerType;
+  @IsIn(['empresa', 'empleado'])
+  customerType?: 'empresa' | 'empleado';
 }

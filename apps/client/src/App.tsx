@@ -29,6 +29,7 @@ import { PurchaseImportsListPage } from './pages/PurchaseImportsListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
 import { ProductsListPage } from './pages/ProductsListPage';
 import { QuotationDetailPage } from './pages/QuotationDetailPage';
+import { QuotationFormPage } from './pages/QuotationFormPage';
 import { QuotationsListPage } from './pages/QuotationsListPage';
 import { ResolutionFormPage } from './pages/ResolutionFormPage';
 import { ResolutionsListPage } from './pages/ResolutionsListPage';
@@ -107,6 +108,9 @@ function App() {
                   <Route element={<PermissionRoute permission="quotations.view" />}>
                     <Route path="/cotizaciones" element={<QuotationsListPage />} />
                     <Route path="/cotizaciones/:id" element={<QuotationDetailPage />} />
+                    <Route element={<PermissionRoute permission="quotations.create" />}>
+                      <Route path="/cotizaciones/nueva" element={<QuotationFormPage />} />
+                    </Route>
                   </Route>
                   <Route element={<PermissionRoute permission="purchase_imports.view" />}>
                     <Route path="/compras" element={<PurchaseImportsListPage />} />

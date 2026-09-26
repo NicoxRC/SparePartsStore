@@ -4,8 +4,8 @@ import type { PaginatedResponse } from './products';
 
 export type QuotationStatus = 'open' | 'invoiced' | 'cancelled';
 
-/** Who the merchandise is lent to: an almacén (with invoice data) or an empleado (name only). */
-export type QuotationBorrowerType = 'almacen' | 'empleado';
+/** Derived server-side from the identification type: NIT → empresa, cédula → empleado. */
+export type QuotationCustomerType = 'empresa' | 'empleado';
 
 export interface QuotationItemResponse {
   id: string;
@@ -25,21 +25,20 @@ export interface QuotationResponse {
   id: string;
   number: number;
   status: QuotationStatus;
-  borrowerType: QuotationBorrowerType;
-  customerIdentificationType: string | null;
-  customerIdentification: string | null;
+  customerIdentificationType: string;
+  customerIdentification: string;
   customerIdentificationDv: string | null;
-  customerPartyType: string | null;
-  customerTaxLevelCode: string | null;
+  customerPartyType: string;
+  customerTaxLevelCode: string;
   customerRegimen: string | null;
   customerCompanyName: string | null;
   customerFirstName: string | null;
   customerFamilyName: string | null;
-  customerCountryCode: string | null;
-  customerDepartment: string | null;
-  customerCity: string | null;
-  customerAddressLine: string | null;
-  customerEmail: string | null;
+  customerCountryCode: string;
+  customerDepartment: string;
+  customerCity: string;
+  customerAddressLine: string;
+  customerEmail: string;
   customerPhone: string | null;
   notes: string | null;
   totalAmount: number;
@@ -54,7 +53,7 @@ export interface QuotationsQuery {
   page?: number;
   limit?: number;
   status?: QuotationStatus;
-  borrowerType?: QuotationBorrowerType;
+  customerType?: QuotationCustomerType;
   search?: string;
 }
 
@@ -69,23 +68,21 @@ export interface CreateQuotationItemInput {
   unitPriceOverride?: number;
 }
 
-/** An almacén needs every invoice-data field; an empleado only `customerFirstName`. */
 export interface CreateQuotationInput {
-  borrowerType: QuotationBorrowerType;
-  customerIdentificationType?: string;
-  customerIdentification?: string;
+  customerIdentificationType: string;
+  customerIdentification: string;
   customerIdentificationDv?: string;
-  customerPartyType?: string;
-  customerTaxLevelCode?: string;
+  customerPartyType: string;
+  customerTaxLevelCode: string;
   customerRegimen?: string;
   customerCompanyName?: string;
   customerFirstName?: string;
   customerFamilyName?: string;
-  customerCountryCode?: string;
-  customerDepartment?: string;
-  customerCity?: string;
-  customerAddressLine?: string;
-  customerEmail?: string;
+  customerCountryCode: string;
+  customerDepartment: string;
+  customerCity: string;
+  customerAddressLine: string;
+  customerEmail: string;
   customerPhone?: string;
   items: CreateQuotationItemInput[];
   notes?: string;

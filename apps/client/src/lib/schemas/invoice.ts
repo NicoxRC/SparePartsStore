@@ -39,11 +39,6 @@ const invoiceFormObjectSchema = z.object({
   paymentMeans: z.string().min(1, 'El medio de pago es obligatorio.'),
   paymentMeansType: z.string().min(1, 'El tipo de pago es obligatorio.'),
 
-  // Only matters for "Cotizar": a quotation lends merchandise to an almacén
-  // (with the invoice data below) or to an empleado (name only). Optional so
-  // drafts saved before it existed still load — missing means almacén.
-  borrowerType: z.enum(['almacen', 'empleado']).optional(),
-
   customerIdentificationType: z.string().min(1, 'Obligatorio.'),
   customerIdentification: z.string().min(1, 'Obligatorio.'),
   customerIdentificationDv: z.string().optional().or(z.literal('')),
