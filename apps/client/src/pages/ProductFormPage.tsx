@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useState } from 'react';
 import { Controller, useForm, useWatch } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { Button } from '../components/Button';
@@ -19,10 +19,25 @@ import {
   type ProductFormValues,
 } from '../lib/schemas/product';
 
+const EMPTY_PRODUCT_FORM: ProductFormInput = {
+  reference: '',
+  description: '',
+  salePrice: 0,
+  stock: 0,
+  departmentId: '',
+  groupId: '',
+  brandId: '',
+  taxExempt: false,
+  supplierId: '',
+};
+
 export function ProductFormPage() {
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
   const navigate = useNavigate();
+  // Set by the products list's "+ Nuevo" after a search that found nothing.
+  const [searchParams] = useSearchParams();
+  const initialReference = isEditMode ? '' : (searchParams.get('reference') ?? '');
 
   const productQuery = useProduct(id);
   const createMutation = useCreateProduct();
@@ -37,17 +52,7 @@ export function ProductFormPage() {
     formState: { errors },
   } = useForm<ProductFormInput, unknown, ProductFormValues>({
     resolver: zodResolver(productFormSchema),
-    defaultValues: {
-      reference: '',
-      description: '',
-      salePrice: 0,
-      stock: 0,
-      departmentId: '',
-      groupId: '',
-      brandId: '',
-      taxExempt: false,
-      supplierId: '',
-    },
+    defaultValues: { ...EMPTY_PRODUCT_FORM, reference: initialReference },
     values: productQuery.data
       ? {
           reference: productQuery.data.reference,
@@ -103,7 +108,8 @@ export function ProductFormPage() {
         navigate('/products');
       } else {
         await createMutation.mutateAsync({ ...fields, supplierId: supplierId || undefined });
-        reset();
+        // The next product is a different one: don't refill the searched reference.
+        reset(EMPTY_PRODUCT_FORM);
         setDebouncedRef('');
         setFeedback({ type: 'success', message: 'Producto creado correctamente.' });
       }
