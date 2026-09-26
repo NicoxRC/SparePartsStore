@@ -12,9 +12,6 @@ export type InvoiceStep = 'products' | 'customer' | 'invoice';
 export interface InvoiceDraft {
   id: string;
   step: InvoiceStep;
-  /** Mirrors the form-local state used to choose create vs. update when
-   * auto-saving the customer — kept here so it survives switching tabs. */
-  selectedCustomerId: string | null;
   values: InvoiceFormInput;
 }
 
@@ -22,7 +19,6 @@ export function createEmptyInvoiceDraft(): InvoiceDraft {
   return {
     id: crypto.randomUUID(),
     step: 'products',
-    selectedCustomerId: null,
     values: {
       // Pre-filled in case paymentMeansType switches to CREDITO — the
       // field itself is only shown/required then.

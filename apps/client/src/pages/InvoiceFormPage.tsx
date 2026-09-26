@@ -26,7 +26,7 @@ import {
   useReopenCashRegister,
   useTodayCashRegister,
 } from '../hooks/useCashRegister';
-import { useCreateCustomer, useUpdateCustomer } from '../hooks/useCustomers';
+import { useCreateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
 import { useCreateQuotation } from '../hooks/useQuotations';
 import { useInvoiceDrafts } from '../hooks/useInvoiceDrafts';
@@ -251,18 +251,10 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   const [filterGroupId, setFilterGroupId] = useState('');
   const [isCustomLineOpen, setIsCustomLineOpen] = useState(false);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
-  const [selectedCustomerId, setSelectedCustomerIdState] = useState<string | null>(
-    draft.selectedCustomerId,
-  );
 
   const setStep = (next: InvoiceStep) => {
     setStepState(next);
     updateDraft(draft.id, { step: next });
-  };
-
-  const setSelectedCustomerId = (id: string | null) => {
-    setSelectedCustomerIdState(id);
-    updateDraft(draft.id, { selectedCustomerId: id });
   };
 
   // Abandons this draft (auto-replaced by a fresh empty one if it was the
@@ -340,10 +332,8 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     limit: 10,
   });
   const createCustomerMutation = useCreateCustomer();
-  const updateCustomerMutation = useUpdateCustomer(selectedCustomerId ?? '');
 
   const handleSelectCustomer = (customer: CustomerResponse) => {
-    setSelectedCustomerId(customer.id);
     setValue('customerIdentificationType', customer.identificationType);
     setValue('customerIdentification', customer.identification);
     setValue('customerIdentificationDv', customer.identificationDv ?? '');
@@ -483,11 +473,13 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     setValue('discountPercentage', pct);
   };
 
-  // The customer is always saved to the local address book — best effort:
-  // a failure here (e.g. a stale conflict) never blocks the actual sale
-  // or quotation, since the customer record is a convenience, not the
-  // point of the transaction. Shared by both onSubmit (Facturar) and
-  // handleCotizar below.
+  // A new customer is saved to the local address book — best effort: a
+  // failure here never blocks the actual sale or quotation, since the
+  // customer record is a convenience, not the point of the transaction.
+  // An existing one is never touched: editing a saved customer only happens
+  // in Clientes (confirmed by the store), even if the data typed here for
+  // this sale differs — the API rejects the duplicate identification and
+  // that's ignored. Shared by both onSubmit (Facturar) and handleCotizar.
   const saveCustomerBestEffort = async (
     values: Pick<
       InvoiceFormValues,
@@ -526,10 +518,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
         email: values.customerEmail,
         phone: values.customerPhone || undefined,
       };
-      const savedCustomer = selectedCustomerId
-        ? await updateCustomerMutation.mutateAsync(customerPayload)
-        : await createCustomerMutation.mutateAsync(customerPayload);
-      setSelectedCustomerId(savedCustomer.id);
+      await createCustomerMutation.mutateAsync(customerPayload);
     } catch {
       // best-effort, see comment above
     }
