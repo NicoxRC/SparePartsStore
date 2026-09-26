@@ -89,6 +89,14 @@ export function ProductsListPage() {
   const productsQuery = useProducts(query);
   const deleteMutation = useDeleteProduct();
 
+  // A search that found nothing is usually a reference the store doesn't
+  // have yet: "+ Nuevo" carries it over so it doesn't have to be retyped.
+  const searchedReference = filters.search?.trim() ?? '';
+  const newProductPath =
+    searchedReference && productsQuery.data?.data.length === 0
+      ? `/products/new?reference=${encodeURIComponent(searchedReference)}`
+      : '/products/new';
+
   const updateFilter = (patch: Partial<ProductsQuery>) => {
     setFilters((prev) => ({ ...prev, ...patch, page: 1 }));
   };
@@ -111,7 +119,7 @@ export function ProductsListPage() {
         </h1>
         <div className="flex shrink-0 gap-2">
           {canCreate && (
-            <Link to="/products/new" className="shrink-0">
+            <Link to={newProductPath} className="shrink-0">
               <Button type="button">+ Nuevo</Button>
             </Link>
           )}
