@@ -126,6 +126,14 @@ export class QuotationsService {
       qb.andWhere('quotation.cancelledAt IS NOT NULL');
     }
 
+    // No column of its own: a quotation to a NIT is an empresa's, one to a
+    // cédula an empleado's (confirmed by the store).
+    if (query.customerType === 'empresa') {
+      qb.andWhere("quotation.customerIdentificationType = 'NIT'");
+    } else if (query.customerType === 'empleado') {
+      qb.andWhere("quotation.customerIdentificationType <> 'NIT'");
+    }
+
     if (query.search) {
       qb.andWhere(
         `(CAST(quotation.number AS TEXT) ILIKE :search ESCAPE '\\' OR

@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
+import { CustomerPicker } from '../components/CustomerPicker';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
 import { PrintTicket } from '../components/print/PrintTicket';
 import { QuotationTicket } from '../components/print/QuotationTicket';
@@ -34,7 +35,9 @@ import {
 } from '../lib/invoiceMath';
 import { TotalsSummary } from '../components/TotalsSummary';
 import { toLowerCase, toUpperCase } from '../lib/textCase';
+import type { CustomerResponse } from '../services/customers';
 import type { ProductResponse } from '../services/products';
+import type { ThirdPartyResponse } from '../services/thirdParties';
 import type {
   CreateQuotationItemInput,
   InvoiceQuotationCustomerInput,
@@ -168,7 +171,44 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
     customerAddressLine: '',
     customerEmail: '',
   });
+  const [overrideSearchQuery, setOverrideSearchQuery] = useState('');
   const invoiceMutation = useInvoiceQuotation();
+
+  // Same "find a customer" widget as Venta, filling the override customer.
+  const handleSelectOverrideCustomer = (customer: CustomerResponse) => {
+    setOverrideCustomer({
+      customerIdentificationType: customer.identificationType,
+      customerIdentification: customer.identification,
+      customerPartyType: customer.partyType,
+      customerTaxLevelCode: customer.taxLevelCode || 'COMUN',
+      customerRegimen: customer.regimen ?? undefined,
+      customerCompanyName: toUpperCase(customer.companyName ?? '') || undefined,
+      customerFirstName: toUpperCase(customer.firstName ?? '') || undefined,
+      customerFamilyName: toUpperCase(customer.familyName ?? '') || undefined,
+      customerCountryCode: customer.countryCode ?? 'CO',
+      customerDepartment: customer.department ?? DEFAULT_DANE_DEPARTMENT_CODE,
+      customerCity: customer.city ?? DEFAULT_DANE_CITY_CODE,
+      customerAddressLine: customer.addressLine ?? '',
+      customerEmail: toLowerCase(customer.email),
+    });
+    setOverrideSearchQuery('');
+  };
+
+  const handleOverrideDianResult = (result: ThirdPartyResponse) => {
+    const isPerson = result.identificationType === 'CC';
+    const familyName = [result.familyName, result.secondLastName].filter(Boolean).join(' ');
+    setOverrideCustomer((prev) => ({
+      ...prev,
+      customerIdentificationType: result.identificationType,
+      customerIdentification: result.identification,
+      customerEmail: result.email ? toLowerCase(result.email) : prev.customerEmail,
+      customerPartyType: isPerson ? 'PERSONA_NATURAL' : 'PERSONA_JURIDICA',
+      customerTaxLevelCode: isPerson ? 'SIMPLIFICADO' : 'COMUN',
+      customerCompanyName: isPerson ? undefined : toUpperCase(result.companyName ?? ''),
+      customerFirstName: isPerson ? toUpperCase(result.firstName ?? '') : undefined,
+      customerFamilyName: isPerson ? toUpperCase(familyName) : undefined,
+    }));
+  };
 
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
 
@@ -621,6 +661,16 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
 
               {!useSameCustomer && (
                 <div className="grid grid-cols-1 gap-4 rounded-sm border border-line p-4 sm:grid-cols-2">
+                  <div className="sm:col-span-2">
+                    <CustomerPicker
+                      searchQuery={overrideSearchQuery}
+                      onSearchQueryChange={setOverrideSearchQuery}
+                      identification={overrideCustomer.customerIdentification}
+                      identificationType={overrideCustomer.customerIdentificationType}
+                      onSelectCustomer={handleSelectOverrideCustomer}
+                      onDianResult={handleOverrideDianResult}
+                    />
+                  </div>
                   <SelectField
                     label="Tipo de identificación"
                     value={overrideCustomer.customerIdentificationType}

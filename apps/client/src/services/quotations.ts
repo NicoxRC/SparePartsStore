@@ -4,6 +4,9 @@ import type { PaginatedResponse } from './products';
 
 export type QuotationStatus = 'open' | 'invoiced' | 'cancelled';
 
+/** Derived server-side from the identification type: NIT → empresa, cédula → empleado. */
+export type QuotationCustomerType = 'empresa' | 'empleado';
+
 export interface QuotationItemResponse {
   id: string;
   /** null for a one-off line (not a catalog product). */
@@ -50,6 +53,7 @@ export interface QuotationsQuery {
   page?: number;
   limit?: number;
   status?: QuotationStatus;
+  customerType?: QuotationCustomerType;
   search?: string;
 }
 

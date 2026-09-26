@@ -2,16 +2,16 @@ import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { createEmptyInvoiceDraft, type InvoiceDraft } from '../lib/invoiceDraft';
 import { InvoiceDraftsContext } from './invoice-drafts-context';
 
-const STORAGE_KEY = 'casarespuestos.invoiceDrafts';
+const DEFAULT_STORAGE_KEY = 'casarespuestos.invoiceDrafts';
 
 interface StoredState {
   drafts: InvoiceDraft[];
   activeDraftId: string;
 }
 
-function loadInitialState(): StoredState {
+function loadInitialState(storageKey: string): StoredState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<StoredState>;
       if (parsed.drafts && parsed.drafts.length > 0 && parsed.activeDraftId) {
@@ -32,17 +32,26 @@ function loadInitialState(): StoredState {
  * never loses one, since this provider sits above the router and never
  * unmounts on route changes. Also persisted to localStorage so an
  * accidental refresh doesn't lose them either.
+ *
+ * `storageKey` lets another page keep its own drafts apart from Venta's —
+ * "Nueva cotización" on Cotizaciones mounts one around its form.
  */
-export function InvoiceDraftsProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<StoredState>(loadInitialState);
+export function InvoiceDraftsProvider({
+  children,
+  storageKey = DEFAULT_STORAGE_KEY,
+}: {
+  children: ReactNode;
+  storageKey?: string;
+}) {
+  const [state, setState] = useState<StoredState>(() => loadInitialState(storageKey));
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      localStorage.setItem(storageKey, JSON.stringify(state));
     } catch {
       // Storage unavailable — in-memory state still works for this session.
     }
-  }, [state]);
+  }, [state, storageKey]);
 
   const setActiveDraftId = useCallback((id: string) => {
     setState((prev) => ({ ...prev, activeDraftId: id }));

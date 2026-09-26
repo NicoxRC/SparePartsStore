@@ -225,8 +225,13 @@ function CustomerSection({
 
 interface InvoiceDraftFormProps {
   draft: InvoiceDraft;
-  /** `pdfUrl` only when the sale produced a single invoice. */
-  onInvoiced: (message: string, pdfUrl: string | null, invoiceIds: string[]) => void;
+  /**
+   * `quotation` drops the invoice step: products → customer → Cotizar only,
+   * and Cancelar goes back to Cotizaciones. Used by "Nueva cotización".
+   */
+  mode?: 'sale' | 'quotation';
+  /** `pdfUrl` only when the sale produced a single invoice. Unused in quotation mode. */
+  onInvoiced?: (message: string, pdfUrl: string | null, invoiceIds: string[]) => void;
 }
 
 /**
@@ -237,10 +242,11 @@ interface InvoiceDraftFormProps {
  * tabs, or navigating away to Productos/Inventario and back, never loses
  * progress.
  */
-function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
+export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDraftFormProps) {
   const navigate = useNavigate();
   const { has } = usePermissions();
-  const canInvoice = has('invoices.create');
+  const isQuotationMode = mode === 'quotation';
+  const canInvoice = !isQuotationMode && has('invoices.create');
   const canQuote = has('quotations.create');
   const createMutation = useCreateInvoice();
   const createQuotationMutation = useCreateQuotation();
@@ -270,6 +276,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   // it's "never mind this sale".
   const handleCancel = () => {
     closeDraft(draft.id);
+    if (isQuotationMode) navigate('/cotizaciones');
   };
 
   const {
@@ -622,7 +629,7 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
     const numbers = invoices.map(
       (invoice) => invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`,
     );
-    onInvoiced(
+    onInvoiced?.(
       invoices.length === 1
         ? `Factura ${numbers[0]} creada correctamente.`
         : `Se crearon ${invoices.length} facturas: ${numbers.join(', ')}.`,
@@ -638,8 +645,8 @@ function InvoiceDraftForm({ draft, onInvoiced }: InvoiceDraftFormProps) {
   return (
     <>
       <p className="text-sm text-fog">
-        {step === 'products' && 'Paso 1 de 3 · Productos'}
-        {step === 'customer' && 'Paso 2 de 3 · Cliente'}
+        {step === 'products' && `Paso 1 de ${isQuotationMode ? 2 : 3} · Productos`}
+        {step === 'customer' && `Paso 2 de ${isQuotationMode ? 2 : 3} · Cliente`}
         {step === 'invoice' && 'Paso 3 de 3 · Datos de la factura'}
       </p>
 

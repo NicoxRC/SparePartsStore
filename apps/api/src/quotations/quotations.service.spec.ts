@@ -230,6 +230,19 @@ describe('QuotationsService', () => {
     });
   });
 
+  it('filters empresa (NIT) and empleado (cédula) quotations by identification type', async () => {
+    await service.findAll({ page: 1, limit: 20, customerType: 'empresa' });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "quotation.customerIdentificationType = 'NIT'",
+    );
+
+    queryBuilder.andWhere.mockClear();
+    await service.findAll({ page: 1, limit: 20, customerType: 'empleado' });
+    expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+      "quotation.customerIdentificationType <> 'NIT'",
+    );
+  });
+
   describe('create', () => {
     it('rejects when there is no open cash register for today, without touching stock', async () => {
       cashRegisterService.assertOpenToday.mockRejectedValue(
