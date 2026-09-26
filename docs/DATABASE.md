@@ -98,7 +98,7 @@ inventory_movements
 ### Relationships
 
 - A **product** belongs to exactly one **department**, one **group**, and one **brand** (all three `NOT NULL`, `onDelete: RESTRICT` — a lookup in active use can't be hard-removed, though in practice lookups are only ever soft-deleted anyway).
-- A **product** optionally belongs to one **supplier** (`supplier_id`, nullable, `RESTRICT`) — see `suppliers` below.
+- A **product** belongs to one **supplier** (`supplier_id`, nullable in the schema but always set — INVENTARIO INICIAL by default, `RESTRICT`) — see `suppliers` below.
 - A **product** has many **inventory movements** (1:N), `onDelete: CASCADE` on the FK (a hard-deleted product takes its movements with it — soft-deleted products keep theirs, since soft-delete never touches other tables).
 - Every table's `created_by`/`updated_by` reference **users**, `onDelete: SET NULL`.
 
@@ -146,7 +146,7 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `department_id` | UUID, FK → `departments.id` | `NOT NULL`, `RESTRICT` |
 | `group_id` | UUID, FK → `product_groups.id` | `NOT NULL`, `RESTRICT` |
 | `brand_id` | UUID, FK → `brands.id` | `NOT NULL`, `RESTRICT` |
-| `supplier_id` | UUID, nullable, FK → `suppliers.id`, `RESTRICT` | Added Phase 16. Legacy and hand-created products have none. Set when a purchase import creates the product, and filled in on an existing product only if it is still `NULL` (never overwritten by a later import). Editable/clearable on the product form. Plain index `IDX_products_supplier_id`. No many-to-many `product_suppliers` table — one supplier per product. |
+| `supplier_id` | UUID, nullable, FK → `suppliers.id`, `RESTRICT` | Added Phase 16. Nullable only in the schema: every product has one since migration 34 — a product created without choosing one (or cleared to `null` via `PATCH`) gets the **INVENTARIO INICIAL** supplier (`nit = '0'`). Set when a purchase import creates the product, and on an existing product replaced only if it is still `NULL` or INVENTARIO INICIAL (a real supplier is never overwritten by a later import). Editable on the product form. Plain index `IDX_products_supplier_id`. No many-to-many `product_suppliers` table — one supplier per product. |
 | `created_by_id`, `updated_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `created_at`, `updated_at`, `deleted_at` | TIMESTAMPTZ | standard |
 
@@ -517,6 +517,7 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 31 | `RemoveTechnicalKeyFromDianResolutions` | Drops `dian_resolutions.technical_key`: the resolution form no longer asks for it and the numbering sync no longer sends `technical-key` (Dataico had already accepted resolutions synced without it). `down()` re-adds the empty nullable column — stored keys aren't recoverable. Hand-written, same reason as the migrations above. |
 | 32 | `AddCustomLinesToQuotationItems` | `quotation_items.product_id` becomes nullable and `description` (VARCHAR 255) is added, so a quotation line can be a one-off (description + price) instead of a catalog product. `down()` deletes the one-off lines before restoring `NOT NULL`. Hand-written, same reason as the migrations above. |
 | 33 | `AddFinalConsumerCustomer` | Data-only: inserts the "Consumidor final" customer (`CC 222222222222`, the store's own address/city/email) unless one with that identification already exists. `down()` is a no-op — invoices may already point at it. See `GLOSSARY.md`'s "Consumidor final". |
+| 34 | `AddInitialInventorySupplier` | Data-only: inserts the **INVENTARIO INICIAL** supplier (`nit = '0'`, a placeholder no real supplier has) unless it exists, then moves every product with `supplier_id IS NULL` to it. `down()` unlinks those products and deletes the row. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

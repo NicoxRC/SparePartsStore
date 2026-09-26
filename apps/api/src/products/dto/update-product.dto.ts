@@ -59,7 +59,7 @@ export class UpdateProductDto {
   @IsBoolean()
   taxExempt?: boolean;
 
-  /** `null` clears the supplier tag; omitted leaves it untouched. */
+  /** `null` moves the product back to "INVENTARIO INICIAL"; omitted leaves it untouched. */
   @IsOptional()
   @IsUUID()
   supplierId?: string | null;

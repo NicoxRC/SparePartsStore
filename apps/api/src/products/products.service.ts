@@ -12,6 +12,7 @@ import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
 import { Brand } from '../brands/entities/brand.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
+import { INITIAL_INVENTORY_SUPPLIER_NIT } from '../suppliers/initial-inventory-supplier.constant';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
@@ -86,15 +87,10 @@ export class ProductsService {
       throw new NotFoundException('Invalid brandId: brand not found');
     }
 
-    let supplier: Supplier | null = null;
-    if (dto.supplierId) {
-      supplier = await suppliersRepository.findOne({
-        where: { id: dto.supplierId },
-      });
-      if (!supplier) {
-        throw new NotFoundException('Invalid supplierId: supplier not found');
-      }
-    }
+    const supplier = await this.resolveSupplier(
+      suppliersRepository,
+      dto.supplierId,
+    );
 
     const product = productsRepository.create({
       reference: dto.reference,
@@ -260,17 +256,10 @@ export class ProductsService {
     }
 
     if (dto.supplierId !== undefined) {
-      if (dto.supplierId === null) {
-        product.supplier = null;
-      } else {
-        const supplier = await this.suppliersRepository.findOne({
-          where: { id: dto.supplierId },
-        });
-        if (!supplier) {
-          throw new NotFoundException('Invalid supplierId: supplier not found');
-        }
-        product.supplier = supplier;
-      }
+      product.supplier = await this.resolveSupplier(
+        this.suppliersRepository,
+        dto.supplierId,
+      );
     }
 
     if (dto.taxExempt !== undefined) product.taxExempt = dto.taxExempt;
@@ -290,6 +279,29 @@ export class ProductsService {
       }
       throw error;
     }
+  }
+
+  /**
+   * A product always has a supplier: when none is chosen it goes to
+   * "INVENTARIO INICIAL" (see the `AddInitialInventorySupplier` migration).
+   * Falls back to none only if that row is missing, e.g. before migrating.
+   */
+  private async resolveSupplier(
+    suppliersRepository: Repository<Supplier>,
+    supplierId: string | null | undefined,
+  ): Promise<Supplier | null> {
+    if (!supplierId) {
+      return suppliersRepository.findOne({
+        where: { nit: INITIAL_INVENTORY_SUPPLIER_NIT },
+      });
+    }
+    const supplier = await suppliersRepository.findOne({
+      where: { id: supplierId },
+    });
+    if (!supplier) {
+      throw new NotFoundException('Invalid supplierId: supplier not found');
+    }
+    return supplier;
   }
 
   async remove(id: string): Promise<void> {
