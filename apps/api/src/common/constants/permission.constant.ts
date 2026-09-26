@@ -2,11 +2,12 @@
  * The full permission catalog for `employee`-role users — see
  * docs/GLOSSARY.md ("Permisos"). `admin` bypasses this entirely (always
  * full access); `auditor` is untouched (its fixed, already-existing
- * read-only access doesn't go through this system). Every code here is
- * an action a coarse `employee` could already do before this system
- * existed — nothing admin-only (deleting a product/customer, catalog
- * CRUD, managing users, resolutions, payroll, export) is in this catalog,
- * so this system can never be used to hand out admin-level power.
+ * read-only access doesn't go through this system). Nothing admin-only
+ * (deleting a product/customer/catalog entry, managing users,
+ * resolutions, payroll, export) is in this catalog, so this system can
+ * never be used to hand out admin-level power. Creating/editing catalog
+ * entries (`catalogs.create`/`catalogs.update`) was admin-only before and
+ * is now grantable, at the store's request — it was never destructive.
  *
  * A flat `text[]` column on `users`, not a table: this catalog is a
  * fixed, compile-time whitelist owned by the codebase, not admin-editable
@@ -23,6 +24,8 @@ export const PERMISSIONS = [
   'products.update',
 
   'catalogs.view',
+  'catalogs.create',
+  'catalogs.update',
 
   'inventory.view',
   'inventory.create',
@@ -86,6 +89,8 @@ export function isPermission(value: string): value is Permission {
 const IMPLIES: Partial<Record<Permission, Permission[]>> = {
   'products.create': ['products.view', 'catalogs.view'],
   'products.update': ['products.view', 'catalogs.view'],
+  'catalogs.create': ['catalogs.view'],
+  'catalogs.update': ['catalogs.view'],
   'inventory.create': ['inventory.view', 'products.view'],
   'customers.create': ['customers.view'],
   'customers.update': ['customers.view'],

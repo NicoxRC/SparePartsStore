@@ -12,6 +12,7 @@ import { InventoryService } from '../inventory/inventory.service';
 import { Product } from '../products/entities/product.entity';
 import { ProductsService } from '../products/products.service';
 import { Supplier } from '../suppliers/entities/supplier.entity';
+import { INITIAL_INVENTORY_SUPPLIER_NIT } from '../suppliers/initial-inventory-supplier.constant';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { PurchaseSheetParser } from './excel/purchase-sheet.parser';
 import { PurchaseImportItem } from './entities/purchase-import-item.entity';
@@ -1238,6 +1239,39 @@ describe('PurchaseImportsService', () => {
         for (const [sql] of manager.query.mock.calls as Array<[string]>) {
           expect(sql).not.toMatch(/description/);
         }
+      });
+
+      const supplierUpdates = () =>
+        (manager.query.mock.calls as Array<[string, unknown[]]>).filter(
+          ([sql]) => /SET "supplier_id"/.test(sql),
+        );
+
+      it('keeps a real supplier the product already has', async () => {
+        linkedProducts[0].supplier = {
+          id: 'sup-other',
+          nit: '800111222',
+        } as Supplier;
+        lines = [linked()];
+
+        const result = await service.confirm('imp-1', 'user-1');
+
+        expect(supplierUpdates()).toHaveLength(0);
+        expect(result.suppliersAssigned).toBe(0);
+      });
+
+      it('replaces INVENTARIO INICIAL with the purchase supplier', async () => {
+        linkedProducts[0].supplier = {
+          id: 'sup-initial',
+          nit: INITIAL_INVENTORY_SUPPLIER_NIT,
+        } as Supplier;
+        lines = [linked()];
+
+        const result = await service.confirm('imp-1', 'user-1');
+
+        expect(supplierUpdates()).toEqual([
+          [expect.any(String), ['sup-1', 'p-old']],
+        ]);
+        expect(result.suppliersAssigned).toBe(1);
       });
 
       it('keeps the current price when the line has none', async () => {

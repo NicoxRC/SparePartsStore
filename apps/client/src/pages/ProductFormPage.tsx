@@ -52,7 +52,9 @@ export function ProductFormPage() {
       ? {
           reference: productQuery.data.reference,
           description: productQuery.data.description,
-          salePrice: productQuery.data.salePrice,
+          // The form only takes whole pesos; a price stored with cents would
+          // otherwise fail validation on an error the rounded field can't show.
+          salePrice: Math.round(productQuery.data.salePrice),
           stock: productQuery.data.stock,
           departmentId: productQuery.data.department.id,
           groupId: productQuery.data.group.id,
@@ -96,7 +98,7 @@ export function ProductFormPage() {
     const { supplierId, ...fields } = values;
     try {
       if (isEditMode) {
-        // Clearing the select sends null, which removes the supplier tag.
+        // An empty select sends null, which the API turns into INVENTARIO INICIAL.
         await updateMutation.mutateAsync({ ...fields, supplierId: supplierId || null });
         navigate('/products');
       } else {
@@ -108,6 +110,15 @@ export function ProductFormPage() {
     } catch (error) {
       setFeedback({ type: 'error', message: getApiErrorMessage(error) });
     }
+  };
+
+  // Without this, a validation error on a field scrolled out of view (e.g. the
+  // price, at the top on a phone) made "Guardar cambios" look like it did nothing.
+  const onInvalid = () => {
+    setFeedback({
+      type: 'error',
+      message: 'Revisa los campos marcados en rojo antes de guardar.',
+    });
   };
 
   if (isEditMode && productQuery.isPending) {
@@ -128,7 +139,7 @@ export function ProductFormPage() {
       </h1>
 
       <form
-        onSubmit={(e) => void handleSubmit(onSubmit)(e)}
+        onSubmit={(e) => void handleSubmit(onSubmit, onInvalid)(e)}
         onKeyDown={handleEnterAsTab}
         className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6"
         noValidate
@@ -193,7 +204,7 @@ export function ProductFormPage() {
         />
 
         <TextField
-          label="Stock inicial"
+          label={isEditMode ? 'Stock' : 'Stock inicial'}
           type="number"
           inputMode="numeric"
           step="1"
@@ -261,14 +272,14 @@ export function ProductFormPage() {
           name="supplierId"
           control={control}
           render={({ field }) => (
+            // Left empty, the API assigns "INVENTARIO INICIAL".
             <SearchableSelect
-              label="Proveedor (opcional)"
+              label="Proveedor"
               resource="suppliers"
               value={field.value ?? ''}
               initialLabel={productQuery.data?.supplier?.name}
               onChange={(value) => field.onChange(value)}
-              placeholder="Sin proveedor"
-              clearLabel="Sin proveedor"
+              placeholder="INVENTARIO INICIAL"
               name={field.name}
             />
           )}

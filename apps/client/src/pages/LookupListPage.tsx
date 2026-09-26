@@ -5,7 +5,9 @@ import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { useAuth } from '../hooks/useAuth';
 import { useDeleteLookup, useLookupList } from '../hooks/useLookups';
+import { usePermissions } from '../hooks/usePermissions';
 import { getApiErrorMessage } from '../lib/errors';
 import type { LookupResource, LookupResponse } from '../services/lookups';
 
@@ -26,6 +28,12 @@ export function LookupListPage({
   basePath,
   itemLabelSingular,
 }: LookupListPageProps) {
+  const { user } = useAuth();
+  const { has } = usePermissions();
+  const canCreate = has('catalogs.create');
+  const canUpdate = has('catalogs.update');
+  // Deleting stays admin-only on the API.
+  const canDelete = user?.role === 'admin';
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
   const [itemPendingDelete, setItemPendingDelete] = useState<LookupResponse | null>(null);
@@ -60,9 +68,11 @@ export function LookupListPage({
         <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
           {title}
         </h1>
-        <Link to={`${basePath}/new`} className="shrink-0">
-          <Button type="button">{newLabel}</Button>
-        </Link>
+        {canCreate && (
+          <Link to={`${basePath}/new`} className="shrink-0">
+            <Button type="button">{newLabel}</Button>
+          </Link>
+        )}
       </div>
 
       <TextField
@@ -98,22 +108,30 @@ export function LookupListPage({
                       {item.name}
                     </p>
                   </div>
-                  <div className="mt-auto flex gap-2 pt-2">
-                    <Link to={`${basePath}/${item.id}/edit`} className="flex-1">
-                      <Button variant="secondary" type="button" className="w-full">
-                        Editar
-                      </Button>
-                    </Link>
-                    <Button
-                      variant="danger"
-                      type="button"
-                      className="flex-1"
-                      isLoading={deleteMutation.isPending && deleteMutation.variables === item.id}
-                      onClick={() => handleDeleteRequest(item)}
-                    >
-                      Eliminar
-                    </Button>
-                  </div>
+                  {(canUpdate || canDelete) && (
+                    <div className="mt-auto flex gap-2 pt-2">
+                      {canUpdate && (
+                        <Link to={`${basePath}/${item.id}/edit`} className="flex-1">
+                          <Button variant="secondary" type="button" className="w-full">
+                            Editar
+                          </Button>
+                        </Link>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="danger"
+                          type="button"
+                          className="flex-1"
+                          isLoading={
+                            deleteMutation.isPending && deleteMutation.variables === item.id
+                          }
+                          onClick={() => handleDeleteRequest(item)}
+                        >
+                          Eliminar
+                        </Button>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

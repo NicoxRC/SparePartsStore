@@ -22,6 +22,7 @@ import {
 } from '../products/product-normalize.util';
 import { ProductsService } from '../products/products.service';
 import { Supplier } from '../suppliers/entities/supplier.entity';
+import { INITIAL_INVENTORY_SUPPLIER_NIT } from '../suppliers/initial-inventory-supplier.constant';
 import { SuppliersService } from '../suppliers/suppliers.service';
 import { ApplyClassificationDto } from './dto/apply-classification.dto';
 import {
@@ -630,8 +631,13 @@ export class PurchaseImportsService {
             product.salePrice = item.newSalePrice;
           }
 
-          if (!product.supplier) {
-            // "Fill the blank": an existing product keeps its original supplier.
+          if (
+            !product.supplier ||
+            product.supplier.nit === INITIAL_INVENTORY_SUPPLIER_NIT
+          ) {
+            // "Fill the blank": an existing product keeps its original
+            // supplier. INVENTARIO INICIAL counts as blank — it only means
+            // the product was already in the store before any purchase.
             await manager.query(
               'UPDATE "products" SET "supplier_id" = $1 WHERE "id" = $2',
               [supplier.id, product.id],

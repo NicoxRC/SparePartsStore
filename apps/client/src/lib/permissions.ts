@@ -20,7 +20,11 @@ export const PERMISSION_SCOPES = [
   {
     scope: 'catalogs',
     label: 'Catálogos (departamentos, grupos, marcas)',
-    actions: [{ code: 'catalogs.view', label: 'Ver' }],
+    actions: [
+      { code: 'catalogs.view', label: 'Ver' },
+      { code: 'catalogs.create', label: 'Crear' },
+      { code: 'catalogs.update', label: 'Editar' },
+    ],
   },
   {
     scope: 'inventory',

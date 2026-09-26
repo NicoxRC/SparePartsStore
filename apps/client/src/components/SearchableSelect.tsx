@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { CreateLookupDialog } from './CreateLookupDialog';
 import { useLookupItem, useLookupList } from '../hooks/useLookups';
+import { usePermissions } from '../hooks/usePermissions';
 import type { LookupResource, LookupResponse } from '../services/lookups';
 
 interface SearchableSelectProps {
@@ -16,7 +17,8 @@ interface SearchableSelectProps {
   placeholder?: string;
   /** When set, shows an extra option at the top of the list to clear the selection (e.g. "Todos"). */
   clearLabel?: string;
-  /** When true, shows a "+ Crear..." option that opens an inline form to create a new entry. */
+  /** When true, shows a "+ Crear..." option that opens an inline form to
+   * create a new entry — only to someone allowed to (`catalogs.create`). */
   allowCreate?: boolean;
   error?: string;
   id?: string;
@@ -34,12 +36,14 @@ export function SearchableSelect({
   initialLabel,
   placeholder = 'Selecciona...',
   clearLabel,
-  allowCreate,
+  allowCreate: allowCreateProp,
   error,
   id,
   name,
   disabled,
 }: SearchableSelectProps) {
+  const { has } = usePermissions();
+  const allowCreate = allowCreateProp && has('catalogs.create');
   const fieldId = id ?? name ?? resource;
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');

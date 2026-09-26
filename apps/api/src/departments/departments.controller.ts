@@ -30,7 +30,8 @@ export class DepartmentsController {
   constructor(private readonly departmentsService: DepartmentsService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @RequirePermission('catalogs.create')
   create(
     @Body() dto: CreateDepartmentDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -56,7 +57,8 @@ export class DepartmentsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @RequirePermission('catalogs.update')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateDepartmentDto,

@@ -58,13 +58,15 @@ export function AuthenticatedLayout() {
     ...(isAdmin
       ? [
           { to: '/users', label: 'Usuarios', Icon: IconUsers },
-          { to: '/catalogs', label: 'Catálogos', Icon: IconTag },
           { to: '/invoicing/resolutions', label: 'Resoluciones DIAN', Icon: IconStamp },
           // Nómina electrónica: not removed, just off the nav — not in use
           // for now but expected back later. Route/page/backend stay intact
           // at /invoicing/payroll-entries; restoring access is just adding
           // this entry back.
         ]
+      : []),
+    ...(isAdmin || has('catalogs.create') || has('catalogs.update')
+      ? [{ to: '/catalogs', label: 'Catálogos', Icon: IconTag }]
       : []),
     // "Caja" was previously hardcoded admin-only here even though the
     // backend already allowed employee access — now it follows the same

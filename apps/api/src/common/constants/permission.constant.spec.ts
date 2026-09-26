@@ -74,6 +74,15 @@ describe('permission.constant', () => {
       );
     });
 
+    it('grants catalogs.view with catalogs.create and catalogs.update', () => {
+      expect(expandPermissions(['catalogs.create'])).toEqual(
+        expect.arrayContaining(['catalogs.create', 'catalogs.view']),
+      );
+      expect(expandPermissions(['catalogs.update'])).toEqual(
+        expect.arrayContaining(['catalogs.update', 'catalogs.view']),
+      );
+    });
+
     it('is idempotent — expanding an already-expanded set changes nothing', () => {
       const once = expandPermissions(['invoices.create']);
       const twice = expandPermissions(once);

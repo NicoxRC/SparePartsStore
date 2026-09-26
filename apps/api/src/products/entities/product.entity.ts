@@ -50,8 +50,10 @@ export class Product extends BaseEntity {
   @JoinColumn({ name: 'brand_id' })
   brand: Brand;
 
-  // Nullable: legacy and hand-created products have no supplier. Filled in by
-  // a confirmed purchase import — see docs/phases/PHASE_16_PURCHASE_INVOICE_IMPORT.md.
+  // Nullable only in the schema: a product created without choosing one gets
+  // "INVENTARIO INICIAL" (see ProductsService), and a confirmed purchase
+  // import replaces that with the real supplier — see
+  // docs/phases/PHASE_16_PURCHASE_INVOICE_IMPORT.md.
   @ManyToOne(() => Supplier, { nullable: true, onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'supplier_id' })
   supplier: Supplier | null;

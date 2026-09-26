@@ -126,6 +126,97 @@ function App() {
                   <Route element={<PermissionRoute permission="products.update" />}>
                     <Route path="/products/:id/edit" element={<ProductFormPage />} />
                   </Route>
+                  {/* Catálogos: admin, or an employee granted create/edit — see
+                      lib/permissions.ts. Deleting stays admin-only. */}
+                  <Route
+                    element={<PermissionRoute permission={['catalogs.create', 'catalogs.update']} />}
+                  >
+                    <Route path="/catalogs" element={<CatalogsPage />} />
+                    <Route
+                      path="/departments"
+                      element={
+                        <LookupListPage
+                          resource="departments"
+                          title="Departamentos"
+                          newLabel="+ Nuevo"
+                          basePath="/departments"
+                          itemLabelSingular="departamento"
+                        />
+                      }
+                    />
+                    <Route
+                      path="/groups"
+                      element={
+                        <LookupListPage
+                          resource="groups"
+                          title="Grupos"
+                          newLabel="+ Nuevo"
+                          basePath="/groups"
+                          itemLabelSingular="grupo"
+                        />
+                      }
+                    />
+                    <Route
+                      path="/brands"
+                      element={
+                        <LookupListPage
+                          resource="brands"
+                          title="Marcas"
+                          newLabel="+ Nuevo"
+                          basePath="/brands"
+                          itemLabelSingular="marca"
+                        />
+                      }
+                    />
+                    <Route element={<PermissionRoute permission="catalogs.create" />}>
+                      <Route
+                        path="/departments/new"
+                        element={
+                          <LookupFormPage
+                            resource="departments"
+                            title="departamento"
+                            basePath="/departments"
+                          />
+                        }
+                      />
+                      <Route
+                        path="/groups/new"
+                        element={
+                          <LookupFormPage resource="groups" title="grupo" basePath="/groups" />
+                        }
+                      />
+                      <Route
+                        path="/brands/new"
+                        element={
+                          <LookupFormPage resource="brands" title="marca" basePath="/brands" />
+                        }
+                      />
+                    </Route>
+                    <Route element={<PermissionRoute permission="catalogs.update" />}>
+                      <Route
+                        path="/departments/:id/edit"
+                        element={
+                          <LookupFormPage
+                            resource="departments"
+                            title="departamento"
+                            basePath="/departments"
+                          />
+                        }
+                      />
+                      <Route
+                        path="/groups/:id/edit"
+                        element={
+                          <LookupFormPage resource="groups" title="grupo" basePath="/groups" />
+                        }
+                      />
+                      <Route
+                        path="/brands/:id/edit"
+                        element={
+                          <LookupFormPage resource="brands" title="marca" basePath="/brands" />
+                        }
+                      />
+                    </Route>
+                  </Route>
                   {/* Admin always passes PermissionRoute too, so this one
                       grant covers both "an admin viewing caja" and "an
                       employee an admin chose to let see it" — see
@@ -145,8 +236,6 @@ function App() {
                   <Route path="/users/new" element={<UserFormPage />} />
                   <Route path="/users/:id/edit" element={<UserFormPage />} />
 
-                  <Route path="/catalogs" element={<CatalogsPage />} />
-
                   <Route
                     path="/invoicing/resolutions"
                     element={<ResolutionsListPage />}
@@ -165,88 +254,6 @@ function App() {
                     element={<PayrollFormPage />}
                   />
 
-                  <Route
-                    path="/departments"
-                    element={
-                      <LookupListPage
-                        resource="departments"
-                        title="Departamentos"
-                        newLabel="+ Nuevo"
-                        basePath="/departments"
-                        itemLabelSingular="departamento"
-                      />
-                    }
-                  />
-                  <Route
-                    path="/departments/new"
-                    element={
-                      <LookupFormPage
-                        resource="departments"
-                        title="departamento"
-                        basePath="/departments"
-                      />
-                    }
-                  />
-                  <Route
-                    path="/departments/:id/edit"
-                    element={
-                      <LookupFormPage
-                        resource="departments"
-                        title="departamento"
-                        basePath="/departments"
-                      />
-                    }
-                  />
-
-                  <Route
-                    path="/groups"
-                    element={
-                      <LookupListPage
-                        resource="groups"
-                        title="Grupos"
-                        newLabel="+ Nuevo"
-                        basePath="/groups"
-                        itemLabelSingular="grupo"
-                      />
-                    }
-                  />
-                  <Route
-                    path="/groups/new"
-                    element={
-                      <LookupFormPage resource="groups" title="grupo" basePath="/groups" />
-                    }
-                  />
-                  <Route
-                    path="/groups/:id/edit"
-                    element={
-                      <LookupFormPage resource="groups" title="grupo" basePath="/groups" />
-                    }
-                  />
-
-                  <Route
-                    path="/brands"
-                    element={
-                      <LookupListPage
-                        resource="brands"
-                        title="Marcas"
-                        newLabel="+ Nuevo"
-                        basePath="/brands"
-                        itemLabelSingular="marca"
-                      />
-                    }
-                  />
-                  <Route
-                    path="/brands/new"
-                    element={
-                      <LookupFormPage resource="brands" title="marca" basePath="/brands" />
-                    }
-                  />
-                  <Route
-                    path="/brands/:id/edit"
-                    element={
-                      <LookupFormPage resource="brands" title="marca" basePath="/brands" />
-                    }
-                  />
                 </Route>
               </Route>
             </Route>

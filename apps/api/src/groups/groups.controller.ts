@@ -30,7 +30,8 @@ export class GroupsController {
   constructor(private readonly groupsService: GroupsService) {}
 
   @Post()
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @RequirePermission('catalogs.create')
   create(
     @Body() dto: CreateGroupDto,
     @CurrentUser() user: AuthenticatedUser,
@@ -56,7 +57,8 @@ export class GroupsController {
   }
 
   @Patch(':id')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @RequirePermission('catalogs.update')
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateGroupDto,

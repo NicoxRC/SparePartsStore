@@ -4,6 +4,7 @@ import { Brand } from '../brands/entities/brand.entity';
 import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
+import { INITIAL_INVENTORY_SUPPLIER_NIT } from '../suppliers/initial-inventory-supplier.constant';
 import { CreateProductDto } from './dto/create-product.dto';
 import { Product } from './entities/product.entity';
 import { ProductsService } from './products.service';
@@ -40,6 +41,7 @@ describe('ProductsService', () => {
   const group = { id: 'g-1', name: 'GRP' };
   const brand = { id: 'b-1', name: 'BRD' };
   const supplier = { id: 's-1', name: 'PROVEEDOR' };
+  const initialInventory = { id: 's-0', name: 'INVENTARIO INICIAL' };
 
   const dto: CreateProductDto = {
     reference: 'REF-1',
@@ -97,11 +99,15 @@ describe('ProductsService', () => {
       expect(result.supplier).toEqual({ id: 's-1', name: 'PROVEEDOR' });
     });
 
-    it('leaves the supplier null when none is given', async () => {
+    it('falls back to INVENTARIO INICIAL when no supplier is given', async () => {
+      suppliers.findOne.mockResolvedValue(initialInventory);
+
       const result = await service.create(dto, 'user-1');
 
-      expect(suppliers.findOne).not.toHaveBeenCalled();
-      expect(result.supplier).toBeNull();
+      expect(suppliers.findOne).toHaveBeenCalledWith({
+        where: { nit: INITIAL_INVENTORY_SUPPLIER_NIT },
+      });
+      expect(result.supplier).toEqual(initialInventory);
     });
 
     it('rejects an unknown supplierId', async () => {
@@ -192,11 +198,22 @@ describe('ProductsService', () => {
       expect(existing.supplier).toEqual({ id: 's-2', name: 'OTRO' });
     });
 
-    it('clears the supplier with null', async () => {
+    it('moves the product back to INVENTARIO INICIAL with null', async () => {
+      suppliers.findOne.mockResolvedValue(initialInventory);
+
       await service.update('p-1', { supplierId: null }, 'u');
 
-      expect(existing.supplier).toBeNull();
-      expect(suppliers.findOne).not.toHaveBeenCalled();
+      expect(suppliers.findOne).toHaveBeenCalledWith({
+        where: { nit: INITIAL_INVENTORY_SUPPLIER_NIT },
+      });
+      expect(existing.supplier).toBe(initialInventory);
+    });
+
+    it('updates the stock', async () => {
+      const result = await service.update('p-1', { stock: 12 }, 'u');
+
+      expect(existing.stock).toBe(12);
+      expect(result.stock).toBe(12);
     });
 
     it('leaves the supplier untouched when supplierId is omitted', async () => {
