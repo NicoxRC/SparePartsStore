@@ -12,6 +12,10 @@ Relationship to other phases: independent of Phases 7-15. It does **not** reopen
 
 **The draft keeps only reference, description and quantity from the XML; everything else is completed by the user, and the system never suggests a price.** Consequently: the XML's unit cost (`unit_cost`, "Costo en factura", the pre-IVA price question) is **gone** — the draft stores no price at all — and the whole product model dropped its derived `cost` and its `sale_type`, leaving only `sale_price` (see `RemoveCostAndSaleTypeFromProducts`, `docs/DATABASE.md`). Wherever this document below still mentions `unit_cost`, `saleType`/`new_sale_type`, D1 or Open question 2, that part is **superseded** by this paragraph.
 
+## Follow-up: cost typed on purchases (2026-09-28)
+
+The product cost came back (migration 35, see `DATABASE.md`). On a purchase the **user types the cost** next to the sale price: a "Costo" field on each draft line (required for a new product, optional change for an existing one, shown `actual → nuevo`) and a "Costo" column in the Excel template, before "Precio de venta". The XML's own prices are still not read. A template downloaded before this change no longer matches the column titles and is refused with `INVALID_TEMPLATE` (download it again).
+
 ## Real-sample verification (2026-09-28)
 
 The XML button was switched off at the first PR until a real file was checked. The human then shared 7 real files from 6 suppliers: 5 invoices (1 to 45 lines) and 2 credit notes. **No parser change was needed:**

@@ -1,5 +1,7 @@
 import { api } from '../lib/api';
 
+export type SaleType = 'normal' | 'neto';
+
 
 export interface ProductLookupRef {
   id: string;
@@ -11,6 +13,10 @@ export interface ProductResponse {
   reference: string;
   description: string;
   salePrice: number;
+  cost: number;
+  saleType: SaleType;
+  /** True while the supplier is INVENTARIO INICIAL: the cost follows the sale price. */
+  costDerived: boolean;
   stock: number;
   taxExempt: boolean;
   department: ProductLookupRef;
@@ -47,6 +53,9 @@ export interface ProductInput {
   reference: string;
   description: string;
   salePrice: number;
+  saleType?: SaleType;
+  /** Only applied by the API to a product with a real supplier. */
+  cost?: number;
   stock: number;
   departmentId: string;
   groupId: string;

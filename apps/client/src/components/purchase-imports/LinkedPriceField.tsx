@@ -1,11 +1,9 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm } from 'react-hook-form';
-import { CurrencyField } from '../CurrencyField';
-import { formatPrice, pendingPriceChange } from '../../lib/purchaseImports';
+import { DraftAmountField } from './DraftAmountField';
 import {
-  newProductPriceSchema,
-  type NewProductPriceValues,
-} from '../../lib/schemas/purchaseImport';
+  formatPrice,
+  pendingCostChange,
+  pendingPriceChange,
+} from '../../lib/purchaseImports';
 import type {
   PurchaseImportItem,
   UpdatePurchaseImportItemInput,
@@ -17,61 +15,41 @@ interface LinkedPriceFieldProps {
 }
 
 /**
- * Optional new sale price for a product that already exists — it may have
- * changed since the last purchase. Blank keeps the current price. Shown as
- * "from -> to", the same way the stock change is.
+ * Optional new cost and sale price for a product that already exists — they
+ * may have changed since the last purchase. Blank keeps the current one.
+ * Shown as "from -> to", the same way the stock change is.
  */
 export function LinkedPriceField({ item, onPatch }: LinkedPriceFieldProps) {
-  const currentPrice = item.product?.salePrice ?? 0;
-  const typed = item.newProduct.salePrice;
-  const change = pendingPriceChange(item);
-
-  const {
-    control,
-    trigger,
-    getValues,
-    formState: { errors },
-  } = useForm<NewProductPriceValues>({
-    resolver: zodResolver(newProductPriceSchema),
-    defaultValues: { salePrice: typed ?? 0 },
-  });
-
-  const commitPrice = async () => {
-    const salePrice = getValues('salePrice');
-    if (salePrice === (typed ?? 0)) return;
-    if (salePrice === 0) {
-      onPatch({ salePrice: null });
-      return;
-    }
-    if (!(await trigger('salePrice'))) return;
-    onPatch({ salePrice });
-  };
+  const priceChange = pendingPriceChange(item);
+  const costChange = pendingCostChange(item);
 
   return (
     <div className="flex flex-col gap-1">
       <p className="font-mono text-xs text-steel">
-        Precio de venta {formatPrice(currentPrice)}
-        {change !== null && ` → ${formatPrice(change)}`}
+        Costo {formatPrice(item.product?.cost ?? 0)}
+        {costChange !== null && ` → ${formatPrice(costChange)}`}
+        {' · '}
+        Precio de venta {formatPrice(item.product?.salePrice ?? 0)}
+        {priceChange !== null && ` → ${formatPrice(priceChange)}`}
       </p>
-      <Controller
-        name="salePrice"
-        control={control}
-        render={({ field }) => (
-          <CurrencyField
-            label="Nuevo precio de venta (opcional)"
-            id={`line-price-${item.id}`}
-            placeholder="Dejar vacío para no cambiarlo"
-            error={errors.salePrice?.message}
-            name={field.name}
-            value={field.value}
-            onChange={field.onChange}
-            onBlur={() => {
-              field.onBlur();
-              void commitPrice();
-            }}
-          />
-        )}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <DraftAmountField
+          field="cost"
+          saved={item.newProduct.cost}
+          label="Nuevo costo (opcional)"
+          id={`line-cost-${item.id}`}
+          placeholder="Sin cambio"
+          onPatch={onPatch}
+        />
+        <DraftAmountField
+          field="salePrice"
+          saved={item.newProduct.salePrice}
+          label="Nuevo precio (opcional)"
+          id={`line-price-${item.id}`}
+          placeholder="Sin cambio"
+          onPatch={onPatch}
+        />
+      </div>
     </div>
   );
 }

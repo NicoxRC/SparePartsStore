@@ -4,6 +4,7 @@ import {
   formatPrice,
   formatQuantity,
   lineElementId,
+  pendingCostChange,
   pendingPriceChange,
 } from '../../lib/purchaseImports';
 import type { PurchaseImportItem } from '../../services/purchaseImports';
@@ -52,6 +53,12 @@ export function PurchaseImportLineReadOnly({
         <p className="font-mono text-xs text-steel">
           Precio de venta {formatPrice(item.product.salePrice)} →{' '}
           {formatPrice(pendingPriceChange(item) ?? 0)}
+        </p>
+      )}
+
+      {item.product && pendingCostChange(item) !== null && (
+        <p className="font-mono text-xs text-steel">
+          Costo {formatPrice(item.product.cost)} → {formatPrice(pendingCostChange(item) ?? 0)}
         </p>
       )}
 

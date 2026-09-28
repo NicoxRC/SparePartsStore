@@ -17,6 +17,15 @@ export const productFormSchema = z.object({
     .number({ message: 'El precio debe ser un número.' })
     .int('El precio debe ser un número entero.')
     .min(500, 'El precio mínimo es $500.'),
+  saleType: z.enum(['normal', 'neto'], {
+    message: 'El tipo de venta es obligatorio.',
+  }),
+  /** Typed only for a product with a real supplier; otherwise derived. */
+  cost: z.coerce
+    .number({ message: 'El costo debe ser un número.' })
+    .int('El costo debe ser un número entero.')
+    .min(1, 'El costo es obligatorio.')
+    .optional(),
   stock: z.coerce
     .number({ message: 'El stock debe ser un número.' })
     .int('El stock debe ser un número entero.')
@@ -42,7 +51,7 @@ export type ProductFormValues = z.output<typeof productFormSchema>;
  * amount being sold right now. The caller sends `quantity` as `stock` when
  * creating the product, then pre-fills the same quantity on the new line item.
  */
-export const quickCreateProductSchema = productFormSchema.omit({ stock: true }).extend({
+export const quickCreateProductSchema = productFormSchema.omit({ stock: true, cost: true }).extend({
   quantity: z.coerce
     .number({ message: 'La cantidad debe ser un número.' })
     .int('La cantidad debe ser un número entero.')

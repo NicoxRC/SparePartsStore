@@ -1,11 +1,5 @@
-import { zodResolver } from '@hookform/resolvers/zod';
-import { Controller, useForm } from 'react-hook-form';
-import { CurrencyField } from '../CurrencyField';
 import { SearchableSelect } from '../SearchableSelect';
-import {
-  newProductPriceSchema,
-  type NewProductPriceValues,
-} from '../../lib/schemas/purchaseImport';
+import { DraftAmountField } from './DraftAmountField';
 import type {
   PurchaseImportItem,
   UpdatePurchaseImportItemInput,
@@ -19,27 +13,6 @@ interface NewProductFieldsProps {
 /** The data a "Nuevo" line needs so confirming can create its product. Each change saves right away. */
 export function NewProductFields({ item, onPatch }: NewProductFieldsProps) {
   const { newProduct } = item;
-
-  const {
-    control,
-    trigger,
-    getValues,
-    formState: { errors },
-  } = useForm<NewProductPriceValues>({
-    resolver: zodResolver(newProductPriceSchema),
-    defaultValues: { salePrice: newProduct.salePrice ?? 0 },
-  });
-
-  const commitPrice = async () => {
-    const salePrice = getValues('salePrice');
-    if (salePrice === (newProduct.salePrice ?? 0)) return;
-    if (salePrice === 0) {
-      onPatch({ salePrice: null });
-      return;
-    }
-    if (!(await trigger('salePrice'))) return;
-    onPatch({ salePrice });
-  };
 
   return (
     <div className="flex flex-col gap-3 rounded-sm border border-line bg-canvas p-3">
@@ -68,25 +41,22 @@ export function NewProductFields({ item, onPatch }: NewProductFieldsProps) {
         allowCreate
       />
 
-      <Controller
-        name="salePrice"
-        control={control}
-        render={({ field }) => (
-          <CurrencyField
-            label="Precio de venta"
-            id={`line-price-${item.id}`}
-            placeholder="0"
-            error={errors.salePrice?.message}
-            name={field.name}
-            value={field.value}
-            onChange={field.onChange}
-            onBlur={() => {
-              field.onBlur();
-              void commitPrice();
-            }}
-          />
-        )}
-      />
+      <div className="grid grid-cols-2 gap-3">
+        <DraftAmountField
+          field="cost"
+          saved={newProduct.cost}
+          label="Costo"
+          id={`line-cost-${item.id}`}
+          onPatch={onPatch}
+        />
+        <DraftAmountField
+          field="salePrice"
+          saved={newProduct.salePrice}
+          label="Precio de venta"
+          id={`line-price-${item.id}`}
+          onPatch={onPatch}
+        />
+      </div>
 
       <label className="flex min-h-11 items-center gap-2 text-sm text-steel">
         <input
