@@ -333,6 +333,7 @@ describe('CustomersService', () => {
           invoice: null,
           cancelledAt: null,
           createdAt: new Date('2026-01-10T10:00:00.000Z'),
+          updatedAt: new Date('2026-01-12T10:00:00.000Z'),
         },
       ]);
 
