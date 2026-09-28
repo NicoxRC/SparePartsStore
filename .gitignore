@@ -92,3 +92,6 @@ pids/
 # =============================================================================
 # Keep docker-compose.yml committed; ignore local overrides
 docker-compose.override.yml
+
+# Real supplier invoices used for manual testing — never commit
+Facturas/
