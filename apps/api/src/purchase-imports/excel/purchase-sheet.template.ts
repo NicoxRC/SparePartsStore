@@ -20,10 +20,11 @@ const INSTRUCTIONS = [
   '1. Escribe el NIT y el nombre del proveedor (las dos primeras filas de la hoja "Compra").',
   '   El nombre solo se usa si el proveedor es nuevo; si ya existe se respeta el guardado.',
   '2. El número y la fecha de la factura son opcionales. Si pones el número, la misma factura no se puede cargar dos veces.',
-  '3. Desde la fila 7, una fila por producto: Referencia, Descripción, Cantidad y Precio de venta.',
+  '3. Desde la fila 7, una fila por producto: Referencia, Descripción, Cantidad, Costo y Precio de venta.',
   '4. La cantidad debe ser un número entero mayor que 0.',
-  '5. El precio de venta es el que tú fijas. Solo se usa si el producto es nuevo; si la referencia ya existe en el',
-  '   catálogo, se suma el stock y el precio del producto no cambia.',
+  '5. El costo (lo que te cobra el proveedor) y el precio de venta los fijas tú. Para un producto nuevo son obligatorios.',
+  '   Si la referencia ya existe en el catálogo, se suma el stock; un costo o precio escrito reemplaza el actual',
+  '   y uno vacío lo deja como está.',
   '6. Máximo 500 productos por archivo. No cambies los títulos ni muevas las filas.',
   '',
   'Nada se guarda todavía: al subir el archivo queda un borrador que revisas y confirmas en la app.',
@@ -33,7 +34,13 @@ export async function buildPurchaseTemplate(): Promise<Buffer> {
   const workbook = new Workbook();
 
   const sheet = workbook.addWorksheet(SHEET_NAME);
-  sheet.columns = [{ width: 30 }, { width: 50 }, { width: 14 }, { width: 18 }];
+  sheet.columns = [
+    { width: 30 },
+    { width: 50 },
+    { width: 14 },
+    { width: 18 },
+    { width: 18 },
+  ];
 
   for (const key of Object.keys(HEADER_LABELS) as Array<
     keyof typeof HEADER_LABELS
@@ -77,6 +84,18 @@ export async function buildPurchaseTemplate(): Promise<Buffer> {
       allowBlank: true,
       showErrorMessage: true,
       errorTitle: 'Cantidad no válida',
+      error: 'Escribe un número entero mayor que 0.',
+    };
+
+    const cost = row.getCell(COLUMNS.cost);
+    cost.numFmt = '#,##0';
+    cost.dataValidation = {
+      type: 'whole',
+      operator: 'greaterThanOrEqual',
+      formulae: [1],
+      allowBlank: true,
+      showErrorMessage: true,
+      errorTitle: 'Costo no válido',
       error: 'Escribe un número entero mayor que 0.',
     };
 

@@ -223,17 +223,19 @@ export class PurchaseSheetParser {
     );
   }
 
-  /** null for a row with nothing in any of the four columns. */
+  /** null for a row with nothing in any of the columns. */
   private readLine(row: Row, lineNumber: number): ParsedInvoiceLine | null {
     const rawReference = cellText(row.getCell(COLUMNS.reference).value);
     const description = cellText(row.getCell(COLUMNS.description).value);
     const xmlQuantity = cellNumber(row.getCell(COLUMNS.quantity).value);
+    const cost = cellNumber(row.getCell(COLUMNS.cost).value);
     const price = cellNumber(row.getCell(COLUMNS.salePrice).value);
 
     if (
       rawReference === null &&
       description === null &&
       xmlQuantity === null &&
+      cost === null &&
       price === null
     ) {
       return null;
@@ -253,8 +255,13 @@ export class PurchaseSheetParser {
       description: description ? description.slice(0, 255) : null,
       xmlQuantity: xmlQuantity ?? 0,
       quantity,
-      salePrice:
-        price !== null && price >= 0 && price < MAX_PRICE ? price : null,
+      salePrice: this.amountOrNull(price),
+      cost: this.amountOrNull(cost),
     };
+  }
+
+  /** Out-of-range amounts stay blank so the review screen asks for them. */
+  private amountOrNull(value: number | null): number | null {
+    return value !== null && value >= 0 && value < MAX_PRICE ? value : null;
   }
 }

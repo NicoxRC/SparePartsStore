@@ -74,6 +74,8 @@ export class PurchaseImportLinkedProductDto {
   @ApiProperty() stock: number;
   @ApiProperty({ description: "The product's current sale price in the app." })
   salePrice: number;
+  @ApiProperty({ description: "The product's current cost in the app." })
+  cost: number;
 }
 
 export class PurchaseImportNewProductDto {
@@ -81,6 +83,7 @@ export class PurchaseImportNewProductDto {
   @ApiProperty({ nullable: true, type: String }) groupId: string | null;
   @ApiProperty({ nullable: true, type: String }) brandId: string | null;
   @ApiProperty({ nullable: true, type: Number }) salePrice: number | null;
+  @ApiProperty({ nullable: true, type: Number }) cost: number | null;
   @ApiProperty() taxExempt: boolean;
 }
 
@@ -129,6 +132,7 @@ export class PurchaseImportItemDto {
           description: item.product.description,
           stock: item.product.stock,
           salePrice: item.product.salePrice,
+          cost: item.product.cost,
         }
       : null;
     dto.newProduct = {
@@ -136,6 +140,7 @@ export class PurchaseImportItemDto {
       groupId: item.newGroupId,
       brandId: item.newBrandId,
       salePrice: item.newSalePrice,
+      cost: item.newCost,
       taxExempt: item.newTaxExempt,
     };
     dto.createdProduct = item.createdProduct;

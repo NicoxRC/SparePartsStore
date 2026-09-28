@@ -6,8 +6,9 @@ import { Group } from '../groups/entities/group.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
 import { INITIAL_INVENTORY_SUPPLIER_NIT } from '../suppliers/initial-inventory-supplier.constant';
 import { CreateProductDto } from './dto/create-product.dto';
+import { SaleType } from '../common/enums/sale-type.enum';
 import { Product } from './entities/product.entity';
-import { ProductsService } from './products.service';
+import { ProductsService, calculateCost } from './products.service';
 
 type Repo = {
   findOne: jest.Mock;
@@ -40,8 +41,12 @@ describe('ProductsService', () => {
   const department = { id: 'd-1', name: 'DEP' };
   const group = { id: 'g-1', name: 'GRP' };
   const brand = { id: 'b-1', name: 'BRD' };
-  const supplier = { id: 's-1', name: 'PROVEEDOR' };
-  const initialInventory = { id: 's-0', name: 'INVENTARIO INICIAL' };
+  const supplier = { id: 's-1', name: 'PROVEEDOR', nit: '900123456' };
+  const initialInventory = {
+    id: 's-0',
+    name: 'INVENTARIO INICIAL',
+    nit: INITIAL_INVENTORY_SUPPLIER_NIT,
+  };
 
   const dto: CreateProductDto = {
     reference: 'REF-1',
@@ -97,6 +102,7 @@ describe('ProductsService', () => {
         expect.objectContaining({ supplier }),
       );
       expect(result.supplier).toEqual({ id: 's-1', name: 'PROVEEDOR' });
+      expect(result.costDerived).toBe(false);
     });
 
     it('falls back to INVENTARIO INICIAL when no supplier is given', async () => {
@@ -107,7 +113,33 @@ describe('ProductsService', () => {
       expect(suppliers.findOne).toHaveBeenCalledWith({
         where: { nit: INITIAL_INVENTORY_SUPPLIER_NIT },
       });
-      expect(result.supplier).toEqual(initialInventory);
+      expect(result.supplier).toEqual({
+        id: 's-0',
+        name: 'INVENTARIO INICIAL',
+      });
+      expect(result.costDerived).toBe(true);
+    });
+
+    it('derives the cost from the price, normal by default', async () => {
+      const result = await service.create(dto, 'user-1');
+
+      expect(result.saleType).toBe(SaleType.NORMAL);
+      expect(result.cost).toBe(1000); // 1650 / 1.65
+    });
+
+    it('derives the cost with the neto factor', async () => {
+      const result = await service.create(
+        { ...dto, salePrice: 1300, saleType: SaleType.NETO },
+        'user-1',
+      );
+
+      expect(result.cost).toBe(1000); // 1300 / 1.3
+    });
+
+    it('uses the cost given by a purchase instead of deriving it', async () => {
+      const result = await service.create(dto, 'user-1', undefined, 700);
+
+      expect(result.cost).toBe(700);
     });
 
     it('rejects an unknown supplierId', async () => {
@@ -182,6 +214,66 @@ describe('ProductsService', () => {
           ...entity,
         }),
       );
+    });
+
+    describe('cost', () => {
+      it('recomputes it from the new price for INVENTARIO INICIAL', async () => {
+        existing.supplier = initialInventory as Supplier;
+        existing.saleType = SaleType.NORMAL;
+        existing.cost = 1000;
+
+        const result = await service.update('p-1', { salePrice: 3300 }, 'u');
+
+        expect(result.cost).toBe(2000);
+      });
+
+      it('recomputes it when only the sale type changes', async () => {
+        existing.supplier = initialInventory as Supplier;
+        existing.saleType = SaleType.NORMAL;
+
+        const result = await service.update(
+          'p-1',
+          { saleType: SaleType.NETO },
+          'u',
+        );
+
+        expect(result.cost).toBe(calculateCost(1650, SaleType.NETO));
+      });
+
+      it('ignores a typed cost for INVENTARIO INICIAL', async () => {
+        existing.supplier = initialInventory as Supplier;
+        existing.saleType = SaleType.NORMAL;
+
+        const result = await service.update('p-1', { cost: 5 }, 'u');
+
+        expect(result.cost).toBe(1000);
+      });
+
+      it("keeps a real supplier's cost when the price changes", async () => {
+        existing.cost = 700;
+
+        const result = await service.update('p-1', { salePrice: 9900 }, 'u');
+
+        expect(result.cost).toBe(700);
+      });
+
+      it("lets a real supplier's cost be edited directly", async () => {
+        existing.cost = 700;
+
+        const result = await service.update('p-1', { cost: 750 }, 'u');
+
+        expect(result.cost).toBe(750);
+      });
+
+      it('derives it again when the product moves back to INVENTARIO INICIAL', async () => {
+        existing.cost = 700;
+        existing.saleType = SaleType.NORMAL;
+        suppliers.findOne.mockResolvedValue(initialInventory);
+
+        const result = await service.update('p-1', { supplierId: null }, 'u');
+
+        expect(result.cost).toBe(1000);
+      });
     });
 
     it('persists taxExempt when provided', async () => {

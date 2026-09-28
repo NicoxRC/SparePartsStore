@@ -6,18 +6,32 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { SaleType } from '../common/enums/sale-type.enum';
 import { isUniqueViolation } from '../common/utils/database-error.util';
 import { escapeLike } from '../common/utils/escape-like.util';
 import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
 import { Brand } from '../brands/entities/brand.entity';
 import { Supplier } from '../suppliers/entities/supplier.entity';
-import { INITIAL_INVENTORY_SUPPLIER_NIT } from '../suppliers/initial-inventory-supplier.constant';
+import {
+  INITIAL_INVENTORY_SUPPLIER_NIT,
+  isInitialInventorySupplier,
+} from '../suppliers/initial-inventory-supplier.constant';
 import { CreateProductDto } from './dto/create-product.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
 import { QueryProductsDto } from './dto/query-products.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { Product } from './entities/product.entity';
+
+/** Sale price / factor = cost, for products created one by one. */
+const COST_FACTORS: Record<SaleType, number> = {
+  [SaleType.NORMAL]: 1.65,
+  [SaleType.NETO]: 1.3,
+};
+
+export function calculateCost(salePrice: number, saleType: SaleType): number {
+  return Math.round(salePrice / COST_FACTORS[saleType]);
+}
 
 @Injectable()
 export class ProductsService {
@@ -37,11 +51,14 @@ export class ProductsService {
   /**
    * `manager` lets a caller (the purchase-import confirm) run this inside its
    * own transaction so a failure later in the batch rolls the product back too.
+   * `cost` is the supplier cost typed on that purchase; without it (a product
+   * created one by one) the cost is derived from the price and sale type.
    */
   async create(
     dto: CreateProductDto,
     createdById: string,
     manager?: EntityManager,
+    cost?: number,
   ): Promise<ProductResponseDto> {
     const productsRepository = manager
       ? manager.getRepository(Product)
@@ -92,10 +109,13 @@ export class ProductsService {
       dto.supplierId,
     );
 
+    const saleType = dto.saleType ?? SaleType.NORMAL;
     const product = productsRepository.create({
       reference: dto.reference,
       description: dto.description,
       salePrice: dto.salePrice,
+      saleType,
+      cost: cost ?? calculateCost(dto.salePrice, saleType),
       stock: dto.stock,
       taxExempt: dto.taxExempt ?? false,
       department,
@@ -265,6 +285,16 @@ export class ProductsService {
     if (dto.taxExempt !== undefined) product.taxExempt = dto.taxExempt;
 
     if (dto.salePrice !== undefined) product.salePrice = dto.salePrice;
+    if (dto.saleType !== undefined) product.saleType = dto.saleType;
+
+    // A product without a real supplier follows its sale price; one bought
+    // from a supplier keeps the cost typed on the purchase unless it is
+    // edited directly.
+    if (isInitialInventorySupplier(product.supplier)) {
+      product.cost = calculateCost(product.salePrice, product.saleType);
+    } else if (dto.cost !== undefined) {
+      product.cost = dto.cost;
+    }
 
     if (dto.stock !== undefined) product.stock = dto.stock;
 

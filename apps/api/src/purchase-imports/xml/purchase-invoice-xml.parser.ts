@@ -16,6 +16,7 @@ export interface ParsedInvoiceLine {
   quantity: number | null;
   /** Only the Excel template carries a price; the XML parser leaves it out. */
   salePrice?: number | null;
+  cost?: number | null;
 }
 
 export interface ParsedPurchaseInvoice {

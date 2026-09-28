@@ -10,7 +10,7 @@ import {
 } from './purchase-sheet.layout';
 import { PurchaseSheetParser } from './purchase-sheet.parser';
 
-type Row = [CellValue, CellValue, CellValue, CellValue];
+type Row = [CellValue, CellValue, CellValue, CellValue, CellValue];
 
 interface SheetOpts {
   nit?: CellValue;
@@ -29,7 +29,7 @@ async function workbookBuffer(opts: SheetOpts = {}): Promise<Buffer> {
     name = 'Proveedor Uno',
     invoiceNumber = null,
     issueDate = null,
-    rows = [['REF-1', 'Filtro', 2, 15000]],
+    rows = [['REF-1', 'Filtro', 2, 9000, 15000]],
     labels = Object.values(HEADER_LABELS),
     titles = [...COLUMN_TITLES],
     sheetName = SHEET_NAME,
@@ -85,6 +85,7 @@ describe('PurchaseSheetParser', () => {
           xmlQuantity: 2,
           quantity: 2,
           salePrice: 15000,
+          cost: 9000,
         },
       ]);
     });
@@ -118,7 +119,7 @@ describe('PurchaseSheetParser', () => {
 
     it('rejects a sheet whose column titles were changed', async () => {
       const titles: string[] = [...COLUMN_TITLES];
-      titles[3] = 'Costo';
+      titles[4] = 'Precio';
 
       expect(await codeOf(await workbookBuffer({ titles }))).toBe(
         'INVALID_TEMPLATE',
@@ -228,9 +229,9 @@ describe('PurchaseSheetParser', () => {
 
     it('skips fully empty rows and numbers lines consecutively', async () => {
       const lines = await parseRows([
-        ['A', 'Uno', 1, 1000],
-        [null, null, null, null],
-        ['B', 'Dos', 2, 2000],
+        ['A', 'Uno', 1, null, 1000],
+        [null, null, null, null, null],
+        ['B', 'Dos', 2, null, 2000],
       ]);
 
       expect(lines.map((l) => [l.lineNumber, l.reference])).toEqual([
@@ -240,7 +241,7 @@ describe('PurchaseSheetParser', () => {
     });
 
     it('keeps a row that has only a price so the reviewer can see and fix it', async () => {
-      const [line] = await parseRows([[null, null, null, 1500]]);
+      const [line] = await parseRows([[null, null, null, null, 1500]]);
 
       expect(line).toMatchObject({
         reference: null,
@@ -251,30 +252,30 @@ describe('PurchaseSheetParser', () => {
 
     it('trims and uppercases the reference, null when empty or over 100 chars', async () => {
       const lines = await parseRows([
-        [' ab-1 ', 'a', 1, 1000],
-        [null, 'sin ref', 1, 1000],
-        ['X'.repeat(101), 'larga', 1, 1000],
+        [' ab-1 ', 'a', 1, null, 1000],
+        [null, 'sin ref', 1, null, 1000],
+        ['X'.repeat(101), 'larga', 1, null, 1000],
       ]);
 
       expect(lines.map((l) => l.reference)).toEqual(['AB-1', null, null]);
     });
 
     it('keeps a numeric reference as text', async () => {
-      const [line] = await parseRows([[123, 'num', 1, 1000]]);
+      const [line] = await parseRows([[123, 'num', 1, null, 1000]]);
 
       expect(line.reference).toBe('123');
     });
 
     it('keeps leading zeros of a text reference', async () => {
-      const [line] = await parseRows([['00123', 'cero', 1, 1000]]);
+      const [line] = await parseRows([['00123', 'cero', 1, null, 1000]]);
 
       expect(line.reference).toBe('00123');
     });
 
     it('truncates a description to 255 chars and is null when empty', async () => {
       const lines = await parseRows([
-        ['A', 'D'.repeat(300), 1, 1000],
-        ['B', null, 1, 1000],
+        ['A', 'D'.repeat(300), 1, null, 1000],
+        ['B', null, 1, null, 1000],
       ]);
 
       expect(lines[0].description).toHaveLength(255);
@@ -287,6 +288,7 @@ describe('PurchaseSheetParser', () => {
           { richText: [{ text: 'RT-' }, { text: '1' }] },
           { formula: 'A1', result: 'Calculada' },
           1,
+          null,
           1000,
         ],
       ]);
@@ -308,7 +310,7 @@ describe('PurchaseSheetParser', () => {
         ['abc', 0, null],
         [null, 0, null],
       ])('%p -> xmlQuantity %p, quantity %p', async (raw, xml, quantity) => {
-        const [line] = await parseRows([['A', 'x', raw, 1000]]);
+        const [line] = await parseRows([['A', 'x', raw, null, 1000]]);
 
         expect(line.xmlQuantity).toBe(xml);
         expect(line.quantity).toBe(quantity);
@@ -328,7 +330,7 @@ describe('PurchaseSheetParser', () => {
         [-5, null],
         [1e10, null],
       ])('%p -> %p', async (raw, expected) => {
-        const [line] = await parseRows([['A', 'x', 1, raw]]);
+        const [line] = await parseRows([['A', 'x', 1, null, raw]]);
 
         expect(line.salePrice).toBe(expected);
       });
@@ -336,7 +338,7 @@ describe('PurchaseSheetParser', () => {
 
     it('accepts exactly the maximum number of lines and rejects one more', async () => {
       const make = (n: number): Row[] =>
-        Array.from({ length: n }, (_, i): Row => [`R${i}`, 'x', 1, 1000]);
+        Array.from({ length: n }, (_, i): Row => [`R${i}`, 'x', 1, null, 1000]);
 
       expect(await parseRows(make(MAX_INVOICE_LINES))).toHaveLength(
         MAX_INVOICE_LINES,

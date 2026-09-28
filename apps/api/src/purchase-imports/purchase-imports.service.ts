@@ -240,6 +240,7 @@ export class PurchaseImportsService {
         productId,
         matchType: productId ? 'exact' : null,
         newSalePrice: line.salePrice ?? null,
+        newCost: line.cost ?? null,
       });
     });
     await manager.save(PurchaseImportItem, items);
@@ -376,6 +377,7 @@ export class PurchaseImportsService {
       newGroupId: item.newGroupId,
       newBrandId: item.newBrandId,
       newSalePrice: item.newSalePrice,
+      newCost: item.newCost,
     };
   }
 
@@ -396,6 +398,7 @@ export class PurchaseImportsService {
     if (dto.quantity !== undefined) patch.quantity = dto.quantity;
     if (dto.taxExempt !== undefined) patch.newTaxExempt = dto.taxExempt;
     if (dto.salePrice !== undefined) patch.newSalePrice = dto.salePrice;
+    if (dto.cost !== undefined) patch.newCost = dto.cost;
 
     if (dto.departmentId !== undefined) {
       await this.assertLookupExists(
@@ -631,6 +634,16 @@ export class PurchaseImportsService {
             product.salePrice = item.newSalePrice;
           }
 
+          // Same for the cost: a typed one replaces it, blank keeps it.
+          if (item.newCost !== null && item.newCost !== product.cost) {
+            await manager.query(
+              'UPDATE "products" SET "cost" = $1, "updated_by_id" = $2, "updated_at" = now() WHERE "id" = $3',
+              [item.newCost, userId, product.id],
+            );
+            notes = `${notes} · Costo: $${formatPrice(product.cost)} → $${formatPrice(item.newCost)}`;
+            product.cost = item.newCost;
+          }
+
           if (
             !product.supplier ||
             product.supplier.nit === INITIAL_INVENTORY_SUPPLIER_NIT
@@ -774,6 +787,7 @@ export class PurchaseImportsService {
         },
         userId,
         manager,
+        item.newCost as number,
       );
       return created.id;
     } catch (error) {

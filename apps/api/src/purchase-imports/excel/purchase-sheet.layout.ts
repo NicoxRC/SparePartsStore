@@ -30,6 +30,7 @@ export const COLUMN_TITLES = [
   'Referencia',
   'Descripción',
   'Cantidad',
+  'Costo',
   'Precio de venta',
 ] as const;
 
@@ -37,7 +38,8 @@ export const COLUMNS = {
   reference: 1,
   description: 2,
   quantity: 3,
-  salePrice: 4,
+  cost: 4,
+  salePrice: 5,
 } as const;
 
 export const XLSX_MIME =

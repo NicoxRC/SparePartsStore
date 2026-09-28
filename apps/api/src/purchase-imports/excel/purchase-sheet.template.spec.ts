@@ -87,6 +87,7 @@ describe('buildPurchaseTemplate', () => {
     sheet.getCell(FIRST_DATA_ROW, COLUMNS.description).value =
       'Filtro de aceite';
     sheet.getCell(FIRST_DATA_ROW, COLUMNS.quantity).value = 3;
+    sheet.getCell(FIRST_DATA_ROW, COLUMNS.cost).value = 15000;
     sheet.getCell(FIRST_DATA_ROW, COLUMNS.salePrice).value = 25000;
     const filled = Buffer.from(await workbook.xlsx.writeBuffer());
 
@@ -105,6 +106,7 @@ describe('buildPurchaseTemplate', () => {
         xmlQuantity: 3,
         quantity: 3,
         salePrice: 25000,
+        cost: 15000,
       },
     ]);
   });
