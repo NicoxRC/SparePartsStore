@@ -81,6 +81,7 @@ function item(overrides: Partial<PurchaseImportItem> = {}): PurchaseImportItem {
     newGroupId: 'grp',
     newBrandId: 'brd',
     newSalePrice: 1500,
+    newCost: 900,
     newTaxExempt: false,
     createdProduct: false,
     ...overrides,
@@ -1020,9 +1021,14 @@ describe('PurchaseImportsService', () => {
       manager.find.mockImplementation(
         (entity: unknown, options: { where: Record<string, unknown> }) => {
           if (entity === PurchaseImportItem) return Promise.resolve(lines);
-          if (options.where.id) return Promise.resolve(linkedProducts);
-          if (options.where.reference)
-            return Promise.resolve(referenceProducts);
+          // Products carry the draft's default cost unless a test says
+          // otherwise, so only tests about cost see a cost change.
+          const withCost = (products: Array<Partial<Product>>) => {
+            for (const product of products) product.cost ??= 900;
+            return Promise.resolve(products);
+          };
+          if (options.where.id) return withCost(linkedProducts);
+          if (options.where.reference) return withCost(referenceProducts);
           return Promise.resolve([]);
         },
       );
@@ -1154,6 +1160,7 @@ describe('PurchaseImportsService', () => {
         }),
         'user-1',
         manager,
+        900,
       );
       const notes =
         'Compra proveedor PROVEEDOR UNO — factura SETP1 (importación XML)';
@@ -1206,6 +1213,7 @@ describe('PurchaseImportsService', () => {
           matchType: 'exact',
           description: 'Descripcion distinta del archivo',
           newSalePrice: null,
+          newCost: null,
           ...overrides,
         });
 
@@ -1313,6 +1321,36 @@ describe('PurchaseImportsService', () => {
             newPrice: 12500,
           },
         ]);
+      });
+
+      it('applies a different typed cost and records it in the notes', async () => {
+        lines = [linked({ newCost: 950 })];
+
+        await service.confirm('imp-1', 'user-1');
+
+        expect(
+          (manager.query.mock.calls as Array<[string, unknown[]]>).filter(
+            ([sql]) => /SET "cost"/.test(sql),
+          ),
+        ).toEqual([
+          [expect.stringContaining('"cost" = $1'), [950, 'user-1', 'p-old']],
+        ]);
+        const [movement] = inventoryService.createMovement.mock.calls[0] as [
+          { notes: string },
+        ];
+        expect(movement.notes).toContain('Costo: $900 → $950');
+      });
+
+      it('keeps the current cost when the line has none', async () => {
+        lines = [linked()];
+
+        await service.confirm('imp-1', 'user-1');
+
+        expect(
+          (manager.query.mock.calls as Array<[string, unknown[]]>).some(
+            ([sql]) => /SET "cost"/.test(sql),
+          ),
+        ).toBe(false);
       });
 
       it('also lets a price go down', async () => {

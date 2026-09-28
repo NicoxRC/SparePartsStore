@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -13,6 +14,7 @@ import {
   normalizeProductDescription,
   normalizeProductReference,
 } from '../product-normalize.util';
+import { SaleType } from '../../common/enums/sale-type.enum';
 
 export class UpdateProductDto {
   @IsOptional()
@@ -36,6 +38,18 @@ export class UpdateProductDto {
   @IsNumber()
   @Min(500)
   salePrice?: number;
+
+  /** Recomputes the cost of an "INVENTARIO INICIAL" product; ignored otherwise. */
+  @IsOptional()
+  @IsEnum(SaleType)
+  saleType?: SaleType;
+
+  /** The cost of a product with a real supplier; ignored for "INVENTARIO INICIAL", whose cost is derived. */
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  cost?: number;
 
   @IsOptional()
   @Type(() => Number)

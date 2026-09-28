@@ -26,6 +26,7 @@ export const ISSUE_LABEL: Record<LineIssue | 'NO_LINES', string> = {
   MISSING_DESCRIPTION: 'Falta descripción',
   MISSING_CLASSIFICATION: 'Falta clasificación',
   INVALID_SALE_PRICE: 'Precio inválido',
+  INVALID_COST: 'Falta costo',
   DUPLICATE_NEW_REFERENCE: 'Referencia repetida',
   LINKED_PRODUCT_DELETED: 'Producto eliminado',
   NO_LINES: 'Sin líneas',
@@ -111,6 +112,13 @@ export interface ConfirmSummary {
 export function pendingPriceChange(item: PurchaseImportItem): number | null {
   const typed = item.newProduct.salePrice;
   if (!item.product || typed === null || typed === item.product.salePrice) return null;
+  return typed;
+}
+
+/** The new cost a matched line would set, or null when it keeps the product's current one. */
+export function pendingCostChange(item: PurchaseImportItem): number | null {
+  const typed = item.newProduct.cost;
+  if (!item.product || typed === null || typed === item.product.cost) return null;
   return typed;
 }
 

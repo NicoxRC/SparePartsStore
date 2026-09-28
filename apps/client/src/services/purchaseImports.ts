@@ -12,6 +12,7 @@ export type LineIssue =
   | 'MISSING_DESCRIPTION'
   | 'MISSING_CLASSIFICATION'
   | 'INVALID_SALE_PRICE'
+  | 'INVALID_COST'
   | 'DUPLICATE_NEW_REFERENCE'
   | 'LINKED_PRODUCT_DELETED';
 
@@ -46,6 +47,8 @@ export interface PurchaseImportLinkedProduct {
   stock: number;
   /** The product's current sale price in the app. */
   salePrice: number;
+  /** The product's current cost in the app. */
+  cost: number;
 }
 
 export interface PurchaseImportNewProduct {
@@ -53,6 +56,7 @@ export interface PurchaseImportNewProduct {
   groupId: string | null;
   brandId: string | null;
   salePrice: number | null;
+  cost: number | null;
   taxExempt: boolean;
 }
 
@@ -95,6 +99,7 @@ export interface UpdatePurchaseImportItemInput {
   groupId?: string | null;
   brandId?: string | null;
   salePrice?: number | null;
+  cost?: number | null;
   taxExempt?: boolean;
 }
 

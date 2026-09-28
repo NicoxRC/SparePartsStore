@@ -101,6 +101,17 @@ export class PurchaseImportItem {
   })
   newSalePrice: number | null;
 
+  /** Same rules as `newSalePrice`: required for a new product, optional change for an existing one. */
+  @Column({
+    name: 'new_cost',
+    type: 'numeric',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+    transformer: decimalTransformer,
+  })
+  newCost: number | null;
+
   @Column({ name: 'new_tax_exempt', type: 'boolean', default: false })
   newTaxExempt: boolean;
 

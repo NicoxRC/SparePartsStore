@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { createPortal } from 'react-dom';
-import { Controller, useForm } from 'react-hook-form';
+import { Controller, useForm, useWatch } from 'react-hook-form';
 import { Alert } from './Alert';
 import { Button } from './Button';
 import { CurrencyField } from './CurrencyField';
+import { SaleTypeCostField } from './SaleTypeCostField';
 import { SearchableSelect } from './SearchableSelect';
 import { TextField } from './TextField';
 import { useCreateProduct } from '../hooks/useProducts';
@@ -41,6 +42,7 @@ export function QuickCreateProductDialog({
       reference: initialReference,
       description: '',
       salePrice: 0,
+      saleType: 'normal',
       departmentId: '',
       groupId: '',
       brandId: '',
@@ -49,11 +51,15 @@ export function QuickCreateProductDialog({
     },
   });
 
+  const salePrice = Number(useWatch({ control, name: 'salePrice' })) || 0;
+  const saleType = useWatch({ control, name: 'saleType' });
+
   const onSubmit = async (values: QuickCreateProductValues) => {
     const product = await createMutation.mutateAsync({
       reference: values.reference,
       description: values.description,
       salePrice: values.salePrice,
+      saleType: values.saleType,
       stock: values.quantity,
       departmentId: values.departmentId,
       groupId: values.groupId,
@@ -122,6 +128,13 @@ export function QuickCreateProductDialog({
               {...register('quantity')}
             />
           </div>
+
+          <SaleTypeCostField
+            registration={register('saleType')}
+            salePrice={salePrice}
+            saleType={saleType}
+            error={errors.saleType?.message}
+          />
 
           <Controller
             name="departmentId"

@@ -4,6 +4,7 @@ export const LINE_ISSUES = [
   'MISSING_DESCRIPTION',
   'MISSING_CLASSIFICATION',
   'INVALID_SALE_PRICE',
+  'INVALID_COST',
   'DUPLICATE_NEW_REFERENCE',
   'LINKED_PRODUCT_DELETED',
 ] as const;
@@ -14,6 +15,10 @@ export const MIN_NEW_PRODUCT_SALE_PRICE = 500;
 
 export function isValidSalePrice(price: number): boolean {
   return Number.isInteger(price) && price >= MIN_NEW_PRODUCT_SALE_PRICE;
+}
+
+export function isValidCost(cost: number): boolean {
+  return Number.isInteger(cost) && cost >= 1;
 }
 
 export interface DraftLine {
@@ -34,6 +39,8 @@ export interface DraftLine {
   newGroupId: string | null;
   newBrandId: string | null;
   newSalePrice: number | null;
+  /** Same rules as `newSalePrice`. */
+  newCost: number | null;
 }
 
 export interface DraftValidation {
@@ -71,6 +78,9 @@ export function validateDraft(lines: DraftLine[]): DraftValidation {
       if (line.newSalePrice !== null && !isValidSalePrice(line.newSalePrice)) {
         issues.push('INVALID_SALE_PRICE');
       }
+      if (line.newCost !== null && !isValidCost(line.newCost)) {
+        issues.push('INVALID_COST');
+      }
     } else {
       if (!line.reference) issues.push('MISSING_REFERENCE');
       if (!line.description) issues.push('MISSING_DESCRIPTION');
@@ -79,6 +89,9 @@ export function validateDraft(lines: DraftLine[]): DraftValidation {
       }
       if (line.newSalePrice === null || !isValidSalePrice(line.newSalePrice)) {
         issues.push('INVALID_SALE_PRICE');
+      }
+      if (line.newCost === null || !isValidCost(line.newCost)) {
+        issues.push('INVALID_COST');
       }
       if (line.reference && (newReferenceCounts.get(line.reference) ?? 0) > 1) {
         issues.push('DUPLICATE_NEW_REFERENCE');

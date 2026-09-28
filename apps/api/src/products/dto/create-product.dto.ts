@@ -1,6 +1,7 @@
 import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
+  IsEnum,
   IsInt,
   IsNotEmpty,
   IsNumber,
@@ -13,6 +14,7 @@ import {
   normalizeProductDescription,
   normalizeProductReference,
 } from '../product-normalize.util';
+import { SaleType } from '../../common/enums/sale-type.enum';
 
 export class CreateProductDto {
   @IsString()
@@ -33,6 +35,11 @@ export class CreateProductDto {
   @IsNumber()
   @Min(500)
   salePrice: number;
+
+  /** Picks the factor the cost is derived with; defaults to normal. */
+  @IsOptional()
+  @IsEnum(SaleType)
+  saleType?: SaleType;
 
   @Type(() => Number)
   @IsInt()

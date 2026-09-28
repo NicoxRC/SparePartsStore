@@ -7,6 +7,7 @@ import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { Button } from '../components/Button';
 import { CurrencyField } from '../components/CurrencyField';
 import { IconCamera } from '../components/icons';
+import { SaleTypeCostField } from '../components/SaleTypeCostField';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
@@ -23,6 +24,8 @@ const EMPTY_PRODUCT_FORM: ProductFormInput = {
   reference: '',
   description: '',
   salePrice: 0,
+  saleType: 'normal',
+  cost: undefined,
   stock: 0,
   departmentId: '',
   groupId: '',
@@ -60,6 +63,8 @@ export function ProductFormPage() {
           // The form only takes whole pesos; a price stored with cents would
           // otherwise fail validation on an error the rounded field can't show.
           salePrice: Math.round(productQuery.data.salePrice),
+          saleType: productQuery.data.saleType,
+          cost: Math.round(productQuery.data.cost),
           stock: productQuery.data.stock,
           departmentId: productQuery.data.department.id,
           groupId: productQuery.data.group.id,
@@ -71,6 +76,18 @@ export function ProductFormPage() {
   });
 
   const mutation = isEditMode ? updateMutation : createMutation;
+
+  const salePrice = Number(useWatch({ control, name: 'salePrice' })) || 0;
+  const saleType = useWatch({ control, name: 'saleType' });
+  const supplierId = useWatch({ control, name: 'supplierId' });
+  // A new product is always priced one by one. On edit, the cost follows the
+  // price only while the supplier is INVENTARIO INICIAL (an empty select, or
+  // the product's own supplier when the API says it is that one); a real
+  // supplier's cost came from its purchase and is edited directly.
+  const isCostDerived =
+    !isEditMode ||
+    !supplierId ||
+    (supplierId === productQuery.data?.supplier?.id && productQuery.data.costDerived);
 
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error';
@@ -100,11 +117,15 @@ export function ProductFormPage() {
 
   const onSubmit = async (values: ProductFormValues) => {
     if (referenceExists) return;
-    const { supplierId, ...fields } = values;
+    const { supplierId, cost, ...fields } = values;
     try {
       if (isEditMode) {
         // An empty select sends null, which the API turns into INVENTARIO INICIAL.
-        await updateMutation.mutateAsync({ ...fields, supplierId: supplierId || null });
+        await updateMutation.mutateAsync({
+          ...fields,
+          ...(isCostDerived ? {} : { cost }),
+          supplierId: supplierId || null,
+        });
         navigate('/products');
       } else {
         await createMutation.mutateAsync({ ...fields, supplierId: supplierId || undefined });
@@ -201,6 +222,31 @@ export function ProductFormPage() {
             )}
           />
         </div>
+
+        {isCostDerived ? (
+          <SaleTypeCostField
+            registration={register('saleType')}
+            salePrice={salePrice}
+            saleType={saleType}
+            error={errors.saleType?.message}
+          />
+        ) : (
+          <Controller
+            name="cost"
+            control={control}
+            render={({ field }) => (
+              <CurrencyField
+                label="Costo (del proveedor)"
+                placeholder="0"
+                error={errors.cost?.message}
+                name={field.name}
+                value={Number(field.value) || 0}
+                onChange={field.onChange}
+                onBlur={field.onBlur}
+              />
+            )}
+          />
+        )}
 
         <TextField
           label="Descripción"

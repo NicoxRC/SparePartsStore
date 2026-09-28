@@ -1,3 +1,5 @@
+import { SaleType } from '../../common/enums/sale-type.enum';
+import { isInitialInventorySupplier } from '../../suppliers/initial-inventory-supplier.constant';
 import { Product } from '../entities/product.entity';
 
 export interface ProductLookupRef {
@@ -10,6 +12,10 @@ export class ProductResponseDto {
   reference: string;
   description: string;
   salePrice: number;
+  cost: number;
+  saleType: SaleType;
+  /** True while the supplier is "INVENTARIO INICIAL": the cost follows the sale price. */
+  costDerived: boolean;
   stock: number;
   taxExempt: boolean;
   department: ProductLookupRef;
@@ -25,6 +31,9 @@ export class ProductResponseDto {
     dto.reference = product.reference;
     dto.description = product.description;
     dto.salePrice = product.salePrice;
+    dto.cost = product.cost;
+    dto.saleType = product.saleType;
+    dto.costDerived = isInitialInventorySupplier(product.supplier);
     dto.stock = product.stock;
     dto.taxExempt = product.taxExempt;
     dto.department = {

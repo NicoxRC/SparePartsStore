@@ -45,6 +45,10 @@ export function ProductCard({
           <dd className="font-mono">{product.stock}</dd>
         </div>
         <div className="min-w-0">
+          <dt className="text-xs uppercase tracking-wide text-fog">Costo</dt>
+          <dd className="font-mono">{currencyFormatter.format(product.cost)}</dd>
+        </div>
+        <div className="min-w-0">
           <dt className="text-xs uppercase tracking-wide text-fog">Departamento</dt>
           <dd className="break-words">{product.department.name}</dd>
         </div>

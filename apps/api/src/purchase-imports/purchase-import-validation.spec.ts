@@ -16,6 +16,7 @@ const newLine = (overrides: Partial<DraftLine> = {}): DraftLine => ({
   newGroupId: 'g',
   newBrandId: 'b',
   newSalePrice: 1500,
+  newCost: 900,
   ...overrides,
 });
 
@@ -31,6 +32,7 @@ const linkedLine = (overrides: Partial<DraftLine> = {}): DraftLine => ({
   newGroupId: null,
   newBrandId: null,
   newSalePrice: null,
+  newCost: null,
   ...overrides,
 });
 
@@ -151,5 +153,18 @@ describe('validateDraft', () => {
     ]);
 
     expect(result.readyToConfirm).toBe(false);
+  });
+  describe('cost', () => {
+    it('requires a whole cost of at least 1 on a new line', () => {
+      expect(issuesOf(newLine({ newCost: null }))).toContain('INVALID_COST');
+      expect(issuesOf(newLine({ newCost: 0 }))).toContain('INVALID_COST');
+      expect(issuesOf(newLine({ newCost: 10.5 }))).toContain('INVALID_COST');
+      expect(issuesOf(newLine({ newCost: 1 }))).not.toContain('INVALID_COST');
+    });
+
+    it('lets a linked line leave it blank but rejects an invalid one', () => {
+      expect(issuesOf(linkedLine())).not.toContain('INVALID_COST');
+      expect(issuesOf(linkedLine({ newCost: 0 }))).toContain('INVALID_COST');
+    });
   });
 });

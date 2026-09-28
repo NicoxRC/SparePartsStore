@@ -38,14 +38,20 @@ export const purchaseImportLineSchema = z.object({
 export type PurchaseImportLineInput = z.input<typeof purchaseImportLineSchema>;
 export type PurchaseImportLineValues = z.output<typeof purchaseImportLineSchema>;
 
-export const newProductPriceSchema = z.object({
-  salePrice: z
-    .number({ message: 'El precio debe ser un número.' })
-    .int('El precio debe ser un número entero.')
-    .min(MIN_SALE_PRICE, `El precio mínimo es $${MIN_SALE_PRICE}.`),
-});
+/** Mirrors the server's purchase-import rule for a typed cost: an integer of at least $1. */
+export const MIN_COST = 1;
 
-export type NewProductPriceValues = z.infer<typeof newProductPriceSchema>;
+/** One money amount typed on a draft line: the sale price or the cost. */
+export function draftAmountSchema(min: number, noun: 'precio' | 'costo') {
+  return z.object({
+    amount: z
+      .number({ message: `El ${noun} debe ser un número.` })
+      .int(`El ${noun} debe ser un número entero.`)
+      .min(min, `El ${noun} mínimo es $${min}.`),
+  });
+}
+
+export type DraftAmountValues = z.infer<ReturnType<typeof draftAmountSchema>>;
 
 export const supplierRenameSchema = z.object({
   name: z

@@ -71,6 +71,12 @@ export class UpdatePurchaseImportItemDto {
   @Min(MIN_NEW_PRODUCT_SALE_PRICE)
   salePrice?: number | null;
 
+  @ApiPropertyOptional({ nullable: true, minimum: 1 })
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  cost?: number | null;
+
   @IsOptional()
   @IsBoolean()
   taxExempt?: boolean;
