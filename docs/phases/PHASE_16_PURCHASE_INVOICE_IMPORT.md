@@ -1,6 +1,6 @@
 # Phase 16 — Purchase invoice import (supplier XML to stock) (Backend + Client)
 
-**Status: Backend done (API, migrations, tests); client built (XML + Excel template); parsing still unverified against a real supplier file — see Open question 1.** Local feature, **not a Dataico integration** (zero HTTP calls to Dataico). Branch: `feature/purchase-invoice-xml-import`.
+**Status: Done — parsing verified against real supplier files (2026-09-28, see "Real-sample verification").** Local feature, **not a Dataico integration** (zero HTTP calls to Dataico). Branch: `feature/purchase-invoice-xml-import`.
 
 ## Goal
 
@@ -12,9 +12,17 @@ Relationship to other phases: independent of Phases 7-15. It does **not** reopen
 
 **The draft keeps only reference, description and quantity from the XML; everything else is completed by the user, and the system never suggests a price.** Consequently: the XML's unit cost (`unit_cost`, "Costo en factura", the pre-IVA price question) is **gone** — the draft stores no price at all — and the whole product model dropped its derived `cost` and its `sale_type`, leaving only `sale_price` (see `RemoveCostAndSaleTypeFromProducts`, `docs/DATABASE.md`). Wherever this document below still mentions `unit_cost`, `saleType`/`new_sale_type`, D1 or Open question 2, that part is **superseded** by this paragraph.
 
-## Current status: XML button off, Excel on
+## Real-sample verification (2026-09-28)
 
-Decided by the human at PR time: the client's **XML upload button is disabled** ("Cargar factura (XML) — próximamente") and the Excel template is the primary action, until a real supplier XML has verified the parser (every UBL path is still unverified against a real file). Nothing else changed: `POST /api/purchase-imports` still accepts XML and is fully tested; re-enabling is flipping `IS_XML_UPLOAD_ENABLED` in `apps/client/src/components/purchase-imports/UploadPurchaseImportButton.tsx`.
+The XML button was switched off at the first PR until a real file was checked. The human then shared 7 real files from 6 suppliers: 5 invoices (1 to 45 lines) and 2 credit notes. **No parser change was needed:**
+
+- All 7 arrive as an `AttachedDocument` with the signed document in a CDATA `Attachment/ExternalReference/Description`. None came as a bare `Invoice`. No `.zip` was involved (the files were shared as bare `.xml`).
+- Every supplier puts its product code in `StandardItemIdentification/ID`. None uses `SellersItemIdentification`, so the fallback is the path actually in use. The description is always `Item/Description`.
+- Supplier NIT + DV, invoice number, issue date, CUFE and integer quantities read correctly on every file.
+- Both credit notes (an `AttachedDocument` wrapping a `CreditNote`) are rejected with `UNSUPPORTED_DOCUMENT`, as designed.
+- Supplier quirks that are the file's content, not parser bugs, and are handled by the review screen: one supplier writes references like `[OLD-CODE] NEW-CODE` in the ID itself, and another truncates long descriptions at its own column width.
+
+Then the full flow ran against a scratch database: upload → draft → classification/price → confirm (products created, stock added to an existing product matched by reference), duplicate upload (409), discard → re-upload. The browser test (mobile width) covered XML upload → review → confirm. The XML button is back on as the primary action, and the Excel template is the fallback (`¿Sin XML? Descargar plantilla de Excel`).
 
 ## Follow-up: Excel template for when there is no XML (decided by the human, same branch)
 
@@ -223,7 +231,7 @@ Rejected alternative: leave `createMovement` opening its own transaction and acc
 
 ## XML parsing spec
 
-> **No real sample XML has been provided yet.** Every UBL path below is written from the public DIAN UBL 2.1 conventions and is marked **(verify)** = "to verify against a real supplier file before this phase is considered done" (`DEFINITION_OF_DONE`: manual test with a real file). This is a public DIAN/UBL standard, not a Dataico API, so the "never guess Dataico shapes" rule does not apply — but nothing here should be trusted without a real file. Development can start on hand-made fixtures.
+> **Verified against real supplier files on 2026-09-28** — see "Real-sample verification" above. (Originally: every UBL path below was written from the public DIAN UBL 2.1 conventions and marked **(verify)** = "to verify against a real supplier file before this phase is considered done" (`DEFINITION_OF_DONE`: manual test with a real file). This is a public DIAN/UBL standard, not a Dataico API, so the "never guess Dataico shapes" rule does not apply — but nothing here should be trusted without a real file. Development can start on hand-made fixtures.
 
 ### Library — `fast-xml-parser` (new dependency; nothing XML-related is installed today)
 
@@ -467,9 +475,9 @@ Mutation invalidation: line edits/deletes/apply/discard invalidate `['purchase-i
 
 ## Open questions for the human
 
-1. **Real sample XML files (blocking for sign-off, not for starting).** Please share 1-2 real invoices as your suppliers actually send them (ideally one that arrives as a bare `Invoice` and one as an `AttachedDocument` if you receive both, with any sensitive data you prefer to redact). Every path in the parsing spec is written from the public standard and needs verifying against these before the phase is done; supplier-specific quirks (where they put their product code, multiple description lines, free-of-charge lines) only show up in real files.
+1. ~~**Real sample XML files.**~~ **Resolved 2026-09-28** — see "Real-sample verification". Original question: Please share 1-2 real invoices as your suppliers actually send them (ideally one that arrives as a bare `Invoice` and one as an `AttachedDocument` if you receive both, with any sensitive data you prefer to redact). Every path in the parsing spec is written from the public standard and needs verifying against these before the phase is done; supplier-specific quirks (where they put their product code, multiple description lines, free-of-charge lines) only show up in real files.
 2. ~~How is the app's "cost" related to the supplier's price?~~ **Moot** — cost was removed from the product model.
-3. **Do suppliers' invoices reach the shop as a bare `.xml` file, or inside a `.zip` (typical for DIAN emails, with the PDF alongside)?** If zipped, the user must extract on the phone first; supporting `.zip` upload is a small addition (an extra dependency plus picking the XML inside) but was left out until this is confirmed.
+3. **Partly answered:** the 7 real samples were shared as bare `.xml` files, so `.zip` support stays out. Original question: **Do suppliers' invoices reach the shop as a bare `.xml` file, or inside a `.zip` (typical for DIAN emails, with the PDF alongside)?** If zipped, the user must extract on the phone first; supporting `.zip` upload is a small addition (an extra dependency plus picking the XML inside) but was left out until this is confirmed.
 
 ## Migration plan
 
