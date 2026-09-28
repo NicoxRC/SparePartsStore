@@ -6,7 +6,6 @@ interface FilePickerButtonProps {
   accept: string;
   variant?: 'primary' | 'secondary';
   isLoading: boolean;
-  disabled?: boolean;
   onFile: (file: File) => void;
 }
 
@@ -15,7 +14,6 @@ export function FilePickerButton({
   accept,
   variant = 'primary',
   isLoading,
-  disabled = false,
   onFile,
 }: FilePickerButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -41,7 +39,6 @@ export function FilePickerButton({
         variant={variant}
         className="sm:w-auto sm:px-6"
         isLoading={isLoading}
-        disabled={disabled}
         onClick={() => inputRef.current?.click()}
       >
         {label}

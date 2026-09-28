@@ -19,13 +19,6 @@ import type { PurchaseImportDetail } from '../../services/purchaseImports';
 type UploadKind = 'xml' | 'excel';
 
 /**
- * The XML path is built and tested but has not been verified against a real
- * supplier file yet, so its button is switched off for now (the API endpoint
- * still works). Flip this to re-enable it once a real XML has been checked.
- */
-const IS_XML_UPLOAD_ENABLED = false;
-
-/**
  * Two ways to start a draft: the supplier's XML, or — when there is no XML —
  * the Excel template. Both end on the same review screen.
  */
@@ -59,22 +52,17 @@ export function UploadPurchaseImportButton() {
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
         <FilePickerButton
-          label="Cargar plantilla de Excel"
-          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-          isLoading={excelMutation.isPending}
-          onFile={(file) => handleFile('excel', file)}
-        />
-        <FilePickerButton
-          label={
-            IS_XML_UPLOAD_ENABLED
-              ? 'Cargar factura de proveedor (XML)'
-              : 'Cargar factura (XML) — próximamente'
-          }
+          label="Cargar factura de proveedor (XML)"
           accept=".xml,text/xml,application/xml"
-          variant="secondary"
-          disabled={!IS_XML_UPLOAD_ENABLED}
           isLoading={xmlMutation.isPending}
           onFile={(file) => handleFile('xml', file)}
+        />
+        <FilePickerButton
+          label="Cargar plantilla de Excel"
+          accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+          variant="secondary"
+          isLoading={excelMutation.isPending}
+          onFile={(file) => handleFile('excel', file)}
         />
       </div>
 
@@ -85,7 +73,7 @@ export function UploadPurchaseImportButton() {
         isLoading={templateMutation.isPending}
         onClick={() => templateMutation.mutate()}
       >
-        Descargar plantilla de Excel
+        ¿Sin XML? Descargar plantilla de Excel
       </Button>
       {templateMutation.isError && (
         <Alert variant="error">No se pudo descargar la plantilla. Intenta de nuevo.</Alert>
