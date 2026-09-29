@@ -12,6 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { IsNotEmpty, IsString } from 'class-validator';
+import { ImageUploadSignature } from '../cloudinary/cloudinary.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import {
   AuthenticatedUser,
@@ -44,6 +45,16 @@ export class ProductsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<ProductResponseDto> {
     return this.productsService.create(dto, user.id);
+  }
+
+  /** Signature for uploading a product photo straight to Cloudinary. */
+  @Post('image-upload-signature')
+  // No single permission: an employee may only create or only edit
+  // products, and the photo is still only saved through those endpoints.
+  @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
+  @HttpCode(HttpStatus.OK)
+  signImageUpload(): ImageUploadSignature {
+    return this.productsService.signImageUpload();
   }
 
   @Get()

@@ -18,6 +18,7 @@ export class ProductResponseDto {
   costDerived: boolean;
   stock: number;
   taxExempt: boolean;
+  imageUrl: string | null;
   department: ProductLookupRef;
   group: ProductLookupRef;
   brand: ProductLookupRef;
@@ -36,6 +37,7 @@ export class ProductResponseDto {
     dto.costDerived = isInitialInventorySupplier(product.supplier);
     dto.stock = product.stock;
     dto.taxExempt = product.taxExempt;
+    dto.imageUrl = product.imageUrl ?? null;
     dto.department = {
       id: product.department.id,
       name: product.department.name,

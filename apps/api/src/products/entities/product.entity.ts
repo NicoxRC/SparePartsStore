@@ -62,6 +62,10 @@ export class Product extends BaseEntity {
   @Column({ name: 'tax_exempt', type: 'boolean', default: false })
   taxExempt: boolean;
 
+  /** Cloudinary URL of the product photo — see CloudinaryService. */
+  @Column({ name: 'image_url', type: 'varchar', length: 500, nullable: true })
+  imageUrl: string | null;
+
   @ManyToOne(() => Department, { nullable: false })
   @JoinColumn({ name: 'department_id' })
   department: Department;

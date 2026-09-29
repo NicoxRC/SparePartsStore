@@ -1,4 +1,8 @@
-import { ConflictException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  NotFoundException,
+} from '@nestjs/common';
 import { EntityManager, Repository } from 'typeorm';
 import { Brand } from '../brands/entities/brand.entity';
 import { Department } from '../departments/entities/department.entity';
@@ -8,6 +12,7 @@ import { INITIAL_INVENTORY_SUPPLIER_NIT } from '../suppliers/initial-inventory-s
 import { CreateProductDto } from './dto/create-product.dto';
 import { SaleType } from '../common/enums/sale-type.enum';
 import { Product } from './entities/product.entity';
+import { CloudinaryService } from '../cloudinary/cloudinary.service';
 import { ProductsService, calculateCost } from './products.service';
 
 type Repo = {
@@ -37,6 +42,9 @@ describe('ProductsService', () => {
   let groups: Repo;
   let brands: Repo;
   let suppliers: Repo;
+  const cloudinary = {
+    isProductImageUrl: jest.fn((url: string) => url.startsWith('https://own/')),
+  };
 
   const department = { id: 'd-1', name: 'DEP' };
   const group = { id: 'g-1', name: 'GRP' };
@@ -76,10 +84,22 @@ describe('ProductsService', () => {
       groups as unknown as Repository<Group>,
       brands as unknown as Repository<Brand>,
       suppliers as unknown as Repository<Supplier>,
+      cloudinary as unknown as CloudinaryService,
     );
   });
 
   describe('create', () => {
+    it('saves an image from this store and rejects any other', async () => {
+      await service.create({ ...dto, imageUrl: 'https://own/a.jpg' }, 'u');
+      expect(products.create).toHaveBeenLastCalledWith(
+        expect.objectContaining({ imageUrl: 'https://own/a.jpg' }),
+      );
+
+      await expect(
+        service.create({ ...dto, imageUrl: 'https://evil/a.jpg' }, 'u'),
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+
     it('persists taxExempt, defaulting to false', async () => {
       await service.create(dto, 'user-1');
       expect(products.create).toHaveBeenLastCalledWith(
@@ -214,6 +234,26 @@ describe('ProductsService', () => {
           ...entity,
         }),
       );
+    });
+
+    describe('imageUrl', () => {
+      it('replaces, removes or rejects the photo', async () => {
+        existing.imageUrl = 'https://own/old.jpg';
+
+        let result = await service.update(
+          'p-1',
+          { imageUrl: 'https://own/new.jpg' },
+          'u',
+        );
+        expect(result.imageUrl).toBe('https://own/new.jpg');
+
+        result = await service.update('p-1', { imageUrl: null }, 'u');
+        expect(result.imageUrl).toBeNull();
+
+        await expect(
+          service.update('p-1', { imageUrl: 'https://evil/a.jpg' }, 'u'),
+        ).rejects.toBeInstanceOf(BadRequestException);
+      });
     });
 
     describe('cost', () => {

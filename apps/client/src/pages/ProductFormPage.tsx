@@ -7,6 +7,7 @@ import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { Button } from '../components/Button';
 import { CurrencyField } from '../components/CurrencyField';
 import { IconCamera } from '../components/icons';
+import { ProductPhotoField } from '../components/ProductPhotoField';
 import { SaleTypeCostField } from '../components/SaleTypeCostField';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { Spinner } from '../components/Spinner';
@@ -32,6 +33,7 @@ const EMPTY_PRODUCT_FORM: ProductFormInput = {
   brandId: '',
   taxExempt: false,
   supplierId: '',
+  imageUrl: null,
 };
 
 export function ProductFormPage() {
@@ -71,6 +73,7 @@ export function ProductFormPage() {
           brandId: productQuery.data.brand.id,
           taxExempt: productQuery.data.taxExempt,
           supplierId: productQuery.data.supplier?.id ?? '',
+          imageUrl: productQuery.data.imageUrl,
         }
       : undefined,
   });
@@ -319,6 +322,14 @@ export function ProductFormPage() {
             )}
           />
         </div>
+
+        <Controller
+          name="imageUrl"
+          control={control}
+          render={({ field }) => (
+            <ProductPhotoField value={field.value ?? null} onChange={field.onChange} />
+          )}
+        />
 
         <Controller
           name="supplierId"

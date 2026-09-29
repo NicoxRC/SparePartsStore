@@ -145,6 +145,7 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | `sale_type` | `sale_type` enum (`normal`, `neto`), default `normal` | Only picks the factor for a derived cost. Every product that existed before migration 35 was backfilled as `normal`. |
 | `stock` | INT | default `0`; the live/current stock count — see `inventory_movements` for how it changes |
 | `tax_exempt` | BOOLEAN | default `false` — every product existing before this column was added keeps charging IVA. The only source of a line's tax rate on an invoice/quotation/credit-debit-note item: `resolveTaxRate()` (`common/utils/invoice-math.util.ts`) derives `0` or the standard `19` from this flag alone — `taxRate` was removed from every item DTO, it's never client-supplied anymore. |
+| `image_url` | VARCHAR(500), nullable | One optional product photo (migration 36). The file lives in Cloudinary: the phone uploads it directly with a signature from `POST /products/image-upload-signature`, and the API only accepts URLs from this store's account and `casarespuestos/products` folder. Replacing or removing it does not delete the old file from Cloudinary. |
 | `department_id` | UUID, FK → `departments.id` | `NOT NULL`, `RESTRICT` |
 | `group_id` | UUID, FK → `product_groups.id` | `NOT NULL`, `RESTRICT` |
 | `brand_id` | UUID, FK → `brands.id` | `NOT NULL`, `RESTRICT` |
@@ -522,6 +523,7 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 33 | `AddFinalConsumerCustomer` | Data-only: inserts the "Consumidor final" customer (`CC 222222222222`, the store's own address/city/email) unless one with that identification already exists. `down()` is a no-op — invoices may already point at it. See `GLOSSARY.md`'s "Consumidor final". |
 | 34 | `AddInitialInventorySupplier` | Data-only: inserts the **INVENTARIO INICIAL** supplier (`nit = '0'`, a placeholder no real supplier has) unless it exists, then moves every product with `supplier_id IS NULL` to it. `down()` unlinks those products and deletes the row. |
 | 35 | `AddCostAndSaleTypeToProducts` | Re-creates the `sale_type` enum, adds `products.sale_type` (default `normal`) and `products.cost` (backfilled `ROUND(sale_price / 1.65)`, i.e. every existing product as `normal`), and `purchase_import_items.new_cost`. `down()` drops them. Hand-written, same reason as the migrations above. |
+| 36 | `AddImageUrlToProducts` | Adds nullable `products.image_url VARCHAR(500)`. `down()` drops it. Hand-written. |
 
 Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 

@@ -19,6 +19,8 @@ export interface ProductResponse {
   costDerived: boolean;
   stock: number;
   taxExempt: boolean;
+  /** Cloudinary URL of the product photo. */
+  imageUrl: string | null;
   department: ProductLookupRef;
   group: ProductLookupRef;
   brand: ProductLookupRef;
@@ -63,6 +65,8 @@ export interface ProductInput {
   taxExempt?: boolean;
   /** `null` on update clears the supplier tag; omitted leaves it untouched. */
   supplierId?: string | null;
+  /** `null` on update removes the photo; omitted leaves it untouched. */
+  imageUrl?: string | null;
 }
 
 export async function getProducts(
@@ -93,6 +97,43 @@ export async function updateProduct(
 ): Promise<ProductResponse> {
   const { data } = await api.patch<ProductResponse>(`/products/${id}`, input);
   return data;
+}
+
+interface ImageUploadSignature {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  folder: string;
+  signature: string;
+}
+
+/**
+ * Uploads a photo straight to Cloudinary with a signature from the API and
+ * returns its URL. Plain `fetch`, not `api`: our auth header must not go to
+ * Cloudinary.
+ */
+export async function uploadProductImage(file: File): Promise<string> {
+  const { data: signed } = await api.post<ImageUploadSignature>(
+    '/products/image-upload-signature',
+  );
+  const body = new FormData();
+  body.append('file', file);
+  body.append('api_key', signed.apiKey);
+  body.append('timestamp', String(signed.timestamp));
+  body.append('folder', signed.folder);
+  body.append('signature', signed.signature);
+
+  const response = await fetch(signed.uploadUrl, { method: 'POST', body });
+  if (!response.ok) {
+    throw new Error('No se pudo subir la foto. Intenta de nuevo.');
+  }
+  const { secure_url } = (await response.json()) as { secure_url: string };
+  return secure_url;
+}
+
+/** A smaller, compressed version of a Cloudinary photo for display. */
+export function productImageThumbnail(url: string, width: number): string {
+  return url.replace('/image/upload/', `/image/upload/c_limit,w_${width},q_auto,f_auto/`);
 }
 
 export async function deleteProduct(id: string): Promise<void> {
