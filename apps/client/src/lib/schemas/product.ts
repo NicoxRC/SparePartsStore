@@ -36,6 +36,8 @@ export const productFormSchema = z.object({
   taxExempt: z.boolean().optional(),
   /** Optional supplier tag; '' means none. */
   supplierId: z.string().optional(),
+  /** Cloudinary URL of the photo; null means none. */
+  imageUrl: z.string().nullable().optional(),
 });
 
 /** Shape of the raw form fields (before Zod coercion, e.g. salePrice as string). */
