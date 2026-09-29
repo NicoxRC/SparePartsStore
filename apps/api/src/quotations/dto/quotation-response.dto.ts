@@ -62,6 +62,11 @@ export class QuotationResponseDto {
   @ApiProperty({ nullable: true }) invoiceId: string | null;
   @ApiProperty() createdAt: string;
   @ApiProperty({
+    description:
+      'Last time the quotation changed — its items are the only thing editable while open, so on an open quotation this is when something was last added or removed (the store counts the payment term from here).',
+  })
+  lastChangedAt: string;
+  @ApiProperty({
     nullable: true,
     type: String,
     description: 'Who made the quotation (the "vendedor" on the printout).',
@@ -101,6 +106,7 @@ export class QuotationResponseDto {
     dto.totalAmount = quotation.totalAmount;
     dto.invoiceId = quotation.invoice?.id ?? null;
     dto.createdAt = quotation.createdAt.toISOString();
+    dto.lastChangedAt = quotation.updatedAt.toISOString();
     dto.createdByName = quotation.createdBy
       ? `${quotation.createdBy.firstName} ${quotation.createdBy.lastName}`.trim()
       : null;

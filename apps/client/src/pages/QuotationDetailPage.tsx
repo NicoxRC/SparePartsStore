@@ -2,6 +2,7 @@ import { BrandTag } from '../components/BrandTag';
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
+import { QuotationDayCounters } from '../components/QuotationDayCounters';
 import { Button } from '../components/Button';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
@@ -346,6 +347,14 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
             {quotationNumberLabel(quotation.number)}
           </h1>
           <p className="text-sm text-fog">{customerLabelFor(quotation)}</p>
+          {isOpen && (
+            <div className="mt-1">
+              <QuotationDayCounters
+                createdAt={quotation.createdAt}
+                lastChangedAt={quotation.lastChangedAt}
+              />
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-3">
           <span

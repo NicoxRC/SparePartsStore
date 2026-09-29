@@ -102,6 +102,7 @@ describe('QuotationsService', () => {
       invoice: null,
       cancelledAt: null,
       createdAt: new Date('2026-09-15T10:00:00.000Z'),
+      updatedAt: new Date('2026-09-20T10:00:00.000Z'),
       items: [
         {
           id: 'item-1',
@@ -437,6 +438,28 @@ describe('QuotationsService', () => {
       ],
     };
 
+    it('saves nothing when the lines did not change, so the last-change date stays', async () => {
+      await service.updateItems(
+        'q-1',
+        { items: [{ productId: 'prod-a', quantity: 2 }] },
+        'user-1',
+      );
+
+      expect(quotationItemsRepository.delete).not.toHaveBeenCalled();
+      expect(quotationsRepository.update).not.toHaveBeenCalled();
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
+    it('saves when only the discount changed', async () => {
+      await service.updateItems(
+        'q-1',
+        { items: [{ productId: 'prod-a', quantity: 2, discount: 10 }] },
+        'user-1',
+      );
+
+      expect(quotationsRepository.update).toHaveBeenCalled();
+    });
+
     it('rejects editing a quotation that is no longer open', async () => {
       queryBuilder.getOne.mockResolvedValue(
         openQuotation({ cancelledAt: new Date() }),
@@ -532,17 +555,17 @@ describe('QuotationsService', () => {
       it("totals the quotation with the quoted price, not the product's new one", async () => {
         await service.updateItems(
           'q-1',
-          { items: [{ productId: 'prod-a', quantity: 2 }] },
+          { items: [{ productId: 'prod-a', quantity: 3 }] },
           'user-1',
         );
 
-        // 2 x 50000 quoted, IVA included: 100000 — the quoted price, not the
-        // product's new one (60000 would give 120000).
+        // 3 x 50000 quoted, IVA included: 150000 — the quoted price, not the
+        // product's new one (60000 would give 180000).
         const [, changes] = quotationsRepository.update.mock.calls[0] as [
           string,
           { totalAmount: number },
         ];
-        expect(changes.totalAmount).toBe(100000);
+        expect(changes.totalAmount).toBe(150000);
       });
 
       it('keeps the price of a re-added product after it was removed and added back in the same edit', async () => {

@@ -44,6 +44,8 @@ export interface QuotationResponse {
   totalAmount: number;
   invoiceId: string | null;
   createdAt: string;
+  /** When its items last changed (while open) — the payment term counts from here. */
+  lastChangedAt: string;
   /** Who made the quotation — the "vendedor" on the printout. */
   createdByName: string | null;
   items?: QuotationItemResponse[];

@@ -14,6 +14,7 @@ import {
   quotationCustomerType,
 } from '../lib/quotationLabels';
 import type { QuotationCustomerType, QuotationStatus } from '../services/quotations';
+import { QuotationDayCounters } from '../components/QuotationDayCounters';
 
 const PAGE_SIZE = 20;
 
@@ -179,6 +180,12 @@ export function QuotationsListPage() {
                           year: 'numeric',
                         })}
                       </span>
+                      {quotation.status === 'open' && (
+                        <QuotationDayCounters
+                          createdAt={quotation.createdAt}
+                          lastChangedAt={quotation.lastChangedAt}
+                        />
+                      )}
                     </div>
                   </div>
                   <p className="shrink-0 font-mono text-base font-semibold text-ink">

@@ -280,6 +280,12 @@ export class QuotationsService {
         : (itemDto.customUnitPrice as number),
     }));
 
+    // Saving the same lines again must not restart the "days since the last
+    // change" counter (it bumps updated_at), so an unchanged list is a no-op.
+    if (this.sameLines(quotation.items, finalLines)) {
+      return this.findOne(quotation.id);
+    }
+
     await this.quotationItemsRepository.delete({
       quotation: { id: quotation.id },
     });
@@ -451,6 +457,35 @@ export class QuotationsService {
           unitPrice: itemDto.unitPriceOverride ?? Number(product.salePrice),
         };
       }),
+    );
+  }
+
+  private sameLines(current: QuotationItem[], next: ResolvedLine[]): boolean {
+    const key = (line: {
+      productId: string | null;
+      description: string | null;
+      quantity: number;
+      taxRate: number;
+      discount?: number | null;
+      unitPrice: number;
+    }) =>
+      [
+        line.productId ?? '',
+        line.productId ? '' : (line.description ?? ''),
+        line.quantity,
+        Number(line.taxRate),
+        Number(line.discount ?? 0),
+        Number(line.unitPrice),
+      ].join('|');
+    const before = current.map((item) =>
+      key({ ...item, productId: item.product?.id ?? null }),
+    );
+    const after = next.map((line) =>
+      key({ ...line, productId: line.product?.id ?? null }),
+    );
+    return (
+      before.length === after.length &&
+      before.every((value, index) => value === after[index])
     );
   }
 
