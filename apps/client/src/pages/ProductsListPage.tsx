@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
 import { ProductCard } from '../components/ProductCard';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { IconCamera } from '../components/icons';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useDeleteProduct, useProducts } from '../hooks/useProducts';
@@ -73,6 +75,13 @@ export function ProductsListPage() {
     }
   }, [filters, supplierName]);
   const [showFilters, setShowFilters] = useState(false);
+  const [scannerOpen, setScannerOpen] = useState(false);
+  // Stable callbacks: the scanner restarts the camera whenever these change,
+  // and this page re-renders on every products query update.
+  const handleScanned = useCallback((value: string) => {
+    setFilters((prev) => ({ ...prev, search: value, page: 1 }));
+  }, []);
+  const closeScanner = useCallback(() => setScannerOpen(false), []);
   const [productPendingDelete, setProductPendingDelete] =
     useState<ProductResponse | null>(null);
 
@@ -128,13 +137,23 @@ export function ProductsListPage() {
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-3">
-          <div className="sm:flex-1">
-            <TextField
-              label="Buscar"
-              placeholder="Referencia o descripción"
-              value={filters.search ?? ''}
-              onChange={(e) => updateFilter({ search: e.target.value })}
-            />
+          <div className="flex items-end gap-2 sm:flex-1">
+            <div className="flex-1">
+              <TextField
+                label="Buscar"
+                placeholder="Referencia o descripción"
+                value={filters.search ?? ''}
+                onChange={(e) => updateFilter({ search: e.target.value })}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-line bg-paper text-steel hover:bg-canvas sm:min-h-11 sm:min-w-11"
+              aria-label="Escanear código de barras"
+            >
+              <IconCamera className="h-5 w-5" />
+            </button>
           </div>
 
           <button
@@ -231,6 +250,10 @@ export function ProductsListPage() {
             onPageChange={(page) => setFilters((prev) => ({ ...prev, page }))}
           />
         </>
+      )}
+
+      {scannerOpen && (
+        <BarcodeScannerModal onScanned={handleScanned} onClose={closeScanner} />
       )}
 
       {productPendingDelete && (
