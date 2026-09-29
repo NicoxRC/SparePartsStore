@@ -8,6 +8,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsUrl,
+  MaxLength,
   Min,
 } from 'class-validator';
 import {
@@ -62,4 +64,10 @@ export class CreateProductDto {
   @IsOptional()
   @IsUUID()
   supplierId?: string;
+
+  /** A photo already uploaded to Cloudinary with a signature from this API. */
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(500)
+  imageUrl?: string;
 }

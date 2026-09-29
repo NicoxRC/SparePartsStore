@@ -1,10 +1,15 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import {
+  CloudinaryService,
+  ImageUploadSignature,
+} from '../cloudinary/cloudinary.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { SaleType } from '../common/enums/sale-type.enum';
 import { isUniqueViolation } from '../common/utils/database-error.util';
@@ -46,7 +51,21 @@ export class ProductsService {
     private readonly brandsRepository: Repository<Brand>,
     @InjectRepository(Supplier)
     private readonly suppliersRepository: Repository<Supplier>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
+
+  signImageUpload(): ImageUploadSignature {
+    return this.cloudinaryService.signProductImageUpload();
+  }
+
+  /** Only photos uploaded to this store's Cloudinary product folder are saved. */
+  private assertOwnImage(imageUrl: string): void {
+    if (!this.cloudinaryService.isProductImageUrl(imageUrl)) {
+      throw new BadRequestException(
+        "imageUrl must be an image uploaded to this store's Cloudinary",
+      );
+    }
+  }
 
   /**
    * `manager` lets a caller (the purchase-import confirm) run this inside its
@@ -109,6 +128,8 @@ export class ProductsService {
       dto.supplierId,
     );
 
+    if (dto.imageUrl) this.assertOwnImage(dto.imageUrl);
+
     const saleType = dto.saleType ?? SaleType.NORMAL;
     const product = productsRepository.create({
       reference: dto.reference,
@@ -118,6 +139,7 @@ export class ProductsService {
       cost: cost ?? calculateCost(dto.salePrice, saleType),
       stock: dto.stock,
       taxExempt: dto.taxExempt ?? false,
+      imageUrl: dto.imageUrl ?? null,
       department,
       group,
       brand,
@@ -283,6 +305,11 @@ export class ProductsService {
     }
 
     if (dto.taxExempt !== undefined) product.taxExempt = dto.taxExempt;
+
+    if (dto.imageUrl !== undefined) {
+      if (dto.imageUrl !== null) this.assertOwnImage(dto.imageUrl);
+      product.imageUrl = dto.imageUrl;
+    }
 
     if (dto.salePrice !== undefined) product.salePrice = dto.salePrice;
     if (dto.saleType !== undefined) product.saleType = dto.saleType;

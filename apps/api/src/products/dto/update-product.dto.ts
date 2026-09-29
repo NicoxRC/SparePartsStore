@@ -8,6 +8,8 @@ import {
   IsOptional,
   IsString,
   IsUUID,
+  IsUrl,
+  MaxLength,
   Min,
 } from 'class-validator';
 import {
@@ -77,4 +79,10 @@ export class UpdateProductDto {
   @IsOptional()
   @IsUUID()
   supplierId?: string | null;
+
+  /** `null` removes the photo; omitted leaves it untouched. */
+  @IsOptional()
+  @IsUrl({ protocols: ['https'], require_protocol: true })
+  @MaxLength(500)
+  imageUrl?: string | null;
 }

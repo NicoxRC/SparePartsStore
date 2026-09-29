@@ -56,6 +56,20 @@ SEED_ADMIN_LAST_NAME=User
 | `BCRYPT_ROUNDS` | ✅ | Password hashing cost factor, default `10`. |
 | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, `SEED_ADMIN_FIRST_NAME`, `SEED_ADMIN_LAST_NAME` | Only for `npm run seed:admin` | Creates the first admin account. Change the password after first login. The seed is idempotent — skips if the email already exists. |
 
+### Product photos (Cloudinary)
+
+```bash
+CLOUDINARY_CLOUD_NAME=replace-with-your-cloud-name
+CLOUDINARY_API_KEY=replace-with-your-api-key
+CLOUDINARY_API_SECRET=replace-with-your-api-secret
+```
+
+| Variable | Required | Description |
+|---|---|---|
+| `CLOUDINARY_CLOUD_NAME` | Only for product photos | From the Cloudinary dashboard. Used to build the upload URL and to check that a saved `imageUrl` belongs to this account. |
+| `CLOUDINARY_API_KEY` | Only for product photos | Public key, returned to the client along with each upload signature. |
+| `CLOUDINARY_API_SECRET` | Only for product photos | Signs uploads (`POST /products/image-upload-signature`). **Server only — never expose it to the client.** Without these three, only the signature endpoint and saving a photo fail; everything else still works. |
+
 ### Invoicing (Dataico)
 
 ```bash
