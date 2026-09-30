@@ -5,6 +5,7 @@ import { Button } from '../components/Button';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { useInvoiceDrafts } from '../hooks/useInvoiceDrafts';
 import { useQuotations } from '../hooks/useQuotations';
 import { usePermissions } from '../hooks/usePermissions';
 import { getApiErrorMessage } from '../lib/errors';
@@ -56,6 +57,19 @@ function quotationNumberLabel(number: number): string {
 export function QuotationsListPage() {
   const [page, setPage] = useState(1);
   const navigate = useNavigate();
+  const { drafts, setActiveDraftId, addDraft } = useInvoiceDrafts();
+
+  // A quotation is built on Venta (its "Cotizar" button). Reuse an empty
+  // tab if there is one; otherwise open a new tab so a sale already in
+  // progress isn't touched.
+  const handleNewQuotation = () => {
+    const emptyDraft = drafts.find(
+      (draft) => draft.values.items.length === 0 && !draft.values.customerIdentification,
+    );
+    if (emptyDraft) setActiveDraftId(emptyDraft.id);
+    else addDraft();
+    navigate('/ventas');
+  };
   const { has } = usePermissions();
   const [status, setStatus] = useState<QuotationStatus | undefined>('open');
   const [customerType, setCustomerType] = useState<QuotationCustomerType | undefined>();
@@ -85,7 +99,7 @@ export function QuotationsListPage() {
           <Button
             type="button"
             className="sm:w-auto sm:px-6"
-            onClick={() => navigate('/cotizaciones/nueva')}
+            onClick={handleNewQuotation}
           >
             Nueva cotización
           </Button>
