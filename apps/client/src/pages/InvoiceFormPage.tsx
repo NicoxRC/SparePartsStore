@@ -20,6 +20,7 @@ import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { Toast } from '../components/Toast';
+import { ProductImageViewer } from '../components/ProductImageViewer';
 import { PrintInvoiceTicketButton } from '../components/print/PrintInvoiceTicketButton';
 import {
   useOpenCashRegister,
@@ -256,6 +257,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
   const [filterDepartmentId, setFilterDepartmentId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
   const [isCustomLineOpen, setIsCustomLineOpen] = useState(false);
+  const [viewingProduct, setViewingProduct] = useState<ProductResponse | null>(null);
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
 
   const setStep = (next: InvoiceStep) => {
@@ -689,11 +691,14 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                     <p className="px-4 py-3 text-sm text-fog">Sin resultados.</p>
                   ) : (
                     productsQuery.data.data.map((product) => (
-                      <button
+                      <div
                         key={product.id}
+                        className="flex items-stretch border-b border-line last:border-b-0"
+                      >
+                      <button
                         type="button"
                         onClick={() => handleAddProduct(product)}
-                        className="flex w-full flex-col items-start gap-0.5 border-b border-line px-4 py-2.5 text-left text-sm last:border-b-0 hover:bg-mist"
+                        className="flex min-w-0 flex-1 flex-col items-start gap-0.5 px-4 py-2.5 text-left text-sm hover:bg-mist"
                       >
                         <span className="font-medium text-ink">
                           {product.reference} — {product.description}
@@ -709,6 +714,16 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                           )}${product.salePrice.toLocaleString('es-CO')} · stock {product.stock}
                         </span>
                       </button>
+                      {product.imageUrl && (
+                        <button
+                          type="button"
+                          onClick={() => setViewingProduct(product)}
+                          className="shrink-0 px-4 text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:bg-mist hover:decoration-ink"
+                        >
+                          Ver
+                        </button>
+                      )}
+                      </div>
                     ))
                   )}
                   <button
@@ -1008,6 +1023,14 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
           initialDescription={productQuery}
           onClose={() => setIsCustomLineOpen(false)}
           onAdd={handleAddCustomLine}
+        />
+      )}
+
+      {viewingProduct?.imageUrl && (
+        <ProductImageViewer
+          imageUrl={viewingProduct.imageUrl}
+          alt={`${viewingProduct.reference} — ${viewingProduct.description}`}
+          onClose={() => setViewingProduct(null)}
         />
       )}
     </>
