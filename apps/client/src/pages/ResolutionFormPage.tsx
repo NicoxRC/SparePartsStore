@@ -5,6 +5,7 @@ import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { SelectField } from '../components/SelectField';
 import { TextField } from '../components/TextField';
+import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { useCreateResolution } from '../hooks/useResolutions';
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
@@ -132,6 +133,8 @@ export function ResolutionFormPage() {
             type="submit"
             className="sm:w-auto sm:px-6"
             isLoading={createMutation.isPending}
+            disabled={!DATAICO_ENABLED}
+            title={DATAICO_ENABLED ? undefined : DATAICO_DISABLED_HINT}
           >
             Asociar resolución
           </Button>
