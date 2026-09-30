@@ -15,6 +15,7 @@ import {
   IconUsers,
 } from '../components/icons';
 import { ThemeToggle } from '../components/ThemeToggle';
+import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 
@@ -24,7 +25,13 @@ export function AuthenticatedLayout() {
   const isAdmin = user?.role === 'admin';
   const isAuditor = user?.role === 'auditor';
 
-  const navItems = [
+  const navItems: {
+    to: string;
+    label: string;
+    Icon: typeof IconBox;
+    /** Shown but not clickable — see DATAICO_ENABLED. */
+    disabled?: boolean;
+  }[] = [
     ...(isAdmin ? [{ to: '/dashboard', label: 'Panel', Icon: IconDashboard }] : []),
     // Productos/Inventario predate this permission system as unrestricted
     // views for any authenticated role — auditor keeps that fixed access
@@ -47,7 +54,14 @@ export function AuthenticatedLayout() {
       ? [{ to: '/cotizaciones', label: 'Cotizaciones', Icon: IconIdCard }]
       : []),
     ...(!isAuditor && has('invoices.view')
-      ? [{ to: '/invoicing/invoices', label: 'Facturas', Icon: IconReceipt }]
+      ? [
+          {
+            to: '/invoicing/invoices',
+            label: 'Facturas',
+            Icon: IconReceipt,
+            disabled: !DATAICO_ENABLED,
+          },
+        ]
       : []),
     ...(!isAuditor && has('purchase_imports.view')
       ? [{ to: '/compras', label: 'Compras', Icon: IconInbox }]
@@ -58,7 +72,12 @@ export function AuthenticatedLayout() {
     ...(isAdmin
       ? [
           { to: '/users', label: 'Usuarios', Icon: IconUsers },
-          { to: '/invoicing/resolutions', label: 'Resoluciones DIAN', Icon: IconStamp },
+          {
+            to: '/invoicing/resolutions',
+            label: 'Resoluciones DIAN',
+            Icon: IconStamp,
+            disabled: !DATAICO_ENABLED,
+          },
           // Nómina electrónica: not removed, just off the nav — not in use
           // for now but expected back later. Route/page/backend stay intact
           // at /invoicing/payroll-entries; restoring access is just adding
@@ -88,7 +107,18 @@ export function AuthenticatedLayout() {
         </div>
 
         <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
-          {navItems.map(({ to, label, Icon }) => (
+          {navItems.map(({ to, label, Icon, disabled }) =>
+            disabled ? (
+              <span
+                key={to}
+                aria-disabled="true"
+                title={DATAICO_DISABLED_HINT}
+                className="flex cursor-not-allowed items-center gap-3 border-l-2 border-transparent py-2.5 pl-3 pr-3 text-sm font-medium text-fog/40"
+              >
+                <Icon className="h-5 w-5 shrink-0" />
+                {label}
+              </span>
+            ) : (
             <NavLink
               key={to}
               to={to}
@@ -103,7 +133,8 @@ export function AuthenticatedLayout() {
               <Icon className="h-5 w-5 shrink-0" />
               {label}
             </NavLink>
-          ))}
+            ),
+          )}
         </nav>
 
         <div className="border-t border-white/10 p-4">
@@ -168,7 +199,18 @@ export function AuthenticatedLayout() {
 
         {/* Mobile bottom tab bar */}
         <nav className="fixed bottom-0 left-0 right-0 z-10 flex overflow-x-auto border-t border-white/10 bg-spine lg:hidden">
-          {navItems.map(({ to, label, Icon }) => (
+          {navItems.map(({ to, label, Icon, disabled }) =>
+            disabled ? (
+              <span
+                key={to}
+                aria-disabled="true"
+                title={DATAICO_DISABLED_HINT}
+                className="flex min-w-[72px] flex-none cursor-not-allowed flex-col items-center gap-0.5 whitespace-nowrap border-t-2 border-transparent px-2 py-2 text-xs font-medium text-fog/40"
+              >
+                <Icon className="h-5 w-5" />
+                {label}
+              </span>
+            ) : (
             <NavLink
               key={to}
               to={to}
@@ -181,7 +223,8 @@ export function AuthenticatedLayout() {
               <Icon className="h-5 w-5" />
               {label}
             </NavLink>
-          ))}
+            ),
+          )}
         </nav>
       </div>
     </div>

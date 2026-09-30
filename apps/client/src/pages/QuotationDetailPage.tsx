@@ -13,6 +13,7 @@ import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { usePermissions } from '../hooks/usePermissions';
 import { useProducts } from '../hooks/useProducts';
 import {
@@ -598,6 +599,8 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
               <Button
                 type="button"
                 className="sm:w-auto sm:px-6"
+                disabled={!DATAICO_ENABLED}
+                title={DATAICO_ENABLED ? undefined : DATAICO_DISABLED_HINT}
                 onClick={() => setIsInvoicePanelOpen(true)}
               >
                 Facturar

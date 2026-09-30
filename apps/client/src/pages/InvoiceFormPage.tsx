@@ -1,6 +1,6 @@
 import { BrandTag } from '../components/BrandTag';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   useFieldArray,
   useForm,
@@ -10,6 +10,7 @@ import {
 } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { Alert } from '../components/Alert';
+import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { Button } from '../components/Button';
 import { CashMovementDialog } from '../components/CashMovementDialog';
 import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
@@ -20,6 +21,7 @@ import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { Toast } from '../components/Toast';
+import { IconCamera } from '../components/icons';
 import { ProductImageViewer } from '../components/ProductImageViewer';
 import { PrintInvoiceTicketButton } from '../components/print/PrintInvoiceTicketButton';
 import {
@@ -27,6 +29,7 @@ import {
   useReopenCashRegister,
   useTodayCashRegister,
 } from '../hooks/useCashRegister';
+import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { useCreateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
 import { useCreateQuotation } from '../hooks/useQuotations';
@@ -254,6 +257,10 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
   const { updateDraft, closeDraft } = useInvoiceDrafts();
   const [step, setStepState] = useState<InvoiceStep>(draft.step);
   const [productQuery, setProductQuery] = useState('');
+  const [scannerOpen, setScannerOpen] = useState(false);
+  // Stable callbacks: the scanner restarts the camera whenever these change.
+  const handleScanned = useCallback((value: string) => setProductQuery(value), []);
+  const closeScanner = useCallback(() => setScannerOpen(false), []);
   const [filterDepartmentId, setFilterDepartmentId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
   const [isCustomLineOpen, setIsCustomLineOpen] = useState(false);
@@ -665,12 +672,22 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
               </h2>
 
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <div className="sm:col-span-2">
-                  <TextField
-                    label="Buscar producto por referencia o descripción"
-                    value={productQuery}
-                    onChange={(e) => setProductQuery(e.target.value)}
-                  />
+                <div className="flex items-end gap-2 sm:col-span-2">
+                  <div className="flex-1">
+                    <TextField
+                      label="Buscar producto por referencia o descripción"
+                      value={productQuery}
+                      onChange={(e) => setProductQuery(e.target.value)}
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setScannerOpen(true)}
+                    className="flex min-h-12 min-w-12 items-center justify-center rounded-sm border border-line bg-paper text-steel hover:bg-canvas sm:min-h-11 sm:min-w-11"
+                    aria-label="Escanear código de barras"
+                  >
+                    <IconCamera className="h-5 w-5" />
+                  </button>
                 </div>
                 <SearchableSelect
                   label="Filtrar por departamento"
@@ -921,6 +938,8 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                 <Button
                   type="button"
                   className="sm:w-auto sm:px-6"
+                  disabled={!DATAICO_ENABLED}
+                  title={DATAICO_ENABLED ? undefined : DATAICO_DISABLED_HINT}
                   onClick={() => setStep('invoice')}
                 >
                   Facturar
@@ -1041,6 +1060,10 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
           </>
         )}
       </form>
+
+      {scannerOpen && (
+        <BarcodeScannerModal onScanned={handleScanned} onClose={closeScanner} />
+      )}
 
       {isCustomLineOpen && (
         <CustomLineDialog
