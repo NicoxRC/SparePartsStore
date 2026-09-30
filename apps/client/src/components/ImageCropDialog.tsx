@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import ReactCrop, { type PercentCrop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
@@ -21,8 +21,6 @@ export function ImageCropDialog({ file, onConfirm, onCancel }: ImageCropDialogPr
   const imageRef = useRef<HTMLImageElement>(null);
   const [crop, setCrop] = useState<PercentCrop>(FULL_IMAGE);
   const src = useMemo(() => URL.createObjectURL(file), [file]);
-
-  useEffect(() => () => URL.revokeObjectURL(src), [src]);
 
   const handleConfirm = () => {
     const image = imageRef.current;
@@ -57,6 +55,8 @@ export function ImageCropDialog({ file, onConfirm, onCancel }: ImageCropDialogPr
           <img
             ref={imageRef}
             src={src}
+            // Once loaded, the <img> keeps the pixels the crop is drawn from.
+            onLoad={() => URL.revokeObjectURL(src)}
             alt="Recortar foto"
             className="max-h-[75vh] max-w-full object-contain"
           />
