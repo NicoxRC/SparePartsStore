@@ -257,7 +257,9 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
   const [filterDepartmentId, setFilterDepartmentId] = useState('');
   const [filterGroupId, setFilterGroupId] = useState('');
   const [isCustomLineOpen, setIsCustomLineOpen] = useState(false);
-  const [viewingProduct, setViewingProduct] = useState<ProductResponse | null>(null);
+  const [viewingPhoto, setViewingPhoto] = useState<{ imageUrl: string; alt: string } | null>(
+    null,
+  );
   const [customerSearchQuery, setCustomerSearchQuery] = useState('');
 
   const setStep = (next: InvoiceStep) => {
@@ -417,6 +419,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
       reference: product.reference,
       description: product.description,
       brand: product.brand?.name ?? '',
+      imageUrl: product.imageUrl,
       price: product.salePrice,
       stock: product.stock,
       quantity,
@@ -717,7 +720,12 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                       {product.imageUrl && (
                         <button
                           type="button"
-                          onClick={() => setViewingProduct(product)}
+                          onClick={() =>
+                            setViewingPhoto({
+                              imageUrl: product.imageUrl!,
+                              alt: `${product.reference} — ${product.description}`,
+                            })
+                          }
                           className="shrink-0 px-4 text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:bg-mist hover:decoration-ink"
                         >
                           Ver
@@ -791,6 +799,21 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                               }).toLocaleString('es-CO')}
                             </td>
                             <td className="px-3 py-2">
+                              <div className="flex items-center gap-4">
+                              {field.imageUrl && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setViewingPhoto({
+                                      imageUrl: field.imageUrl!,
+                                      alt: `${field.reference} — ${field.description}`,
+                                    })
+                                  }
+                                  className="text-sm font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink"
+                                >
+                                  Ver
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => removeItem(index)}
@@ -798,6 +821,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                               >
                                 Quitar
                               </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1026,11 +1050,11 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
         />
       )}
 
-      {viewingProduct?.imageUrl && (
+      {viewingPhoto && (
         <ProductImageViewer
-          imageUrl={viewingProduct.imageUrl}
-          alt={`${viewingProduct.reference} — ${viewingProduct.description}`}
-          onClose={() => setViewingProduct(null)}
+          imageUrl={viewingPhoto.imageUrl}
+          alt={viewingPhoto.alt}
+          onClose={() => setViewingPhoto(null)}
         />
       )}
     </>

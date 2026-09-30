@@ -7,6 +7,8 @@ export const invoiceItemFormSchema = z.object({
   description: z.string(),
   // The product's brand, only to show it in the table (older saved drafts have none).
   brand: z.string().optional(),
+  // The product's photo, only for the "Ver" button on the line.
+  imageUrl: z.string().nullable().optional(),
   // Editable in the items table — charges this line at a different price
   // for this sale/quotation only, never touching the product's own
   // salePrice (see toApiItem's unitPriceOverride in InvoiceFormPage).
