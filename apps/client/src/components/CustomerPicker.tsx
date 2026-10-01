@@ -1,9 +1,10 @@
+import { isAxiosError } from 'axios';
 import { useEffect, useState } from 'react';
 import { Alert } from './Alert';
 import { Button } from './Button';
 import { TextField } from './TextField';
 import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
-import { useCustomers } from '../hooks/useCustomers';
+import { useCustomers, useLegacyCustomerLookup } from '../hooks/useCustomers';
 import { useThirdPartyLookup } from '../hooks/useThirdPartyLookup';
 import { getApiErrorMessage } from '../lib/errors';
 import { FINAL_CONSUMER_IDENTIFICATION } from '../lib/finalConsumer';
@@ -19,7 +20,10 @@ interface CustomerPickerProps {
   identificationType: string;
   /** A saved customer was picked from the local search dropdown. */
   onSelectCustomer: (customer: CustomerResponse) => void;
-  /** A DIAN tercero was found for `identification`/`identificationType`. */
+  /**
+   * A DIAN tercero, or a customer from the old system's list, was found
+   * for `identification` — both come back in the same shape.
+   */
   onDianResult: (result: ThirdPartyResponse) => void;
 }
 
@@ -33,7 +37,8 @@ function customerLabel(customer: CustomerResponse): string {
 
 /**
  * Shared "find a customer" widget for the invoice forms: a search box over
- * saved local customers, plus the DIAN tercero lookup. The DIAN button sits
+ * saved local customers, plus the DIAN tercero lookup and the lookup in the
+ * old system's customer list (which works with Dataico off). The buttons sit
  * above the search box because the results dropdown opens below it and would
  * cover anything placed there. Deliberately dumb
  * about field-name vocabulary — both callbacks just hand back the raw
@@ -56,6 +61,16 @@ export function CustomerPicker({
 
   const customersQuery = useCustomers({ search: debouncedQuery, limit: 8 });
   const thirdPartyLookup = useThirdPartyLookup({ identification, identificationType }, false);
+
+  const legacyLookup = useLegacyCustomerLookup(identification);
+
+  const handleLegacyLookup = async () => {
+    if (!identification) return;
+    const result = await legacyLookup.refetch();
+    if (result.data) {
+      onDianResult(result.data);
+    }
+  };
 
   const handleDianLookup = async () => {
     if (!identification || !identificationType) return;
@@ -111,6 +126,16 @@ export function CustomerPicker({
         >
           Buscar en DIAN
         </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          className="sm:w-auto sm:px-4"
+          isLoading={legacyLookup.isFetching}
+          disabled={!identification}
+          onClick={() => void handleLegacyLookup()}
+        >
+          Buscar en clientes antiguos
+        </Button>
       </div>
 
       {finalConsumerError && <Alert variant="error">{finalConsumerError}</Alert>}
@@ -118,6 +143,13 @@ export function CustomerPicker({
       {thirdPartyLookup.isFetched && !thirdPartyLookup.data && (
         <Alert variant="info">No se encontró un tercero con esa identificación en la DIAN.</Alert>
       )}
+
+      {legacyLookup.isError &&
+        (isAxiosError(legacyLookup.error) && legacyLookup.error.response?.status === 404 ? (
+          <Alert variant="info">No se encontró esa identificación en los clientes antiguos.</Alert>
+        ) : (
+          <Alert variant="error">{getApiErrorMessage(legacyLookup.error)}</Alert>
+        ))}
 
       <div className="relative">
         <TextField

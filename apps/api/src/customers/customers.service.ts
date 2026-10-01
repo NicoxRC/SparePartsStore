@@ -16,10 +16,12 @@ import { Quotation } from '../quotations/entities/quotation.entity';
 import { CustomerHistoryResponseDto } from './dto/customer-history-response.dto';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomerResponseDto } from './dto/customer-response.dto';
+import { LegacyCustomerResponseDto } from './dto/legacy-customer-response.dto';
 import { QueryCustomerHistoryDto } from './dto/query-customer-history.dto';
 import { QueryCustomersDto } from './dto/query-customers.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Customer } from './entities/customer.entity';
+import { LegacyCustomer } from './entities/legacy-customer.entity';
 
 const DUPLICATE_MESSAGE = 'A customer with this identification already exists';
 
@@ -32,6 +34,8 @@ export class CustomersService {
     private readonly invoicesRepository: Repository<Invoice>,
     @InjectRepository(Quotation)
     private readonly quotationsRepository: Repository<Quotation>,
+    @InjectRepository(LegacyCustomer)
+    private readonly legacyCustomersRepository: Repository<LegacyCustomer>,
   ) {}
 
   async create(
@@ -67,15 +71,35 @@ export class CustomersService {
       updatedBy: { id: createdById } as Customer['updatedBy'],
     });
 
+    let saved: Customer;
     try {
-      const saved = await this.customersRepository.save(customer);
-      return CustomerResponseDto.fromEntity(saved);
+      saved = await this.customersRepository.save(customer);
     } catch (error) {
       if (isUniqueViolation(error)) {
         throw new ConflictException(DUPLICATE_MESSAGE);
       }
       throw error;
     }
+
+    // Now a real customer: it leaves the old system's list for good.
+    // Matched on the number alone — the old export's document type isn't
+    // trustworthy enough to require it to match too.
+    await this.legacyCustomersRepository.delete({
+      identification: saved.identification,
+    });
+
+    return CustomerResponseDto.fromEntity(saved);
+  }
+
+  /** A customer from the old system that hasn't been created here yet. */
+  async findLegacy(identification: string): Promise<LegacyCustomerResponseDto> {
+    const legacy = await this.legacyCustomersRepository.findOne({
+      where: { identification },
+    });
+    if (!legacy) {
+      throw new NotFoundException('Legacy customer not found');
+    }
+    return LegacyCustomerResponseDto.fromEntity(legacy);
   }
 
   async findAll(

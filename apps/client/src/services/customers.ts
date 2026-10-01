@@ -2,6 +2,7 @@ import { api } from '../lib/api';
 import type { InvoiceResponse } from './invoices';
 import type { PaginatedResponse } from './products';
 import type { QuotationResponse } from './quotations';
+import type { ThirdPartyResponse } from './thirdParties';
 
 export type CustomerPartyType = 'PERSONA_JURIDICA' | 'PERSONA_NATURAL';
 
@@ -79,6 +80,18 @@ export async function updateCustomer(
   input: Partial<CustomerInput>,
 ): Promise<CustomerResponse> {
   const { data } = await api.patch<CustomerResponse>(`/customers/${id}`, input);
+  return data;
+}
+
+/**
+ * A customer from the old system's list, not yet created here. Same shape
+ * as the DIAN tercero lookup, so the sale form fills its fields from
+ * either one the same way. 404 when the number isn't in the list.
+ */
+export async function getLegacyCustomer(identification: string): Promise<ThirdPartyResponse> {
+  const { data } = await api.get<ThirdPartyResponse>('/customers/legacy', {
+    params: { identification },
+  });
   return data;
 }
 

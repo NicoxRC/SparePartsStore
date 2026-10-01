@@ -5,6 +5,7 @@ import { Quotation } from '../quotations/entities/quotation.entity';
 import { CustomersController } from './customers.controller';
 import { CustomersService } from './customers.service';
 import { Customer } from './entities/customer.entity';
+import { LegacyCustomer } from './entities/legacy-customer.entity';
 
 /**
  * Imports `Invoice`/`Quotation` directly (not `InvoicesModule`/
@@ -14,7 +15,9 @@ import { Customer } from './entities/customer.entity';
  * `(customer_identification_type, customer_identification)` instead.
  */
 @Module({
-  imports: [TypeOrmModule.forFeature([Customer, Invoice, Quotation])],
+  imports: [
+    TypeOrmModule.forFeature([Customer, LegacyCustomer, Invoice, Quotation]),
+  ],
   controllers: [CustomersController],
   providers: [CustomersService],
   exports: [CustomersService],

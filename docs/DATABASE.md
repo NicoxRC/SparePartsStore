@@ -315,6 +315,22 @@ Added as a small enhancement connecting Phases 10 and 12 (not a numbered roadmap
 
 **Purchase history**: `GET /api/customers/:id/history?from=&to=` returns that customer's invoices and quotations, most recent first. Since there's no FK linking either table to `customers` (see above), the match is on `(customer_identification_type, customer_identification)` instead — a customer record whose identification was edited after a sale won't surface that older sale under the new identification. `from`/`to` are inclusive `YYYY-MM-DD` store-calendar days; `invoices.issue_date` (a plain `DATE` column) is compared directly, while `quotations.created_at` (`TIMESTAMPTZ`) is widened to the full Bogotá-day range via `getStoreDayRangeUtc()`. `CustomersModule` imports the `Invoice`/`Quotation` entities directly for this (not `InvoicesModule`/`QuotationsModule`) — same reasoning as `CashRegisterModule`.
 
+### `legacy_customers`
+
+Customers from the store's old system, loaded once from its Excel export (`CLIENTES CASA REPUESTOS.xlsx`, DIAN exógena layout) with `npm run seed:legacy-customers -- "<file.xlsx>"`. Kept apart from `customers` on purpose: the export only has identity data (no email, phone or address), so these aren't usable customers until staff complete them.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | UUID PK | |
+| `identification_type` | VARCHAR(20) | `CC` (export code 13) or `NIT` (31). Rows with any other code (one row with 43, "sin identificación") are skipped on import — the sale form has no type for them. |
+| `identification` | VARCHAR(50), UNIQUE | |
+| `company_name` | VARCHAR(255), nullable | Razón social (NIT rows). |
+| `first_name` | VARCHAR(150), nullable | Primer nombre + otros nombres. |
+| `family_name`, `second_last_name` | VARCHAR(150), nullable | Primer / segundo apellido, kept apart like the DIAN tercero lookup. |
+| `created_at` | TIMESTAMPTZ | |
+
+No audit columns, no soft delete: the table only shrinks. `GET /api/customers/legacy?identification=` (permission `customers.view`) returns a row in the same shape as the DIAN tercero lookup, so the sale form's "Buscar en clientes antiguos" fills its fields with the same code as "Buscar en DIAN". When `POST /api/customers` creates a customer, the row with that identification (matched on the number alone) is hard-deleted here. The import is idempotent: it skips numbers already in `customers` or `legacy_customers`. The data itself is never committed — the Excel lives in the git-ignored `Facturas/` folder.
+
 ### `payroll_entries`
 
 Added Phase 15 — a local record of every Nómina Electrónica period submitted to Dataico. **This app is not the source of truth for payroll** — every figure (salary, accruals, deductions) is already calculated elsewhere and just forwarded here; see `docs/phases/PHASE_15_PAYROLL.md`. That's why `employee_payload`/`accruals`/`deductions` are JSONB rather than normalized columns/tables — there is no employee table to join against.
@@ -525,8 +541,9 @@ Added Phase 16 — a **draft** built from a supplier's electronic-invoice XML. N
 | 35 | `AddCostAndSaleTypeToProducts` | Re-creates the `sale_type` enum, adds `products.sale_type` (default `normal`) and `products.cost` (backfilled `ROUND(sale_price / 1.65)`, i.e. every existing product as `normal`), and `purchase_import_items.new_cost`. `down()` drops them. Hand-written, same reason as the migrations above. |
 | 36 | `AddImageUrlToProducts` | Adds nullable `products.image_url VARCHAR(500)`. `down()` drops it. Hand-written. |
 | 37 | `ClearTransactionalDataForProduction` | Data-only, one-off before going to production: deletes every quotation, invoice (plus its credit/debit notes), purchase import, customer except "Consumidor final" (`222222222222`), DIAN resolution, cash register, payroll entry and supplier except INVENTARIO INICIAL (child rows go by `CASCADE`). Products whose supplier is removed are moved to INVENTARIO INICIAL (cost unchanged) — the only change to products. Users/permissions, lookups, inventory movements and stock are not touched. `down()` is a no-op — the rows can't be restored. |
+| 38 | `CreateLegacyCustomers` | Creates `legacy_customers` (see above). Empty — the rows come from `npm run seed:legacy-customers`, never from a migration, since they're real people's data. `down()` drops the table. Hand-written. |
 
-Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
+Seed scripts (`database/seeds/`, not migrations — run manually via `npm run seed:*`): `seed-legacy-customers.ts` (idempotent import of the old system's customer Excel into `legacy_customers`, see above), `seed-admin.ts` (idempotent — skips if the email already exists; reads `SEED_ADMIN_*` env vars) and `seed-product-lookups.ts` (idempotent bulk-seed of the legacy SICAF department/group/brand catalog — 15 departments, 24 groups, ~260 brands — skips rows whose `code` already exists).
 
 **Migration workflow:** `npm run migration:generate -- src/database/migrations/<Name>` after changing an entity, review the generated SQL before committing it, `npm run migration:run` locally to apply, `npm run migration:revert` to undo the last one. `synchronize: false` always — schema changes only ever happen through a migration, never TypeORM auto-sync.
 
