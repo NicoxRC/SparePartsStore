@@ -1,8 +1,7 @@
 /**
  * Off while the store's Dataico account is being activated: every menu
  * entry and button that would call Dataico (Facturas, Resoluciones DIAN,
- * Facturar) is shown disabled instead — except Buscar en DIAN, a read-only
- * lookup the store wants available from day one. Flip to `true` once
+ * Facturar, Buscar en DIAN) is shown disabled instead. Flip to `true` once
  * the account is live.
  */
 export const DATAICO_ENABLED = false;
