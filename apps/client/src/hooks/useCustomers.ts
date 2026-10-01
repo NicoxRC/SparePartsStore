@@ -10,6 +10,7 @@ import {
   getCustomer,
   getCustomerHistory,
   getCustomers,
+  getLegacyCustomer,
   updateCustomer,
   type CustomerHistoryQuery,
   type CustomerInput,
@@ -31,6 +32,20 @@ export function useCustomer(id: string | undefined) {
     queryKey: [CUSTOMERS_KEY, id],
     queryFn: () => getCustomer(id as string),
     enabled: Boolean(id),
+  });
+}
+
+/**
+ * On-demand lookup in the old system's customer list — run with
+ * `refetch()`, like useThirdPartyLookup. Under CUSTOMERS_KEY so creating
+ * the customer (which removes it from that list) clears a stale hit.
+ */
+export function useLegacyCustomerLookup(identification: string) {
+  return useQuery({
+    queryKey: [CUSTOMERS_KEY, 'legacy', identification],
+    queryFn: () => getLegacyCustomer(identification),
+    enabled: false,
+    retry: false,
   });
 }
 
