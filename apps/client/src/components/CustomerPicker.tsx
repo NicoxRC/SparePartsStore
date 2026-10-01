@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Alert } from './Alert';
 import { Button } from './Button';
 import { TextField } from './TextField';
-import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { useCustomers, useLegacyCustomerLookup } from '../hooks/useCustomers';
 import { useThirdPartyLookup } from '../hooks/useThirdPartyLookup';
 import { getApiErrorMessage } from '../lib/errors';
@@ -120,8 +119,7 @@ export function CustomerPicker({
           variant="secondary"
           className="sm:w-auto sm:px-4"
           isLoading={thirdPartyLookup.isFetching}
-          disabled={!DATAICO_ENABLED || !identification || !identificationType}
-          title={DATAICO_ENABLED ? undefined : DATAICO_DISABLED_HINT}
+          disabled={!identification || !identificationType}
           onClick={() => void handleDianLookup()}
         >
           Buscar en DIAN
