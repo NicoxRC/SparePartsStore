@@ -7,7 +7,7 @@ import { CustomerPurchaseHistory } from '../components/CustomerPurchaseHistory';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
-import { useCustomer, useUpdateCustomer } from '../hooks/useCustomers';
+import { useCreateCustomer, useCustomer, useUpdateCustomer } from '../hooks/useCustomers';
 import { usePermissions } from '../hooks/usePermissions';
 import { DANE_CITIES, DANE_DEPARTMENTS } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
@@ -22,23 +22,45 @@ import type { CustomerPartyType } from '../services/customers';
 
 type Tab = 'data' | 'history';
 
+const NEW_CUSTOMER_DEFAULTS: CustomerFormInput = {
+  identificationType: 'CC',
+  identification: '',
+  identificationDv: '',
+  partyType: 'PERSONA_NATURAL',
+  taxLevelCode: '',
+  regimen: '',
+  companyName: '',
+  firstName: '',
+  familyName: '',
+  countryCode: 'CO',
+  department: '',
+  city: '',
+  addressLine: '',
+  email: '',
+  phone: '',
+  responsableIva: false,
+};
+
 export function CustomerFormPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const isEdit = Boolean(id);
   const { has } = usePermissions();
-  const canUpdate = has('customers.update');
+  const canSave = has(isEdit ? 'customers.update' : 'customers.create');
   // Derived straight from the URL (not local state) so it's always correct
   // regardless of navigation: the "Editar" button links here with no
   // ?tab=, landing on Datos; clicking a customer's card elsewhere links
   // here with ?tab=history — see CustomerCard.
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab: Tab = searchParams.get('tab') === 'history' ? 'history' : 'data';
+  const tab: Tab = isEdit && searchParams.get('tab') === 'history' ? 'history' : 'data';
   const setTab = (next: Tab) => {
     setSearchParams(next === 'history' ? { tab: 'history' } : {}, { replace: true });
   };
 
   const customerQuery = useCustomer(id);
   const updateMutation = useUpdateCustomer(id ?? '');
+  const createMutation = useCreateCustomer();
+  const saveMutation = isEdit ? updateMutation : createMutation;
 
   const {
     register,
@@ -47,6 +69,7 @@ export function CustomerFormPage() {
     formState: { errors },
   } = useForm<CustomerFormInput, unknown, CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
+    defaultValues: isEdit ? undefined : NEW_CUSTOMER_DEFAULTS,
     values: customerQuery.data
       ? {
           identificationType: customerQuery.data.identificationType,
@@ -77,7 +100,7 @@ export function CustomerFormPage() {
   );
 
   const onSubmit = async (values: CustomerFormValues) => {
-    await updateMutation.mutateAsync({
+    await saveMutation.mutateAsync({
       ...values,
       partyType: values.partyType as CustomerPartyType,
       identificationDv: values.identificationDv || undefined,
@@ -94,7 +117,7 @@ export function CustomerFormPage() {
     navigate('/customers');
   };
 
-  if (customerQuery.isPending) {
+  if (isEdit && customerQuery.isPending) {
     return <Spinner label="Cargando cliente…" />;
   }
 
@@ -105,40 +128,42 @@ export function CustomerFormPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
       <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-        Editar cliente
+        {isEdit ? 'Editar cliente' : 'Nuevo cliente'}
       </h1>
 
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => setTab('data')}
-          className={`rounded-full border px-3 py-1.5 text-sm ${
-            tab === 'data'
-              ? 'border-ink bg-ink text-paper'
-              : 'border-line bg-paper text-steel hover:bg-mist'
-          }`}
-        >
-          Datos
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab('history')}
-          className={`rounded-full border px-3 py-1.5 text-sm ${
-            tab === 'history'
-              ? 'border-ink bg-ink text-paper'
-              : 'border-line bg-paper text-steel hover:bg-mist'
-          }`}
-        >
-          Historial de compras
-        </button>
-      </div>
+      {isEdit && (
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setTab('data')}
+            className={`rounded-full border px-3 py-1.5 text-sm ${
+              tab === 'data'
+                ? 'border-ink bg-ink text-paper'
+                : 'border-line bg-paper text-steel hover:bg-mist'
+            }`}
+          >
+            Datos
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab('history')}
+            className={`rounded-full border px-3 py-1.5 text-sm ${
+              tab === 'history'
+                ? 'border-ink bg-ink text-paper'
+                : 'border-line bg-paper text-steel hover:bg-mist'
+            }`}
+          >
+            Historial de compras
+          </button>
+        </div>
+      )}
 
       {tab === 'history' ? (
         id && <CustomerPurchaseHistory customerId={id} />
       ) : (
         <>
-      {updateMutation.isError && (
-        <Alert variant="error">{getApiErrorMessage(updateMutation.error)}</Alert>
+      {saveMutation.isError && (
+        <Alert variant="error">{getApiErrorMessage(saveMutation.error)}</Alert>
       )}
 
       <form
@@ -282,13 +307,13 @@ export function CustomerFormPage() {
           >
             Cancelar
           </Button>
-          {canUpdate && (
+          {canSave && (
             <Button
               type="submit"
               className="sm:w-auto sm:px-6"
-              isLoading={updateMutation.isPending}
+              isLoading={saveMutation.isPending}
             >
-              Guardar cambios
+              {isEdit ? 'Guardar cambios' : 'Crear cliente'}
             </Button>
           )}
         </div>
