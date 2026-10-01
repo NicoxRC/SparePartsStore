@@ -125,6 +125,9 @@ A small enhancement connecting Phases 10 and 12, **not a Dataico integration** �
 
 A "Clientes" client module (list/search/paginate/edit/delete, plus per-customer purchase history) lives on top of this — see `docs/DATABASE.md`'s note on `GET /api/customers/:id/history` for how the history is matched (identification pair, not FK).
 
+### Clientes antiguos (Legacy customers)
+The customers the store already had in its old system, imported from its Excel export into their own table (`legacy_customers`), **not** into Clientes — the export has only document type, number and names, no email/phone/address. On the sale form, **"Buscar en clientes antiguos"** sits next to "Buscar en DIAN" and works the same way: type the number, press it, and the form fills in the name and type (plus the usual Pasto/persona natural-or-jurídica defaults). It works with Dataico off. Staff complete the rest, and as soon as the sale or quotation saves the customer to Clientes (or someone creates it in Clientes), it's deleted from the legacy table — the list only shrinks. See `docs/DATABASE.md` (`legacy_customers`).
+
 ### Consumidor final (Final consumer)
 The customer a sale is invoiced to when the buyer doesn't give their data — DIAN's generic identification **`222222222222`** (CC, persona natural, "No responsable de IVA"). Created automatically by the `AddFinalConsumerCustomer` migration, carrying the store's own address, city (Pasto) and email, since Dataico still requires them. Selected in one click with the **"Consumidor final"** button on the customer step of Venta (and on a quotation's "Facturar a otro cliente").
 

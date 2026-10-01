@@ -7,6 +7,7 @@ import type { Quotation } from '../quotations/entities/quotation.entity';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { Customer } from './entities/customer.entity';
+import { LegacyCustomer } from './entities/legacy-customer.entity';
 import { CustomersService } from './customers.service';
 
 describe('CustomersService', () => {
@@ -20,6 +21,7 @@ describe('CustomersService', () => {
   };
   let invoicesRepository: { createQueryBuilder: jest.Mock };
   let quotationsRepository: { createQueryBuilder: jest.Mock };
+  let legacyCustomersRepository: { findOne: jest.Mock; delete: jest.Mock };
   let invoiceQueryBuilder: {
     where: jest.Mock;
     andWhere: jest.Mock;
@@ -104,10 +106,16 @@ describe('CustomersService', () => {
       createQueryBuilder: jest.fn(() => quotationQueryBuilder),
     };
 
+    legacyCustomersRepository = {
+      findOne: jest.fn(),
+      delete: jest.fn().mockResolvedValue(undefined),
+    };
+
     service = new CustomersService(
       repository as unknown as Repository<Customer>,
       invoicesRepository as unknown as Repository<Invoice>,
       quotationsRepository as unknown as Repository<Quotation>,
+      legacyCustomersRepository as unknown as Repository<LegacyCustomer>,
     );
   });
 
@@ -128,6 +136,16 @@ describe('CustomersService', () => {
       expect(result.companyName).toBe('ACME SAS');
     });
 
+    it("removes the customer from the old system's list once created", async () => {
+      repository.findOne.mockResolvedValue(null);
+
+      await service.create(baseDto, 'user-1');
+
+      expect(legacyCustomersRepository.delete).toHaveBeenCalledWith({
+        identification: '830033494',
+      });
+    });
+
     it('rejects with ConflictException when the app-level pre-check finds a duplicate', async () => {
       repository.findOne.mockResolvedValue(existingCustomer);
 
@@ -135,6 +153,7 @@ describe('CustomersService', () => {
         ConflictException,
       );
       expect(repository.save).not.toHaveBeenCalled();
+      expect(legacyCustomersRepository.delete).not.toHaveBeenCalled();
     });
 
     it('maps a DB-level unique violation to ConflictException as a race-condition safety net', async () => {
@@ -147,6 +166,43 @@ describe('CustomersService', () => {
 
       await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
         ConflictException,
+      );
+    });
+  });
+
+  describe('findLegacy', () => {
+    it('returns the old-system customer in the DIAN lookup shape', async () => {
+      legacyCustomersRepository.findOne.mockResolvedValue({
+        id: 'legacy-1',
+        identificationType: 'CC',
+        identification: '1085000001',
+        companyName: null,
+        firstName: 'JUAN CARLOS',
+        familyName: 'PÉREZ',
+        secondLastName: 'GÓMEZ',
+        createdAt: new Date('2026-01-01T00:00:00.000Z'),
+      } satisfies LegacyCustomer);
+
+      const result = await service.findLegacy('1085000001');
+
+      expect(legacyCustomersRepository.findOne).toHaveBeenCalledWith({
+        where: { identification: '1085000001' },
+      });
+      expect(result).toEqual({
+        identification: '1085000001',
+        identificationType: 'CC',
+        companyName: undefined,
+        firstName: 'JUAN CARLOS',
+        familyName: 'PÉREZ',
+        secondLastName: 'GÓMEZ',
+      });
+    });
+
+    it('throws NotFoundException when the number is not in the list', async () => {
+      legacyCustomersRepository.findOne.mockResolvedValue(null);
+
+      await expect(service.findLegacy('123')).rejects.toThrow(
+        NotFoundException,
       );
     });
   });

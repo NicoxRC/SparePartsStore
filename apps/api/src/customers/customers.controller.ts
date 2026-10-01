@@ -29,8 +29,10 @@ import { CustomersService } from './customers.service';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomerHistoryResponseDto } from './dto/customer-history-response.dto';
 import { CustomerResponseDto } from './dto/customer-response.dto';
+import { LegacyCustomerResponseDto } from './dto/legacy-customer-response.dto';
 import { QueryCustomerHistoryDto } from './dto/query-customer-history.dto';
 import { QueryCustomersDto } from './dto/query-customers.dto';
+import { QueryLegacyCustomerDto } from './dto/query-legacy-customer.dto';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 
 @ApiTags('Customers')
@@ -65,6 +67,20 @@ export class CustomersController {
     @Query() query: QueryCustomersDto,
   ): Promise<PaginatedResponseDto<CustomerResponseDto>> {
     return this.customersService.findAll(query);
+  }
+
+  // Declared before `:id` so "legacy" isn't parsed as a customer id.
+  @ApiOperation({
+    summary: "Look up a customer from the old system's list by identification",
+  })
+  @ApiResponse({ status: 200, type: LegacyCustomerResponseDto })
+  @ApiResponse({ status: 404, description: 'Legacy customer not found' })
+  @Get('legacy')
+  @RequirePermission('customers.view')
+  findLegacy(
+    @Query() query: QueryLegacyCustomerDto,
+  ): Promise<LegacyCustomerResponseDto> {
+    return this.customersService.findLegacy(query.identification);
   }
 
   @ApiOperation({ summary: 'Get one customer by id' })

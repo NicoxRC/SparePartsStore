@@ -24,7 +24,8 @@
     "migration:run": "npm run typeorm -- migration:run",
     "migration:revert": "npm run typeorm -- migration:revert",
     "seed:admin": "ts-node -r tsconfig-paths/register src/database/seeds/seed-admin.ts",
-    "seed:product-lookups": "ts-node -r tsconfig-paths/register src/database/seeds/seed-product-lookups.ts"
+    "seed:product-lookups": "ts-node -r tsconfig-paths/register src/database/seeds/seed-product-lookups.ts",
+    "seed:legacy-customers": "ts-node -r tsconfig-paths/register src/database/seeds/seed-legacy-customers.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
