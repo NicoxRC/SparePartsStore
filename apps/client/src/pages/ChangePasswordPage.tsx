@@ -2,7 +2,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
-import { TextField } from '../components/TextField';
+import { PasswordField } from '../components/PasswordField';
 import { useAuth } from '../hooks/useAuth';
 import { handleEnterAsTab } from '../lib/formNavigation';
 import {
@@ -53,25 +53,22 @@ export function ChangePasswordPage() {
             className="mt-4 flex flex-col gap-4"
             noValidate
           >
-            <TextField
+            <PasswordField
               label="Contraseña actual"
-              type="password"
               autoComplete="current-password"
               placeholder="••••••••"
               error={errors.currentPassword?.message}
               {...register('currentPassword')}
             />
-            <TextField
+            <PasswordField
               label="Nueva contraseña"
-              type="password"
               autoComplete="new-password"
               placeholder="Mínimo 8 caracteres"
               error={errors.newPassword?.message}
               {...register('newPassword')}
             />
-            <TextField
+            <PasswordField
               label="Confirmar nueva contraseña"
-              type="password"
               autoComplete="new-password"
               placeholder="Repite la nueva contraseña"
               error={errors.confirmPassword?.message}
