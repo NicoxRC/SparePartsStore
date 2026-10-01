@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
 } from 'typeorm';
 import { User } from '../../../users/entities/user.entity';
 import { Invoice } from '../../invoices/entities/invoice.entity';
@@ -35,6 +36,7 @@ const decimalTransformer = {
  * `AddUpdatedAtToInvoices` did for `invoices`.
  */
 @Entity('credit_notes')
+@Unique('UQ_credit_notes_prefix_number', ['prefix', 'number'])
 export class CreditNote {
   @PrimaryGeneratedColumn('uuid')
   id: string;

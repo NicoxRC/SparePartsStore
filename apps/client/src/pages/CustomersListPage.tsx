@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
 import { CustomerCard } from '../components/CustomerCard';
@@ -7,6 +8,7 @@ import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
 import { useCustomers, useDeleteCustomer } from '../hooks/useCustomers';
+import { usePermissions } from '../hooks/usePermissions';
 import { getApiErrorMessage } from '../lib/errors';
 import type { CustomerResponse } from '../services/customers';
 
@@ -15,6 +17,8 @@ const PAGE_SIZE = 20;
 export function CustomersListPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
+  const { has } = usePermissions();
+  const canCreate = has('customers.create');
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
@@ -41,9 +45,16 @@ export function CustomersListPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
-        Clientes
-      </h1>
+      <div className="flex items-center justify-between gap-2">
+        <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">
+          Clientes
+        </h1>
+        {canCreate && (
+          <Link to="/customers/new" className="shrink-0">
+            <Button type="button">+ Nuevo</Button>
+          </Link>
+        )}
+      </div>
 
       <TextField
         label="Buscar"

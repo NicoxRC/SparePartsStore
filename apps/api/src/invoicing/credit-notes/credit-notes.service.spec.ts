@@ -14,12 +14,14 @@ import { CreditNotesService } from './credit-notes.service';
 import { CreditNote } from './entities/credit-note.entity';
 
 describe('CreditNotesService', () => {
+  const lockQuery = jest.fn().mockResolvedValue([]);
   let service: CreditNotesService;
   let creditNotesRepository: {
     create: jest.Mock<Partial<CreditNote>, [Partial<CreditNote>]>;
     save: jest.Mock<Promise<CreditNote>, [Partial<CreditNote>]>;
     findOne: jest.Mock;
     createQueryBuilder: jest.Mock;
+    manager: { transaction: jest.Mock };
   };
   let queryBuilder: {
     select: jest.Mock;
@@ -118,6 +120,11 @@ describe('CreditNotesService', () => {
       ),
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(() => queryBuilder),
+      manager: {
+        transaction: jest.fn((run: (m: unknown) => Promise<unknown>) =>
+          run({ query: lockQuery }),
+        ),
+      },
     };
     dataicoClient = { post: jest.fn<Promise<unknown>, [string, unknown]>() };
     dataicoConfig = {

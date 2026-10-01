@@ -18,6 +18,7 @@ import {
   STANDARD_TAX_RATE,
 } from '../../common/utils/invoice-math.util';
 import { assertLineKind } from '../../common/utils/custom-line.util';
+import { withNumberingLock } from '../../common/utils/numbering-lock.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
@@ -120,7 +121,7 @@ export class InvoicesService {
     options: { skipInventoryEffects?: boolean } = {},
   ): Promise<InvoiceResponseDto[]> {
     if (!isFinalConsumer(dto.customerIdentification)) {
-      return [await this.createOne(dto, createdById, options)];
+      return [await this.createOneLocked(dto, createdById, options)];
     }
 
     // Resolving the whole sale first also checks stock for all of it before
@@ -134,7 +135,7 @@ export class InvoicesService {
     for (const items of groups) {
       try {
         invoices.push(
-          await this.createOne({ ...dto, items }, createdById, options),
+          await this.createOneLocked({ ...dto, items }, createdById, options),
         );
       } catch (error) {
         if (invoices.length === 0) throw error;
@@ -142,6 +143,17 @@ export class InvoicesService {
       }
     }
     return invoices;
+  }
+
+  /** createOne() under the invoice numbering lock — see withNumberingLock(). */
+  private createOneLocked(
+    dto: CreateInvoiceDto,
+    createdById: string,
+    options: { skipInventoryEffects?: boolean },
+  ): Promise<InvoiceResponseDto> {
+    return withNumberingLock(this.invoicesRepository.manager, 'invoices', () =>
+      this.createOne(dto, createdById, options),
+    );
   }
 
   /**
@@ -509,9 +521,9 @@ export class InvoicesService {
    * store already has invoices issued outside this app's local history —
    * and during testing the shared Dataico account keeps advancing the
    * sequence — so raising the env var lets the local count jump ahead).
-   * No dedicated counter table — this app is the only writer
-   * of `invoices.number`, and at this store's scale a simple `MAX()` read
-   * is an acceptable simplification over a fully race-proof counter.
+   * No dedicated counter table — this app is the only writer of
+   * `invoices.number`, and callers hold withNumberingLock() from this read
+   * until the invoice is saved, so two sales can't get the same number.
    */
   private async resolveNextNumber(prefix: string): Promise<number> {
     const result = await this.invoicesRepository

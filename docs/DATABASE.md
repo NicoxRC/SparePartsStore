@@ -218,7 +218,7 @@ Added Phase 10 — a local record of every invoice sent to Dataico. See `docs/GL
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID | PK |
-| `number` | INT | What **this app** sent as the invoice number (caller-supplied, not auto-incremented — see the phase doc). |
+| `number` | INT | What **this app** sent as the invoice number: `MAX(number) + 1` for the prefix (or `INVOICE_NUMBER_START`), read under a Postgres advisory lock (`withNumberingLock`, key `invoices`) held until the row is saved, so two simultaneous sales can't get the same number. `UNIQUE (prefix, number)` (`UQ_invoices_prefix_number`, migration 39 `AddUniqueDocumentNumbers`) as a backstop. |
 | `prefix`, `resolution_number` | VARCHAR | Copied from the active `dian_resolutions` row used at send time. |
 | `dataico_number` | VARCHAR, nullable | Dataico's own echoed number (e.g. `"FVE1225"` — prefix+number concatenated), distinct from `number` above. |
 | `customer_identification_type`, `customer_identification` | VARCHAR | |
@@ -249,7 +249,7 @@ Added as a follow-up to Phase 10 — a local record of every "nota débito" sent
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID | PK |
-| `number` | INT | What this app sent as the note's own number (caller-supplied, same `MAX()`-read simplification as `invoices.number`). |
+| `number` | INT | What this app sent as the note's own number — same locked `MAX()` read as `invoices.number` (lock key `debit_notes`). `UNIQUE (prefix, number)` (`UQ_debit_notes_prefix_number`). |
 | `prefix` | VARCHAR | This store's own debit-note prefix (`DATAICO_DEBIT_NOTE_PREFIX`) — **not** a `dian_resolutions` prefix: notes use Dataico's flexible numbering, no DIAN `resolution_number` in the confirmed request. |
 | `dataico_number` | VARCHAR, nullable | Dataico's own echoed number, distinct from `number` above (same convention as `invoices.dataico_number`). |
 | `invoice_id` | UUID, FK → `invoices.id`, `RESTRICT` | The invoice this note corrects. Unlike `customers`/`quotations` linking to `invoices`, this table is brand new with no legacy rows to reconcile, so it's a clean, real FK. `RESTRICT` (not `SET NULL`) — a debit note orphaned from its invoice would be meaningless. |
@@ -274,6 +274,7 @@ Added alongside `debit_notes` — a local record of every "nota crédito" sent t
 | Column | Difference from `debit_notes` |
 |---|---|
 | `prefix` | This store's own credit-note prefix (`DATAICO_CREDIT_NOTE_PREFIX`), a separate value from the debit-note prefix — both are flexible numbering, no `dian_resolutions` row either way. |
+| `number` | Same locked `MAX()` read, under its own lock key `credit_notes`; `UNIQUE (prefix, number)` (`UQ_credit_notes_prefix_number`). |
 | `reason` | Hardcoded `'DEVOLUCION'` — the only value confirmed against a real, non-health-contaminated credit note example (the original shared example's `'ANULACION'` came from a health-sector test fixture, not trusted — see `docs/GLOSSARY.md`). |
 | `invoice_id` | Same FK, `RESTRICT` — but note the amount *returns*, not adds, so this is a credit against the invoice's total rather than a further charge. |
 

@@ -6,6 +6,7 @@ import {
   ManyToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
+  Unique,
 } from 'typeorm';
 import { User } from '../../../users/entities/user.entity';
 
@@ -38,6 +39,7 @@ const decimalTransformer = {
  * bloat every row for no benefit.
  */
 @Entity('invoices')
+@Unique('UQ_invoices_prefix_number', ['prefix', 'number'])
 export class Invoice {
   @PrimaryGeneratedColumn('uuid')
   id: string;

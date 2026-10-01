@@ -120,6 +120,9 @@ function App() {
                     <Route path="/customers" element={<CustomersListPage />} />
                     <Route path="/customers/:id/edit" element={<CustomerFormPage />} />
                   </Route>
+                  <Route element={<PermissionRoute permission="customers.create" />}>
+                    <Route path="/customers/new" element={<CustomerFormPage />} />
+                  </Route>
                   <Route element={<PermissionRoute permission="products.create" />}>
                     <Route path="/products/new" element={<ProductFormPage />} />
                   </Route>

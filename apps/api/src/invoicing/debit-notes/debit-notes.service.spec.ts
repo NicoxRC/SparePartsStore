@@ -14,12 +14,14 @@ import { DebitNotesService } from './debit-notes.service';
 import { DebitNote } from './entities/debit-note.entity';
 
 describe('DebitNotesService', () => {
+  const lockQuery = jest.fn().mockResolvedValue([]);
   let service: DebitNotesService;
   let debitNotesRepository: {
     create: jest.Mock<Partial<DebitNote>, [Partial<DebitNote>]>;
     save: jest.Mock<Promise<DebitNote>, [Partial<DebitNote>]>;
     findOne: jest.Mock;
     createQueryBuilder: jest.Mock;
+    manager: { transaction: jest.Mock };
   };
   let queryBuilder: {
     select: jest.Mock;
@@ -111,6 +113,11 @@ describe('DebitNotesService', () => {
       ),
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(() => queryBuilder),
+      manager: {
+        transaction: jest.fn((run: (m: unknown) => Promise<unknown>) =>
+          run({ query: lockQuery }),
+        ),
+      },
     };
     dataicoClient = { post: jest.fn<Promise<unknown>, [string, unknown]>() };
     dataicoConfig = {
