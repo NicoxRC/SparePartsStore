@@ -13,6 +13,7 @@ import {
   round,
   resolveTaxRate,
 } from '../../common/utils/invoice-math.util';
+import { withNumberingLock } from '../../common/utils/numbering-lock.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
 import { InventoryService } from '../../inventory/inventory.service';
@@ -84,6 +85,18 @@ export class CreditNotesService {
     private readonly configService: ConfigService,
   ) {}
 
+  /** Issues the note under the numbering lock — see withNumberingLock(). */
+  create(
+    dto: CreateCreditNoteDto,
+    createdById: string,
+  ): Promise<CreditNoteResponseDto> {
+    return withNumberingLock(
+      this.creditNotesRepository.manager,
+      'credit_notes',
+      () => this.issue(dto, createdById),
+    );
+  }
+
   /**
    * A "nota crédito" — a return/reduction against an already-sent invoice
    * (a returned product, an overcharge, an error correction). Confirmed
@@ -114,7 +127,7 @@ export class CreditNotesService {
    * original shared example's `'ANULACION'` came from the health-
    * contaminated fixture — see docs/GLOSSARY.md — and isn't trusted here).
    */
-  async create(
+  private async issue(
     dto: CreateCreditNoteDto,
     createdById: string,
   ): Promise<CreditNoteResponseDto> {

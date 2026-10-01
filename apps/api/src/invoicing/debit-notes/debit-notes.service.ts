@@ -13,6 +13,7 @@ import {
   round,
   resolveTaxRate,
 } from '../../common/utils/invoice-math.util';
+import { withNumberingLock } from '../../common/utils/numbering-lock.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
 import { InventoryService } from '../../inventory/inventory.service';
@@ -77,6 +78,18 @@ export class DebitNotesService {
     private readonly configService: ConfigService,
   ) {}
 
+  /** Issues the note under the numbering lock — see withNumberingLock(). */
+  create(
+    dto: CreateDebitNoteDto,
+    createdById: string,
+  ): Promise<DebitNoteResponseDto> {
+    return withNumberingLock(
+      this.debitNotesRepository.manager,
+      'debit_notes',
+      () => this.issue(dto, createdById),
+    );
+  }
+
   /**
    * A "nota débito" — an additional charge against an already-sent
    * invoice, most often a product the original sale missed. Confirmed
@@ -96,7 +109,7 @@ export class DebitNotesService {
    * request family; Dataico evidently computes the base/amount itself
    * for notes.
    */
-  async create(
+  private async issue(
     dto: CreateDebitNoteDto,
     createdById: string,
   ): Promise<DebitNoteResponseDto> {

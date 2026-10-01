@@ -13,6 +13,7 @@ import { Invoice } from './entities/invoice.entity';
 import { InvoicesService } from './invoices.service';
 
 describe('InvoicesService', () => {
+  const lockQuery = jest.fn().mockResolvedValue([]);
   let service: InvoicesService;
   let invoicesRepository: {
     create: jest.Mock<Partial<Invoice>, [Partial<Invoice>]>;
@@ -20,6 +21,7 @@ describe('InvoicesService', () => {
     findAndCount: jest.Mock;
     findOne: jest.Mock;
     createQueryBuilder: jest.Mock;
+    manager: { transaction: jest.Mock };
   };
   let numberQueryBuilder: {
     select: jest.Mock;
@@ -96,6 +98,11 @@ describe('InvoicesService', () => {
       findAndCount: jest.fn(),
       findOne: jest.fn(),
       createQueryBuilder: jest.fn(() => numberQueryBuilder),
+      manager: {
+        transaction: jest.fn((run: (m: unknown) => Promise<unknown>) =>
+          run({ query: lockQuery }),
+        ),
+      },
     };
     dataicoClient = {
       post: jest.fn<Promise<unknown>, [string, unknown]>(),
@@ -213,6 +220,22 @@ describe('InvoicesService', () => {
         pdf_url: 'https://app.dataico.com/pdf',
         xml: 'huge-base64-blob-not-to-be-persisted',
       });
+    });
+
+    it('reads the next number and sends to Dataico while holding the invoices numbering lock', async () => {
+      lockQuery.mockClear();
+      dataicoClient.post.mockImplementationOnce(() => {
+        expect(lockQuery).toHaveBeenCalledWith(
+          'SELECT pg_advisory_xact_lock(hashtext($1))',
+          ['invoices'],
+        );
+        return Promise.resolve({ number: 'FVE1225', uuid: 'dataico-uuid-1' });
+      });
+
+      await service.create(baseDto, 'user-1');
+
+      expect(invoicesRepository.manager.transaction).toHaveBeenCalledTimes(1);
+      expect(invoicesRepository.save).toHaveBeenCalledTimes(1);
     });
 
     it('sends the create request with send_dian/send_email off when the switches are off (the default)', async () => {
