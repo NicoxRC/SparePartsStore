@@ -829,6 +829,36 @@ describe('InvoicesService', () => {
       });
     });
 
+    it('reads the answer from inside its `invoice` wrapper', async () => {
+      invoicesRepository.findOne.mockResolvedValue({
+        ...existingInvoice,
+        dianStatus: null,
+        responsePayload: null,
+      });
+      invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+        Promise.resolve(entity as Invoice),
+      );
+      dataicoClient.put.mockResolvedValue({
+        invoice: {
+          number: 'FVE1225',
+          dian_status: 'DIAN_ACEPTADO',
+          pdf_url: 'https://pdf',
+          xml: '<xml/>',
+        },
+      });
+
+      await service.resend('inv-1', {});
+
+      const saved = invoicesRepository.save.mock.calls[0][0] as Invoice;
+      expect(saved.dianStatus).toBe('DIAN_ACEPTADO');
+      expect(saved.pdfUrl).toBe('https://pdf');
+      expect(saved.responsePayload).toEqual({
+        number: 'FVE1225',
+        dian_status: 'DIAN_ACEPTADO',
+        pdf_url: 'https://pdf',
+      });
+    });
+
     describe('DATAICO_SEND_* switches act as a ceiling', () => {
       beforeEach(() => {
         invoicesRepository.findOne.mockResolvedValue({ ...existingInvoice });
@@ -918,6 +948,33 @@ describe('InvoicesService', () => {
       expect(dataicoClient.get).toHaveBeenCalledWith(
         '/invoices?number=FVE1225',
       );
+    });
+
+    it('reads the query answer from inside its `invoice` wrapper', async () => {
+      invoicesRepository.findOne.mockResolvedValue({
+        id: 'inv-1',
+        dataicoNumber: 'FVE1225',
+        dianStatus: null,
+        dataicoUuid: null,
+        responsePayload: null,
+        createdAt: new Date(),
+      });
+      invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+        Promise.resolve(entity as Invoice),
+      );
+      dataicoClient.get.mockResolvedValue({
+        invoice: {
+          number: 'FVE1225',
+          dian_status: 'DIAN_ACEPTADO',
+          uuid: 'dataico-uuid-1',
+        },
+      });
+
+      await service.refreshStatus('inv-1');
+
+      const saved = invoicesRepository.save.mock.calls[0][0] as Invoice;
+      expect(saved.dianStatus).toBe('DIAN_ACEPTADO');
+      expect(saved.dataicoUuid).toBe('dataico-uuid-1');
     });
 
     it('updates the status Dataico reports without wiping the rest', async () => {

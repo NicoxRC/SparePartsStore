@@ -461,12 +461,21 @@ export class InvoicesService {
    * wiped — a resend's answer, for one, can leave out `dian_status`, which
    * used to erase "Aceptado DIAN" from an accepted invoice. The stored
    * payload is merged the same way, since the printed ticket reads from it.
+   *
+   * Unlike create, these answers come wrapped as `{ invoice: { ... } }`
+   * (confirmed on a production query: same field names, one level down),
+   * so the wrapper is unwrapped first.
    */
   private mergeDataicoResponse(
     invoice: Invoice,
     response: DataicoInvoiceResponse,
   ): void {
-    const { responsePayload, ...fields } = this.mapDataicoResponse(response);
+    const wrapped = response.invoice;
+    const data =
+      typeof wrapped === 'object' && wrapped !== null
+        ? (wrapped as DataicoInvoiceResponse)
+        : response;
+    const { responsePayload, ...fields } = this.mapDataicoResponse(data);
     Object.assign(invoice, withoutEmptyValues(fields));
     invoice.responsePayload = {
       ...(invoice.responsePayload as Record<string, unknown> | null),
