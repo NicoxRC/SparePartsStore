@@ -138,8 +138,8 @@ Defined in `apps/api/src/common/enums/` and mirrored as Postgres enum types:
 | Column | Type | Notes |
 |---|---|---|
 | `id` | UUID | PK |
-| `reference` | VARCHAR(100) | uppercased at the DTO layer; partial-unique among non-deleted rows; doubles as the barcode-scanner target field (see `GLOSSARY.md` "Barcode scanning") — there is no separate barcode column |
-| `description` | VARCHAR(255) | capitalized (first letter upper, rest lower) at the DTO layer |
+| `reference` | VARCHAR(100) | uppercased and accent-free (Á→A, Ü→U; Ñ kept) at the DTO layer — `products/product-normalize.util.ts`; the client strips accents as it's typed. Existing rows cleaned by `StripAccentsFromProducts` (a reference whose accent-free form was already taken was left as is and logged); partial-unique among non-deleted rows; doubles as the barcode-scanner target field (see `GLOSSARY.md` "Barcode scanning") — there is no separate barcode column |
+| `description` | VARCHAR(255) | capitalized (first letter upper, rest lower) and accent-free (Ñ kept) at the DTO layer |
 | `sale_price` | NUMERIC(12,2) | The only price on a product, **always typed in by the user** — never suggested or derived by the system (not even by a purchase import). The price **already includes IVA**: the invoice/quotation only breaks the IVA out of it, it never adds any (see `GLOSSARY.md`, "Sale price"). |
 | `cost` | NUMERIC(12,2) | What the product cost the store (restored by migration 35). **Two origins:** while the supplier is INVENTARIO INICIAL (a product created one by one), it is **derived** — `round(sale_price / 1.65)` for `sale_type = normal`, `/ 1.30` for `neto` — and recomputed whenever the price, sale type or supplier changes. A product created by a **purchase import** gets the cost the user typed on that purchase (XML draft or Excel column "Costo"); editing its price later does **not** touch it, only a direct edit of the cost (or another purchase with a typed cost) does. |
 | `sale_type` | `sale_type` enum (`normal`, `neto`), default `normal` | Only picks the factor for a derived cost. Every product that existed before migration 35 was backfilled as `normal`. |

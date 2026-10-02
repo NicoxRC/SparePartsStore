@@ -1,6 +1,7 @@
 import {
   normalizeProductDescription,
   normalizeProductReference,
+  stripAccents,
 } from './product-normalize.util';
 
 describe('product-normalize.util', () => {
@@ -16,5 +17,18 @@ describe('product-normalize.util', () => {
 
   it('returns an empty string for a blank description', () => {
     expect(normalizeProductDescription('   ')).toBe('');
+  });
+
+  it('removes accents and diaeresis but keeps the Ñ', () => {
+    expect(stripAccents('Válvula ÉLÍÓÚ güero PIÑÓN piñón')).toBe(
+      'Valvula ELIOU guero PIÑON piñon',
+    );
+  });
+
+  it('strips accents from references and descriptions', () => {
+    expect(normalizeProductReference(' áb-ñ1 ')).toBe('AB-Ñ1');
+    expect(normalizeProductDescription('ÁMORTIGUADOR TRASERO PIÑÓN')).toBe(
+      'Amortiguador trasero piñon',
+    );
   });
 });
