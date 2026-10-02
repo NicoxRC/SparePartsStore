@@ -1,4 +1,3 @@
-import { PrintInvoiceTicketButton } from '../components/print/PrintInvoiceTicketButton';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
@@ -196,7 +195,7 @@ export function InvoicesListPage() {
                                     rel="noreferrer"
                                     className="text-xs font-medium text-ink hover:underline"
                                   >
-                                    Ver PDF
+                                    Imprimir tirilla
                                   </a>
                                 )}
                                 <button
@@ -206,10 +205,6 @@ export function InvoicesListPage() {
                                 >
                                   Ver detalle
                                 </button>
-                                <PrintInvoiceTicketButton
-                                  invoiceIds={[invoice.id]}
-                                  className="text-xs font-medium text-ink hover:underline"
-                                />
                                 {has('invoices.refresh') && (
                                   <button
                                     type="button"
@@ -220,7 +215,8 @@ export function InvoicesListPage() {
                                     {busyAction === 'refresh' ? 'Consultando…' : 'Consultar'}
                                   </button>
                                 )}
-                                {has('invoices.resend') && (
+                                {has('invoices.resend') &&
+                                  invoice.dianStatus !== 'DIAN_ACEPTADO' && (
                                   <button
                                     type="button"
                                     disabled={busyAction !== null}
