@@ -7,6 +7,17 @@ const upper: CaseTransform = (value) => value.toUpperCase();
 const lower: CaseTransform = (value) => value.toLowerCase();
 
 /**
+ * Same rule as the API's product-normalize.util: drops accents and
+ * diaeresis (Á→A, Ü→U) but keeps the Ñ — the tilde only goes when it
+ * doesn't sit on an N.
+ */
+const stripAccents: CaseTransform = (value) =>
+  value
+    .normalize('NFD')
+    .replace(/(?<![nN])\u0303|[\u0300-\u0302\u0304-\u036f]/g, '')
+    .normalize('NFC');
+
+/**
  * Rewrites the input's value in place as the user types and keeps the caret
  * where it was — assigning `target.value` alone sends it to the end, which
  * breaks editing in the middle of a word.
@@ -42,6 +53,11 @@ export function upperCaseField(field: UseFormRegisterReturn): UseFormRegisterRet
 /** Spread in place of `register('field')` so the value is stored in lowercase as it's typed. */
 export function lowerCaseField(field: UseFormRegisterReturn): UseFormRegisterReturn {
   return withCase(field, lower);
+}
+
+/** Spread in place of `register('field')` so accents are removed as they're typed (products only). */
+export function noAccentsField(field: UseFormRegisterReturn): UseFormRegisterReturn {
+  return withCase(field, stripAccents);
 }
 
 export const toUpperCase = upper;
