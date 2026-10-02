@@ -15,6 +15,7 @@ import {
   type QuickCreateProductInput,
   type QuickCreateProductValues,
 } from '../lib/schemas/product';
+import { noAccentsField } from '../lib/textCase';
 import type { ProductResponse } from '../services/products';
 
 interface QuickCreateProductDialogProps {
@@ -92,13 +93,13 @@ export function QuickCreateProductDialog({
             placeholder="Ej: ABC-123"
             className="font-mono uppercase"
             error={errors.reference?.message}
-            {...register('reference')}
+            {...noAccentsField(register('reference'))}
           />
           <TextField
             label="Descripción"
             placeholder="Descripción del producto"
             error={errors.description?.message}
-            {...register('description')}
+            {...noAccentsField(register('description'))}
           />
 
           <div className="grid grid-cols-2 gap-3">
