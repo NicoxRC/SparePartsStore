@@ -787,6 +787,36 @@ describe('InvoicesService', () => {
       );
     });
 
+    it('keeps the stored status, PDF and payload when Dataico leaves them out of its answer', async () => {
+      invoicesRepository.findOne.mockResolvedValue({
+        ...existingInvoice,
+        dianStatus: 'DIAN_ACEPTADO',
+        pdfUrl: 'https://pdf',
+        responsePayload: { dian_status: 'DIAN_ACEPTADO', customer: { a: 1 } },
+      });
+      invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+        Promise.resolve(entity as Invoice),
+      );
+      dataicoClient.put.mockResolvedValue({
+        dian_status: null,
+        email_status: 'ENVIADO',
+      });
+
+      await service.resend('inv-1', {});
+
+      const saved = invoicesRepository.save.mock.calls[0][0] as Invoice;
+      expect(saved.dianStatus).toBe('DIAN_ACEPTADO');
+      expect(saved.pdfUrl).toBe('https://pdf');
+      expect(saved.dataicoNumber).toBe('FVE1225');
+      expect(saved.dataicoUuid).toBe('dataico-uuid-1');
+      expect(saved.emailStatus).toBe('ENVIADO');
+      expect(saved.responsePayload).toEqual({
+        dian_status: 'DIAN_ACEPTADO',
+        customer: { a: 1 },
+        email_status: 'ENVIADO',
+      });
+    });
+
     describe('DATAICO_SEND_* switches act as a ceiling', () => {
       beforeEach(() => {
         invoicesRepository.findOne.mockResolvedValue({ ...existingInvoice });
@@ -876,6 +906,28 @@ describe('InvoicesService', () => {
       expect(dataicoClient.get).toHaveBeenCalledWith(
         '/invoices?number=FVE1225',
       );
+    });
+
+    it('updates the status Dataico reports without wiping the rest', async () => {
+      invoicesRepository.findOne.mockResolvedValue({
+        id: 'inv-1',
+        dataicoNumber: 'FVE1225',
+        dianStatus: 'DIAN_PENDIENTE',
+        cufe: 'stored-cufe',
+        responsePayload: null,
+        createdAt: new Date(),
+      });
+      invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
+        Promise.resolve(entity as Invoice),
+      );
+      dataicoClient.get.mockResolvedValue({ dian_status: 'DIAN_ACEPTADO' });
+
+      await service.refreshStatus('inv-1');
+
+      const saved = invoicesRepository.save.mock.calls[0][0] as Invoice;
+      expect(saved.dianStatus).toBe('DIAN_ACEPTADO');
+      expect(saved.cufe).toBe('stored-cufe');
+      expect(saved.dataicoNumber).toBe('FVE1225');
     });
   });
 });

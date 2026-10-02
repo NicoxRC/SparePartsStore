@@ -83,6 +83,15 @@ interface ResolvedItem {
   total: number;
 }
 
+/** Drops the `null`/`undefined` entries, so they can't overwrite stored values. */
+function withoutEmptyValues<T extends object>(values: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(values).filter(
+      ([, value]) => value !== null && value !== undefined,
+    ),
+  ) as Partial<T>;
+}
+
 @Injectable()
 export class InvoicesService {
   constructor(
@@ -357,7 +366,7 @@ export class InvoicesService {
       },
     );
 
-    Object.assign(invoice, this.mapDataicoResponse(response));
+    this.mergeDataicoResponse(invoice, response);
     const saved = await this.invoicesRepository.save(invoice);
     return InvoiceResponseDto.fromEntity(saved);
   }
@@ -384,7 +393,7 @@ export class InvoicesService {
       `/invoices?number=${encodeURIComponent(invoice.dataicoNumber)}`,
     );
 
-    Object.assign(invoice, this.mapDataicoResponse(response));
+    this.mergeDataicoResponse(invoice, response);
     const saved = await this.invoicesRepository.save(invoice);
     return InvoiceResponseDto.fromEntity(saved);
   }
@@ -435,6 +444,25 @@ export class InvoicesService {
       qrCode: response.qrcode ?? null,
       dianMessages: response.dian_messages ?? null,
       responsePayload,
+    };
+  }
+
+  /**
+   * Resend/refresh update an invoice that already exists, so a field missing
+   * from Dataico's answer keeps the value already stored instead of being
+   * wiped — a resend's answer, for one, can leave out `dian_status`, which
+   * used to erase "Aceptado DIAN" from an accepted invoice. The stored
+   * payload is merged the same way, since the printed ticket reads from it.
+   */
+  private mergeDataicoResponse(
+    invoice: Invoice,
+    response: DataicoInvoiceResponse,
+  ): void {
+    const { responsePayload, ...fields } = this.mapDataicoResponse(response);
+    Object.assign(invoice, withoutEmptyValues(fields));
+    invoice.responsePayload = {
+      ...(invoice.responsePayload as Record<string, unknown> | null),
+      ...withoutEmptyValues(responsePayload as Record<string, unknown>),
     };
   }
 
