@@ -1,7 +1,7 @@
 import { BUSINESS_PROFILE } from '../../config/business';
 import { amountInWords } from '../../lib/amountInWords';
 import { computeLineBreakdown } from '../../lib/invoiceMath';
-import { ticketInt, ticketTime } from '../../lib/ticketFormat';
+import { ticketDateTime, ticketInt, ticketTime } from '../../lib/ticketFormat';
 import type { QuotationResponse } from '../../services/quotations';
 
 function customerLabel(quotation: QuotationResponse): string {
@@ -36,8 +36,8 @@ function TotalRow({ label, value, bold = false }: { label: string; value: string
  * header, customer block, the lines (description and total on one row, and
  * under it the code, quantity × price, IVA and any discount — kept to two
  * short rows per product so it doesn't get crowded on 80 mm), Exentos /
- * Gravados / Subtotal / IVA / Descuento / Valor total, seller and the amount
- * in words. Still a paper guarantee — the
+ * Gravados / Subtotal / IVA / Descuento / Valor total, seller, the amount
+ * in words and a box for the signature. Still a paper guarantee — the
  * customer signs it when merchandise leaves before payment. Every figure is
  * computed from the lines (the IVA broken out of each price), never printed
  * from a cached total. See PrintTicket for how this gets shown.
@@ -86,6 +86,7 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
       </p>
 
       <div className="mt-3 border-2 border-black px-2 py-1">
+        <CustomerRow label="Fecha:" value={ticketDateTime(quotation.createdAt)} />
         <CustomerRow label="Cliente:" value={customerLabel(quotation)} />
         <CustomerRow label="Cédula/Nit:" value={idNumber} />
         <CustomerRow label="Teléfono:" value={quotation.customerPhone ?? ''} />
@@ -133,9 +134,9 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
         <span className="font-semibold">{amountInWords(total)}</span>
       </div>
 
-      <p className="mt-10 border-t border-black pt-1 text-center text-[10px]">
-        Firma recibido a satisfacción
-      </p>
+      <div className="mt-3 flex h-24 flex-col justify-end border-2 border-black px-2 pb-1">
+        <p className="text-center text-[10px]">Firma recibido a satisfacción</p>
+      </div>
     </div>
   );
 }
