@@ -20,6 +20,10 @@ const DIAN_STATUS_STYLE: Record<string, string> = {
   DIAN_RECHAZADO: 'rounded-full bg-rust-tint px-2 py-0.5 text-rust-2',
 };
 
+function invoiceLabel(invoice: InvoiceResponse): string {
+  return invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`;
+}
+
 /** Groups a page of invoices by issue date, preserving the backend's
  * newest-first order both across and within groups. */
 function groupInvoicesByDate(invoices: InvoiceResponse[]): [string, InvoiceResponse[]][] {
@@ -54,8 +58,13 @@ function formatDateHeading(dateStr: string): string {
 export function InvoicesListPage() {
   const { has } = usePermissions();
   const [page, setPage] = useState(1);
-  const [actioningId, setActioningId] = useState<string | null>(null);
+  /** Only the pressed button shows as busy, not every action on the row. */
+  const [actioning, setActioning] = useState<{
+    id: string;
+    action: 'resend' | 'refresh';
+  } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
   const invoicesQuery = useInvoices({ page, limit: PAGE_SIZE });
   const resendMutation = useResendInvoice();
@@ -63,25 +72,31 @@ export function InvoicesListPage() {
 
   const handleResend = async (id: string) => {
     setActionError(null);
-    setActioningId(id);
+    setActionNotice(null);
+    setActioning({ id, action: 'resend' });
     try {
-      await resendMutation.mutateAsync({ id });
+      const invoice = await resendMutation.mutateAsync({ id });
+      setActionNotice(`Factura ${invoiceLabel(invoice)} reenviada.`);
     } catch (error) {
       setActionError(getApiErrorMessage(error));
     } finally {
-      setActioningId(null);
+      setActioning(null);
     }
   };
 
   const handleRefresh = async (id: string) => {
     setActionError(null);
-    setActioningId(id);
+    setActionNotice(null);
+    setActioning({ id, action: 'refresh' });
     try {
-      await refreshMutation.mutateAsync(id);
+      const invoice = await refreshMutation.mutateAsync(id);
+      setActionNotice(
+        `Factura ${invoiceLabel(invoice)} consultada — estado DIAN: ${invoice.dianStatus ?? 'sin estado'}.`,
+      );
     } catch (error) {
       setActionError(getApiErrorMessage(error));
     } finally {
-      setActioningId(null);
+      setActioning(null);
     }
   };
 
@@ -112,6 +127,7 @@ export function InvoicesListPage() {
       </div>
 
       {actionError && <Alert variant="error">{actionError}</Alert>}
+      {actionNotice && <Alert variant="success">{actionNotice}</Alert>}
 
       {invoicesQuery.isPending && <Spinner label="Cargando…" />}
 
@@ -144,7 +160,8 @@ export function InvoicesListPage() {
 
                     <div className="divide-y divide-line rounded border border-line bg-paper">
                       {dayInvoices.map((invoice) => {
-                        const isActioning = actioningId === invoice.id;
+                        const busyAction =
+                          actioning?.id === invoice.id ? actioning.action : null;
                         return (
                           <div
                             key={invoice.id}
@@ -153,7 +170,7 @@ export function InvoicesListPage() {
                             <div className="min-w-0">
                               <p className="truncate text-sm text-ink">
                                 <span className="font-mono font-medium">
-                                  {invoice.dataicoNumber ?? `${invoice.prefix}${invoice.number}`}
+                                  {invoiceLabel(invoice)}
                                 </span>
                                 {' — '}
                                 {invoice.customerCompanyName ?? invoice.customerIdentification}
@@ -196,21 +213,21 @@ export function InvoicesListPage() {
                                 {has('invoices.refresh') && (
                                   <button
                                     type="button"
-                                    disabled={isActioning}
+                                    disabled={busyAction !== null}
                                     onClick={() => void handleRefresh(invoice.id)}
-                                    className="text-xs font-medium text-ink hover:underline disabled:opacity-40"
+                                    className="text-xs font-medium text-ink hover:underline disabled:cursor-wait"
                                   >
-                                    Consultar
+                                    {busyAction === 'refresh' ? 'Consultando…' : 'Consultar'}
                                   </button>
                                 )}
                                 {has('invoices.resend') && (
                                   <button
                                     type="button"
-                                    disabled={isActioning}
+                                    disabled={busyAction !== null}
                                     onClick={() => void handleResend(invoice.id)}
-                                    className="text-xs font-medium text-ink hover:underline disabled:opacity-40"
+                                    className="text-xs font-medium text-ink hover:underline disabled:cursor-wait"
                                   >
-                                    Reenviar
+                                    {busyAction === 'resend' ? 'Reenviando…' : 'Reenviar'}
                                   </button>
                                 )}
                                 {has('debit_notes.create') && (
