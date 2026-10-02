@@ -83,6 +83,9 @@ interface ResolvedItem {
   total: number;
 }
 
+/** An invoice the DIAN already accepted is final — never resent. */
+const DIAN_ACCEPTED = 'DIAN_ACEPTADO';
+
 /** Drops the `null`/`undefined` entries, so they can't overwrite stored values. */
 function withoutEmptyValues<T extends object>(values: T): Partial<T> {
   return Object.fromEntries(
@@ -351,6 +354,11 @@ export class InvoicesService {
     if (!invoice.dataicoUuid) {
       throw new BadRequestException(
         'Esta factura no tiene un uuid de Dataico registrado — no se puede reenviar.',
+      );
+    }
+    if (invoice.dianStatus === DIAN_ACCEPTED) {
+      throw new BadRequestException(
+        'Esta factura ya fue aceptada por la DIAN — no se puede reenviar.',
       );
     }
 

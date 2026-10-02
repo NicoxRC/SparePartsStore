@@ -767,6 +767,18 @@ describe('InvoicesService', () => {
       expect(dataicoClient.put).not.toHaveBeenCalled();
     });
 
+    it('rejects an invoice the DIAN already accepted', async () => {
+      invoicesRepository.findOne.mockResolvedValue({
+        ...existingInvoice,
+        dianStatus: 'DIAN_ACEPTADO',
+      });
+
+      await expect(service.resend('inv-1', {})).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(dataicoClient.put).not.toHaveBeenCalled();
+    });
+
     it('PUTs to /invoices/{dataicoUuid} with the confirmed actions-only body', async () => {
       invoicesRepository.findOne.mockResolvedValue({ ...existingInvoice });
       invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
@@ -790,9 +802,9 @@ describe('InvoicesService', () => {
     it('keeps the stored status, PDF and payload when Dataico leaves them out of its answer', async () => {
       invoicesRepository.findOne.mockResolvedValue({
         ...existingInvoice,
-        dianStatus: 'DIAN_ACEPTADO',
+        dianStatus: 'DIAN_RECHAZADO',
         pdfUrl: 'https://pdf',
-        responsePayload: { dian_status: 'DIAN_ACEPTADO', customer: { a: 1 } },
+        responsePayload: { dian_status: 'DIAN_RECHAZADO', customer: { a: 1 } },
       });
       invoicesRepository.save.mockImplementation((entity: Partial<Invoice>) =>
         Promise.resolve(entity as Invoice),
@@ -805,13 +817,13 @@ describe('InvoicesService', () => {
       await service.resend('inv-1', {});
 
       const saved = invoicesRepository.save.mock.calls[0][0] as Invoice;
-      expect(saved.dianStatus).toBe('DIAN_ACEPTADO');
+      expect(saved.dianStatus).toBe('DIAN_RECHAZADO');
       expect(saved.pdfUrl).toBe('https://pdf');
       expect(saved.dataicoNumber).toBe('FVE1225');
       expect(saved.dataicoUuid).toBe('dataico-uuid-1');
       expect(saved.emailStatus).toBe('ENVIADO');
       expect(saved.responsePayload).toEqual({
-        dian_status: 'DIAN_ACEPTADO',
+        dian_status: 'DIAN_RECHAZADO',
         customer: { a: 1 },
         email_status: 'ENVIADO',
       });
