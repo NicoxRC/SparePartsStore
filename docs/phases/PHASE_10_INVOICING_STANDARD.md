@@ -83,7 +83,7 @@ GET https://api.dataico.com/direct/dataico_api/v2/invoices?number=FE12621
 Auth-token: <DATAICO_AUTH_TOKEN>
 ```
 
-No response example was shared for query — **assumed** (not guessed from nothing) to return the same shape as "Envío Factura"'s confirmed response, since it's the same resource. `InvoicesService` reuses the identical response-mapping logic for create/resend/refresh (`mapDataicoResponse()`), so if the query response ever turns out to differ, there's exactly one place to fix it.
+**Confirmed on production (2026-10-02):** the query answer is wrapped as `{ "invoice": { ... } }` — the same field names as "Envío Factura"'s response (`number`, `dian_status`, `uuid`, `cufe`, `pdf_url`, `xml`, ...), one level down. Resend's answer is treated the same way. `InvoicesService.mergeDataicoResponse()` unwraps `invoice` when present before mapping, and keeps any stored value the answer leaves out. Reading these answers flat used to wipe the stored status, uuid and PDF of an accepted invoice.
 
 **Security note, recorded for future readers**: every curl shared for this sub-feature included a `Cookie: AWSALBAPP-*=...` header (AWS load-balancer session cookies, evidently captured incidentally when the request was recorded in Postman). These are **not** part of Dataico's actual auth contract — the very first confirmed request (Phase 7) had no Cookie header and worked fine — so they are deliberately not sent by `DataicoClientService`.
 
