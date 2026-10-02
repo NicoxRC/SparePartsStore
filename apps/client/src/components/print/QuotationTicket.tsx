@@ -86,7 +86,7 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
       </p>
 
       <div className="mt-3 border-2 border-black px-2 py-1">
-        <CustomerRow label="Fecha:" value={ticketDateTime(quotation.createdAt)} />
+        <CustomerRow label="Fecha:" value={ticketDateTime(new Date().toISOString())} />
         <CustomerRow label="Cliente:" value={customerLabel(quotation)} />
         <CustomerRow label="Cédula/Nit:" value={idNumber} />
         <CustomerRow label="Teléfono:" value={quotation.customerPhone ?? ''} />
