@@ -23,7 +23,6 @@ import { TextField } from '../components/TextField';
 import { Toast } from '../components/Toast';
 import { IconCamera } from '../components/icons';
 import { ProductImageViewer } from '../components/ProductImageViewer';
-import { PrintInvoiceTicketButton } from '../components/print/PrintInvoiceTicketButton';
 import {
   useOpenCashRegister,
   useReopenCashRegister,
@@ -227,6 +226,12 @@ function CustomerSection({
   );
 }
 
+/** Dataico's PDF of an issued invoice — the receipt the store prints. */
+interface InvoicePdf {
+  number: string;
+  url: string;
+}
+
 interface InvoiceDraftFormProps {
   draft: InvoiceDraft;
   /**
@@ -234,8 +239,8 @@ interface InvoiceDraftFormProps {
    * and Cancelar goes back to Cotizaciones. Used by "Nueva cotización".
    */
   mode?: 'sale' | 'quotation';
-  /** `pdfUrl` only when the sale produced a single invoice. Unused in quotation mode. */
-  onInvoiced?: (message: string, pdfUrl: string | null, invoiceIds: string[]) => void;
+  /** One entry per invoice the sale produced (several for a split Consumidor final sale). Unused in quotation mode. */
+  onInvoiced?: (message: string, pdfs: InvoicePdf[]) => void;
 }
 
 /**
@@ -634,8 +639,9 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
       invoices.length === 1
         ? `Factura ${numbers[0]} creada correctamente.`
         : `Se crearon ${invoices.length} facturas: ${numbers.join(', ')}.`,
-      invoices.length === 1 ? invoices[0].pdfUrl : null,
-      invoices.map((invoice) => invoice.id),
+      invoices.flatMap((invoice, index) =>
+        invoice.pdfUrl ? [{ number: numbers[index], url: invoice.pdfUrl }] : [],
+      ),
     );
   };
 
@@ -1094,8 +1100,7 @@ export function InvoiceFormPage() {
   const [openingAmount, setOpeningAmount] = useState('');
   const [toast, setToast] = useState<{
     message: string;
-    pdfUrl: string | null;
-    invoiceIds: string[];
+    pdfs: InvoicePdf[];
   } | null>(null);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
 
@@ -1336,7 +1341,7 @@ export function InvoiceFormPage() {
           <InvoiceDraftForm
             key={activeDraft.id}
             draft={activeDraft}
-            onInvoiced={(message, pdfUrl, invoiceIds) => setToast({ message, pdfUrl, invoiceIds })}
+            onInvoiced={(message, pdfs) => setToast({ message, pdfs })}
           />
         </div>
       </div>
@@ -1346,13 +1351,25 @@ export function InvoiceFormPage() {
           message={toast.message}
           onDismiss={() => setToast(null)}
           extra={
-            <PrintInvoiceTicketButton
-              invoiceIds={toast.invoiceIds}
-              label={toast.invoiceIds.length > 1 ? 'Imprimir tirillas' : undefined}
-              className="font-medium underline hover:opacity-70"
-            />
+            toast.pdfs.length > 1
+              ? toast.pdfs.map((pdf) => (
+                  <a
+                    key={pdf.url}
+                    href={pdf.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="font-medium underline hover:opacity-70"
+                  >
+                    Tirilla {pdf.number}
+                  </a>
+                ))
+              : undefined
           }
-          action={toast.pdfUrl ? { label: 'Ver/imprimir factura', href: toast.pdfUrl } : undefined}
+          action={
+            toast.pdfs.length === 1
+              ? { label: 'Imprimir tirilla', href: toast.pdfs[0].url }
+              : undefined
+          }
         />
       )}
     </div>
