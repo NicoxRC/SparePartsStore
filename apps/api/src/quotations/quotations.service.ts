@@ -176,7 +176,9 @@ export class QuotationsService {
    * `unitPrice` it was quoted at — the customer's price must not move just
    * because the product's price changed afterward (or because someone
    * edited the quotation). Only a product added by this edit is priced at
-   * the product's current price.
+   * the product's current price. Either way, a line's `unitPriceOverride`
+   * (the price typed inline on QuotationDetailPage) wins — it changes only
+   * this quotation, never `product.salePrice`.
    */
   async updateItems(
     id: string,
@@ -276,7 +278,7 @@ export class QuotationsService {
       taxRate: product ? resolveTaxRate(product) : STANDARD_TAX_RATE,
       discount: itemDto.discount,
       unitPrice: product
-        ? priceFor(product)
+        ? (itemDto.unitPriceOverride ?? priceFor(product))
         : (itemDto.customUnitPrice as number),
     }));
 

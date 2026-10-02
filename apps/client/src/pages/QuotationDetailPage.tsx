@@ -78,7 +78,8 @@ interface EditableItem {
   reference: string;
   description: string;
   brand: string;
-  /** Locked price shown in the editor — re-locked to the live price on save. */
+  /** The line's quoted price — editable inline, for this quotation only
+   * (sent as unitPriceOverride; the product's own salePrice is never touched). */
   price: number;
   quantity: number;
   /** Derived from the product's taxExempt flag when added — never a user
@@ -303,7 +304,12 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
     const input: CreateQuotationItemInput[] = items.map((item) => {
       const discount = computeItemDiscount(item, discountPercentage) || undefined;
       return item.productId
-        ? { productId: item.productId, quantity: item.quantity, discount }
+        ? {
+            productId: item.productId,
+            quantity: item.quantity,
+            discount,
+            unitPriceOverride: item.price,
+          }
         : {
             description: item.description,
             customUnitPrice: item.price,
@@ -511,7 +517,23 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                       )}
                       <BrandTag brand={item.brand} />
                     </td>
-                    <td className="px-3 py-2">${item.price.toLocaleString('es-CO')}</td>
+                    <td className="w-28 px-3 py-2">
+                      {isOpen ? (
+                        <input
+                          type="number"
+                          min={1}
+                          step={1}
+                          title="Precio para esta cotización — no cambia el precio del producto en el catálogo."
+                          className="w-24 border border-line-2 bg-canvas px-2 py-1 font-mono"
+                          value={item.price || ''}
+                          onChange={(e) =>
+                            updateItemField(index, { price: Math.round(Number(e.target.value)) || 0 })
+                          }
+                        />
+                      ) : (
+                        `$${item.price.toLocaleString('es-CO')}`
+                      )}
+                    </td>
                     <td className="w-24 px-3 py-2">
                       {isOpen ? (
                         <input
@@ -581,7 +603,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
             <Button
               type="button"
               className="sm:w-auto sm:px-6"
-              disabled={items.length === 0}
+              disabled={items.length === 0 || items.some((item) => item.price < 1)}
               isLoading={updateItemsMutation.isPending}
               onClick={() => void handleSaveItems()}
             >

@@ -126,7 +126,7 @@ export function AuthenticatedLayout() {
                 `flex items-center gap-3 border-l-2 py-2.5 pl-3 pr-3 text-sm font-medium transition-colors ${
                   isActive
                     ? 'border-signal bg-white/5 text-white'
-                    : 'border-transparent text-fog hover:bg-white/5 hover:text-white'
+                    : 'border-transparent text-white/80 hover:bg-white/5 hover:text-white'
                 }`
               }
             >
@@ -216,7 +216,7 @@ export function AuthenticatedLayout() {
               to={to}
               className={({ isActive }) =>
                 `flex min-w-[72px] flex-none flex-col items-center gap-0.5 whitespace-nowrap border-t-2 px-2 py-2 text-xs font-medium ${
-                  isActive ? 'border-signal text-white' : 'border-transparent text-fog'
+                  isActive ? 'border-signal text-white' : 'border-transparent text-white/80'
                 }`
               }
             >

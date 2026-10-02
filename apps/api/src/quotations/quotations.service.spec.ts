@@ -460,6 +460,23 @@ describe('QuotationsService', () => {
       expect(quotationsRepository.update).toHaveBeenCalled();
     });
 
+    it('charges a line at the price typed inline, without touching the product', async () => {
+      await service.updateItems(
+        'q-1',
+        {
+          items: [
+            { productId: 'prod-a', quantity: 2, unitPriceOverride: 45000 },
+          ],
+        },
+        'user-1',
+      );
+
+      expect(quotationItemsRepository.create).toHaveBeenCalledWith(
+        expect.objectContaining({ unitPrice: 45000 }),
+      );
+      expect(quotationsRepository.update).toHaveBeenCalled();
+    });
+
     it('rejects editing a quotation that is no longer open', async () => {
       queryBuilder.getOne.mockResolvedValue(
         openQuotation({ cancelledAt: new Date() }),
