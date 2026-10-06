@@ -1,9 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   NotFoundException,
 } from '@nestjs/common';
-import { QueryFailedError, Repository } from 'typeorm';
+import { In, QueryFailedError, Repository } from 'typeorm';
 import { CreditNote } from '../invoicing/credit-notes/entities/credit-note.entity';
 import { DebitNote } from '../invoicing/debit-notes/entities/debit-note.entity';
 import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
@@ -16,6 +17,7 @@ describe('CashRegisterService', () => {
   let service: CashRegisterService;
   let cashRegisterRepository: {
     findOne: jest.Mock;
+    find: jest.Mock;
     create: jest.Mock<Partial<CashRegister>, [Partial<CashRegister>]>;
     save: jest.Mock<Promise<CashRegister>, [Partial<CashRegister>]>;
     findAndCount: jest.Mock;
@@ -52,6 +54,7 @@ describe('CashRegisterService', () => {
   const openRegister: CashRegister = {
     id: 'reg-1',
     registerDate: '2026-09-16',
+    registerNumber: 1,
     openedAt: new Date('2026-09-16T13:05:00.000Z'), // 08:05am Bogotá
     openedBy: { id: 'user-1' } as CashRegister['openedBy'],
     openingAmount: 50000,
@@ -103,6 +106,7 @@ describe('CashRegisterService', () => {
     };
     cashRegisterRepository = {
       findOne: jest.fn(),
+      find: jest.fn(),
       create: jest.fn<Partial<CashRegister>, [Partial<CashRegister>]>(
         (entity) => entity,
       ),
@@ -149,20 +153,38 @@ describe('CashRegisterService', () => {
         .mockResolvedValueOnce(null) // pre-check
         .mockResolvedValueOnce(openRegister); // findWithRelations
 
-      await service.open('user-1', 50000);
+      await service.open('user-1', 1, 50000);
 
       expect(cashRegisterRepository.findOne).toHaveBeenCalledWith({
-        where: { registerDate: '2026-09-16' },
+        where: { registerDate: '2026-09-16', registerNumber: 1 },
       });
       const created = cashRegisterRepository.create.mock.calls[0][0];
       expect(created.openingAmount).toBe(50000);
+      expect(created.registerNumber).toBe(1);
       expect(cashRegisterRepository.save).toHaveBeenCalled();
+    });
+
+    it('opens Caja 2 on a day Caja 1 is already open — each till has its own register', async () => {
+      // Only Caja 2's own register is looked up, so Caja 1's doesn't block it.
+      cashRegisterRepository.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce({ ...openRegister, registerNumber: 2 });
+
+      const result = await service.open('user-2', 2, 80000);
+
+      expect(cashRegisterRepository.findOne).toHaveBeenCalledWith({
+        where: { registerDate: '2026-09-16', registerNumber: 2 },
+      });
+      expect(
+        cashRegisterRepository.create.mock.calls[0][0].registerNumber,
+      ).toBe(2);
+      expect(result.registerNumber).toBe(2);
     });
 
     it('rejects with ConflictException when today is already open', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(openRegister);
 
-      await expect(service.open('user-1', 50000)).rejects.toThrow(
+      await expect(service.open('user-1', 1, 50000)).rejects.toThrow(
         ConflictException,
       );
       expect(cashRegisterRepository.save).not.toHaveBeenCalled();
@@ -176,7 +198,7 @@ describe('CashRegisterService', () => {
         } as unknown as Error),
       );
 
-      await expect(service.open('user-1', 50000)).rejects.toThrow(
+      await expect(service.open('user-1', 1, 50000)).rejects.toThrow(
         ConflictException,
       );
     });
@@ -186,7 +208,7 @@ describe('CashRegisterService', () => {
     it('rejects with NotFoundException when nothing was opened today', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.close('user-1', 150000)).rejects.toThrow(
+      await expect(service.close('user-1', 1, 150000)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -197,7 +219,7 @@ describe('CashRegisterService', () => {
         closedAt: new Date('2026-09-16T23:00:00.000Z'),
       });
 
-      await expect(service.close('user-1', 150000)).rejects.toThrow(
+      await expect(service.close('user-1', 1, 150000)).rejects.toThrow(
         ConflictException,
       );
     });
@@ -207,7 +229,7 @@ describe('CashRegisterService', () => {
         .mockResolvedValueOnce({ ...openRegister })
         .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
 
-      await service.close('user-1', 149000);
+      await service.close('user-1', 1, 149000);
 
       const saved = cashRegisterRepository.save.mock
         .calls[0][0] as CashRegister;
@@ -231,7 +253,7 @@ describe('CashRegisterService', () => {
         .mockResolvedValueOnce({ ...openRegister })
         .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
 
-      await service.close('user-1', 130000);
+      await service.close('user-1', 1, 130000);
 
       const saved = cashRegisterRepository.save.mock
         .calls[0][0] as CashRegister;
@@ -240,7 +262,7 @@ describe('CashRegisterService', () => {
       expect(saved.cashDiscrepancy).toBe(0);
     });
 
-    it("includes that day's debit/credit notes in the response for visibility, without folding them into expectedCash", async () => {
+    it("includes the register's debit/credit notes in the response for visibility, without folding them into expectedCash", async () => {
       debitNotesRepository.find.mockResolvedValue([
         {
           id: 'debit-1',
@@ -265,7 +287,7 @@ describe('CashRegisterService', () => {
         .mockResolvedValueOnce({ ...openRegister })
         .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
 
-      const result = await service.close('user-1', 150000);
+      const result = await service.close('user-1', 1, 150000);
 
       expect(result.notes).toEqual([
         expect.objectContaining({
@@ -286,35 +308,40 @@ describe('CashRegisterService', () => {
       expect(saved.expectedCash).toBe(150000);
     });
 
-    it('queries invoices and quotations within the Bogotá-local day, not the UTC day', async () => {
+    it("adds up only what was made in that register — another till's sales the same day stay out", async () => {
       cashRegisterRepository.findOne
         .mockResolvedValueOnce({ ...openRegister })
         .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
 
-      await service.close('user-1', 150000);
+      await service.close('user-1', 1, 150000);
 
-      // 2026-09-16 in America/Bogota (UTC-5) is
-      // [2026-09-16T05:00:00.000Z, 2026-09-17T05:00:00.000Z) in UTC.
-      const expectedRange = {
-        start: new Date('2026-09-16T05:00:00.000Z'),
-        end: new Date('2026-09-17T05:00:00.000Z'),
-      };
+      const ownRegister = { cashRegisterId: 'reg-1' };
       expect(invoiceQueryBuilder.where).toHaveBeenCalledWith(
-        expect.any(String),
-        expectedRange,
+        'invoice.cash_register_id = :cashRegisterId',
+        ownRegister,
       );
       expect(quotationQueryBuilder.where).toHaveBeenCalledWith(
-        expect.any(String),
-        expectedRange,
+        'quotation.cash_register_id = :cashRegisterId',
+        ownRegister,
       );
+      expect(movementQueryBuilder.where).toHaveBeenCalledWith(
+        'movement.cash_register_id = :cashRegisterId',
+        ownRegister,
+      );
+      const ownNotes = {
+        where: { cashRegister: { id: 'reg-1' } },
+        relations: ['invoice'],
+      };
+      expect(debitNotesRepository.find).toHaveBeenCalledWith(ownNotes);
+      expect(creditNotesRepository.find).toHaveBeenCalledWith(ownNotes);
     });
 
-    it('only counts quotations still open — excludes ones already invoiced or cancelled that day', async () => {
+    it('only counts quotations still open — excludes ones already invoiced or cancelled', async () => {
       cashRegisterRepository.findOne
         .mockResolvedValueOnce({ ...openRegister })
         .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
 
-      await service.close('user-1', 150000);
+      await service.close('user-1', 1, 150000);
 
       expect(quotationQueryBuilder.andWhere).toHaveBeenCalledWith(
         'quotation.invoicedAt IS NULL',
@@ -331,7 +358,7 @@ describe('CashRegisterService', () => {
     it('404s when the register does not exist', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.closePast('nope', 'user-1')).rejects.toThrow(
+      await expect(service.closePast('nope', 'user-1', [1, 2])).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -342,26 +369,38 @@ describe('CashRegisterService', () => {
         closedAt: new Date('2026-09-10T23:00:00.000Z'),
       });
 
-      await expect(service.closePast('reg-old', 'user-1')).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.closePast('reg-old', 'user-1', [1, 2]),
+      ).rejects.toThrow(ConflictException);
     });
 
     it("refuses today's register — that one closes the normal way", async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce({ ...openRegister });
 
-      await expect(service.closePast('reg-1', 'user-1')).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.closePast('reg-1', 'user-1', [1, 2]),
+      ).rejects.toThrow(BadRequestException);
       expect(cashRegisterRepository.save).not.toHaveBeenCalled();
     });
 
-    it("computes that day's totals and uses the given counted cash", async () => {
+    it("refuses a register of a till the caller doesn't work at", async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce({
+        ...past,
+        registerNumber: 2,
+      });
+
+      await expect(
+        service.closePast('reg-old', 'user-1', [1], 149000),
+      ).rejects.toThrow(ForbiddenException);
+      expect(cashRegisterRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("computes that register's totals and uses the given counted cash", async () => {
       cashRegisterRepository.findOne
         .mockResolvedValueOnce({ ...past })
         .mockResolvedValueOnce({ ...past, closedAt: new Date() });
 
-      await service.closePast('reg-old', 'user-1', 149000);
+      await service.closePast('reg-old', 'user-1', [1, 2], 149000);
 
       const saved = cashRegisterRepository.save.mock
         .calls[0][0] as CashRegister;
@@ -370,13 +409,10 @@ describe('CashRegisterService', () => {
       expect(saved.countedCash).toBe(149000);
       expect(saved.cashDiscrepancy).toBe(-1000);
       expect(saved.closedBy).toEqual({ id: 'user-1' });
-      // The queries were run for the old day, not for today.
-
+      // The queries were run for the old register, not for today's.
       expect(invoiceQueryBuilder.where).toHaveBeenCalledWith(
         expect.any(String),
-        expect.objectContaining({
-          start: new Date('2026-09-10T05:00:00.000Z'),
-        }),
+        { cashRegisterId: 'reg-old' },
       );
     });
 
@@ -385,7 +421,7 @@ describe('CashRegisterService', () => {
         .mockResolvedValueOnce({ ...past })
         .mockResolvedValueOnce({ ...past, closedAt: new Date() });
 
-      await service.closePast('reg-old', 'user-1');
+      await service.closePast('reg-old', 'user-1', [1, 2]);
 
       const saved = cashRegisterRepository.save.mock
         .calls[0][0] as CashRegister;
@@ -413,7 +449,7 @@ describe('CashRegisterService', () => {
         .mockResolvedValueOnce(closedToday)
         .mockResolvedValueOnce({ ...openRegister });
 
-      await service.reopen();
+      await service.reopen(1);
 
       const saved = cashRegisterRepository.save.mock
         .calls[0][0] as CashRegister;
@@ -435,15 +471,24 @@ describe('CashRegisterService', () => {
     it('rejects with NotFoundException when nothing was opened today', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.reopen()).rejects.toThrow(NotFoundException);
+      await expect(service.reopen(1)).rejects.toThrow(NotFoundException);
       expect(cashRegisterRepository.save).not.toHaveBeenCalled();
     });
 
     it('rejects with ConflictException when today is still open', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce({ ...openRegister });
 
-      await expect(service.reopen()).rejects.toThrow(ConflictException);
+      await expect(service.reopen(1)).rejects.toThrow(ConflictException);
       expect(cashRegisterRepository.save).not.toHaveBeenCalled();
+    });
+
+    it("looks up the given till's register, not another one closed the same day", async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.reopen(2)).rejects.toThrow(NotFoundException);
+      expect(cashRegisterRepository.findOne).toHaveBeenCalledWith({
+        where: { registerDate: '2026-09-16', registerNumber: 2 },
+      });
     });
   });
 
@@ -459,7 +504,7 @@ describe('CashRegisterService', () => {
         })
         .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
 
-      await service.updateCountedCash('reg-1', 150000);
+      await service.updateCountedCash('reg-1', 150000, [1, 2]);
 
       const saved = cashRegisterRepository.save.mock
         .calls[0][0] as CashRegister;
@@ -470,9 +515,9 @@ describe('CashRegisterService', () => {
     it('rejects with NotFoundException when the register does not exist', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.updateCountedCash('missing', 100)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.updateCountedCash('missing', 100, [1, 2]),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('rejects with BadRequestException when the register is still open', async () => {
@@ -480,14 +525,27 @@ describe('CashRegisterService', () => {
         ...openRegister,
       });
 
-      await expect(service.updateCountedCash('reg-1', 100)).rejects.toThrow(
-        BadRequestException,
-      );
+      await expect(
+        service.updateCountedCash('reg-1', 100, [1, 2]),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it("refuses a register of a till the caller doesn't work at", async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce({
+        ...openRegister,
+        closedAt: new Date(),
+        expectedCash: 150000,
+      });
+
+      await expect(
+        service.updateCountedCash('reg-1', 100, [2]),
+      ).rejects.toThrow(ForbiddenException);
+      expect(cashRegisterRepository.save).not.toHaveBeenCalled();
     });
   });
 
   describe('addMovement', () => {
-    it("creates a cash movement against today's open register", async () => {
+    it("creates a cash movement against that till's open register", async () => {
       cashRegisterRepository.findOne
         .mockResolvedValueOnce({ ...openRegister })
         .mockResolvedValueOnce({ ...openRegister });
@@ -495,11 +553,13 @@ describe('CashRegisterService', () => {
       await service.addMovement(
         { amount: -30000, reason: 'Pago a proveedor' },
         'user-1',
+        1,
       );
 
       const created = cashMovementRepository.create.mock.calls[0][0];
       expect(created.amount).toBe(-30000);
       expect(created.reason).toBe('Pago a proveedor');
+      expect(created.cashRegister).toEqual({ id: 'reg-1' });
       expect(cashMovementRepository.save).toHaveBeenCalled();
     });
 
@@ -507,23 +567,34 @@ describe('CashRegisterService', () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(null);
 
       await expect(
-        service.addMovement({ amount: 10000, reason: 'Cambio' }, 'user-1'),
+        service.addMovement({ amount: 10000, reason: 'Cambio' }, 'user-1', 1),
       ).rejects.toThrow(BadRequestException);
       expect(cashMovementRepository.save).not.toHaveBeenCalled();
     });
   });
 
   describe('assertOpenToday', () => {
-    it('resolves when today has an open register', async () => {
+    it('returns the open register so the caller can tie its document to it', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(openRegister);
 
-      await expect(service.assertOpenToday()).resolves.toBeUndefined();
+      await expect(service.assertOpenToday(1)).resolves.toBe(openRegister);
+    });
+
+    it("throws when only another till is open — Caja 1 being open doesn't cover Caja 2", async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.assertOpenToday(2)).rejects.toThrow(
+        'La Caja 2 no está abierta hoy',
+      );
+      expect(cashRegisterRepository.findOne).toHaveBeenCalledWith({
+        where: { registerDate: '2026-09-16', registerNumber: 2 },
+      });
     });
 
     it('throws BadRequestException when nothing is open today', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(null);
 
-      await expect(service.assertOpenToday()).rejects.toThrow(
+      await expect(service.assertOpenToday(1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -534,7 +605,7 @@ describe('CashRegisterService', () => {
         closedAt: new Date(),
       });
 
-      await expect(service.assertOpenToday()).rejects.toThrow(
+      await expect(service.assertOpenToday(1)).rejects.toThrow(
         BadRequestException,
       );
     });
@@ -545,10 +616,10 @@ describe('CashRegisterService', () => {
       jest.setSystemTime(new Date('2026-09-17T04:30:00.000Z'));
       cashRegisterRepository.findOne.mockResolvedValueOnce(openRegister);
 
-      await service.assertOpenToday();
+      await service.assertOpenToday(1);
 
       expect(cashRegisterRepository.findOne).toHaveBeenCalledWith({
-        where: { registerDate: '2026-09-16' },
+        where: { registerDate: '2026-09-16', registerNumber: 1 },
       });
     });
   });
@@ -557,12 +628,23 @@ describe('CashRegisterService', () => {
     it('404s for an unknown register', async () => {
       cashRegisterRepository.findOne.mockResolvedValue(null);
 
-      await expect(service.getDayInvoicesReport('nope')).rejects.toThrow(
-        NotFoundException,
+      await expect(
+        service.getDayInvoicesReport('nope', [1, 2]),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it("refuses a register of a till the caller doesn't work at", async () => {
+      cashRegisterRepository.findOne.mockResolvedValue({
+        ...openRegister,
+        registerNumber: 2,
+      });
+
+      await expect(service.getDayInvoicesReport('reg-1', [1])).rejects.toThrow(
+        ForbiddenException,
       );
     });
 
-    it("reports the register's own store day, with the same range the closing totals use", async () => {
+    it("reports the register's own invoices, matched the same way the closing totals are", async () => {
       cashRegisterRepository.findOne.mockResolvedValue({
         ...openRegister,
         registerDate: '2026-09-18',
@@ -576,19 +658,16 @@ describe('CashRegisterService', () => {
         },
       ]);
 
-      const report = await service.getDayInvoicesReport('reg-1');
+      const report = await service.getDayInvoicesReport('reg-1', [1, 2]);
 
       expect(report.registerDate).toBe('2026-09-18');
       expect(report.invoices).toEqual([
         { number: 'FEE5', total: 119000, paymentMeans: 'CASH' },
       ]);
-      // 2026-09-18 in Bogotá: [09-18 00:00 -05:00, 09-19 00:00 -05:00)
-      const range = invoiceQueryBuilder.where.mock.calls.at(-1) as [
-        string,
-        { start: Date; end: Date },
-      ];
-      expect(range[1].start.toISOString()).toBe('2026-09-18T05:00:00.000Z');
-      expect(range[1].end.toISOString()).toBe('2026-09-19T05:00:00.000Z');
+      expect(invoiceQueryBuilder.where).toHaveBeenLastCalledWith(
+        'invoice.cash_register_id = :cashRegisterId',
+        { cashRegisterId: 'reg-1' },
+      );
       expect(invoiceQueryBuilder.orderBy).toHaveBeenCalledWith(
         'invoice.createdAt',
         'ASC',
@@ -609,7 +688,7 @@ describe('CashRegisterService', () => {
         countedCash: 149000,
       });
 
-      const status = await service.getTodayStatus();
+      const status = await service.getTodayStatus(2);
 
       expect(status).toEqual({
         isOpen: false,
@@ -619,12 +698,20 @@ describe('CashRegisterService', () => {
         expectedCashSoFar: null,
         previousClosingCash: 149000,
       });
+      // Both lookups stay within Caja 2 — the placeholder is what was left
+      // in *that* drawer, not in the other one.
+      const lookups = cashRegisterRepository.findOne.mock.calls as [
+        { where: { registerNumber: number } },
+      ][];
+      expect(lookups.map(([options]) => options.where.registerNumber)).toEqual([
+        2, 2,
+      ]);
     });
 
     it('returns live totalSoFar/totalOwedSoFar/expectedCashSoFar previews while open, without persisting them', async () => {
       cashRegisterRepository.findOne.mockResolvedValueOnce(openRegister);
 
-      const status = await service.getTodayStatus();
+      const status = await service.getTodayStatus(1);
 
       expect(status.isOpen).toBe(true);
       expect(status.totalSoFar).toBe(150000);
@@ -643,12 +730,75 @@ describe('CashRegisterService', () => {
         totalOwed: 40000,
       });
 
-      const status = await service.getTodayStatus();
+      const status = await service.getTodayStatus(1);
 
       expect(status.isOpen).toBe(false);
       expect(status.totalSoFar).toBeNull();
       expect(status.totalOwedSoFar).toBeNull();
       expect(status.expectedCashSoFar).toBeNull();
+    });
+  });
+
+  describe('getTodayStoreSummary', () => {
+    it('adds up every till of today while at least one is open', async () => {
+      cashRegisterRepository.find.mockResolvedValue([
+        { ...openRegister, closedAt: new Date() },
+        { ...openRegister, id: 'reg-2', registerNumber: 2 },
+      ]);
+
+      const summary = await service.getTodayStoreSummary();
+
+      expect(cashRegisterRepository.find).toHaveBeenCalledWith({
+        where: { registerDate: '2026-09-16' },
+      });
+      // The mocked sums (150000 collected, 40000 owed) once per till.
+      expect(summary).toEqual({
+        isOpen: true,
+        totalSoFar: 300000,
+        totalOwedSoFar: 80000,
+      });
+    });
+
+    it('reports closed, with no totals, when every till of today is closed', async () => {
+      cashRegisterRepository.find.mockResolvedValue([
+        { ...openRegister, closedAt: new Date() },
+      ]);
+
+      await expect(service.getTodayStoreSummary()).resolves.toEqual({
+        isOpen: false,
+        totalSoFar: null,
+        totalOwedSoFar: null,
+      });
+    });
+
+    it('reports closed when no till was opened today', async () => {
+      cashRegisterRepository.find.mockResolvedValue([]);
+
+      const summary = await service.getTodayStoreSummary();
+
+      expect(summary.isOpen).toBe(false);
+    });
+  });
+
+  describe('findAll', () => {
+    it("lists only the caller's tills, newest day first", async () => {
+      cashRegisterRepository.findAndCount.mockResolvedValue([
+        [{ ...openRegister, registerNumber: 2 }],
+        1,
+      ]);
+
+      const result = await service.findAll({ page: 1, limit: 20 }, [2]);
+
+      const options = cashRegisterRepository.findAndCount.mock.calls[0] as [
+        { where: unknown; order: unknown },
+      ];
+      expect(options[0].where).toEqual({ registerNumber: In([2]) });
+      expect(options[0].order).toEqual({
+        registerDate: 'DESC',
+        registerNumber: 'ASC',
+      });
+      expect(result.data[0].registerNumber).toBe(2);
+      expect(result.meta.total).toBe(1);
     });
   });
 });

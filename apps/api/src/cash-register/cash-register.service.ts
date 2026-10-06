@@ -1,17 +1,15 @@
 import {
   BadRequestException,
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, IsNull, Not, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
-import {
-  getStoreDayRangeUtc,
-  getStoreToday,
-} from '../common/utils/store-date.util';
+import { getStoreToday } from '../common/utils/store-date.util';
 import { CreditNote } from '../invoicing/credit-notes/entities/credit-note.entity';
 import { DebitNote } from '../invoicing/debit-notes/entities/debit-note.entity';
 import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
@@ -68,18 +66,20 @@ export class CashRegisterService {
 
   async open(
     userId: string,
+    registerNumber: number,
     openingAmount: number,
   ): Promise<CashRegisterResponseDto> {
     const today = getStoreToday();
-    const existing = await this.cashRegisterRepository.findOne({
-      where: { registerDate: today },
-    });
+    const existing = await this.findToday(registerNumber);
     if (existing) {
-      throw new ConflictException('La caja de hoy ya fue abierta.');
+      throw new ConflictException(
+        `La Caja ${registerNumber} de hoy ya fue abierta.`,
+      );
     }
 
     const register = this.cashRegisterRepository.create({
       registerDate: today,
+      registerNumber,
       openedAt: new Date(),
       openedBy: { id: userId } as CashRegister['openedBy'],
       openingAmount,
@@ -90,7 +90,9 @@ export class CashRegisterService {
       return this.buildResponse(await this.findWithRelations(saved.id));
     } catch (error) {
       if (isUniqueViolation(error)) {
-        throw new ConflictException('La caja de hoy ya fue abierta.');
+        throw new ConflictException(
+          `La Caja ${registerNumber} de hoy ya fue abierta.`,
+        );
       }
       throw error;
     }
@@ -98,38 +100,36 @@ export class CashRegisterService {
 
   async close(
     userId: string,
+    registerNumber: number,
     countedCash: number,
   ): Promise<CashRegisterResponseDto> {
-    const today = getStoreToday();
-    const register = await this.cashRegisterRepository.findOne({
-      where: { registerDate: today },
-    });
+    const register = await this.findToday(registerNumber);
     if (!register) {
-      throw new NotFoundException('No hay una caja abierta para hoy.');
+      throw new NotFoundException(
+        `La Caja ${registerNumber} no está abierta hoy.`,
+      );
     }
     if (register.closedAt !== null) {
-      throw new ConflictException('La caja de hoy ya fue cerrada.');
+      throw new ConflictException(
+        `La Caja ${registerNumber} de hoy ya fue cerrada.`,
+      );
     }
 
     return this.closeRegister(register, userId, countedCash);
   }
 
   /** Closes a register from an earlier day that was never closed. Totals are
-   * computed for *that* day, same as a normal close. `countedCash` may be
+   * computed for *that* register, same as a normal close. `countedCash` may be
    * left out when nobody counted the drawer back then: the expected cash is
    * taken as counted (no discrepancy) — it can be corrected afterwards with
    * `updateCountedCash`. Today's register goes through `close()` instead. */
   async closePast(
     id: string,
     userId: string,
+    allowedNumbers: readonly number[],
     countedCash?: number,
   ): Promise<CashRegisterResponseDto> {
-    const register = await this.cashRegisterRepository.findOne({
-      where: { id },
-    });
-    if (!register) {
-      throw new NotFoundException('Cash register not found');
-    }
+    const register = await this.findAllowed(id, allowedNumbers);
     if (register.closedAt !== null) {
       throw new ConflictException('Esa caja ya fue cerrada.');
     }
@@ -146,14 +146,13 @@ export class CashRegisterService {
     userId: string,
     countedCash?: number,
   ): Promise<CashRegisterResponseDto> {
-    const day = register.registerDate;
-    const breakdown = await this.computePaymentBreakdown(day);
+    const breakdown = await this.computePaymentBreakdown(register.id);
     const netMovements = await this.computeCashMovementsNet(register.id);
     const expectedCash = register.openingAmount + breakdown.cash + netMovements;
     const counted = countedCash ?? expectedCash;
 
-    register.totalAmount = await this.computeTotal(day);
-    register.totalOwed = await this.computeOwedTotal(day);
+    register.totalAmount = await this.computeTotal(register.id);
+    register.totalOwed = await this.computeOwedTotal(register.id);
     register.totalCash = breakdown.cash;
     register.totalCard = breakdown.card;
     register.totalTransfer = breakdown.transfer;
@@ -169,20 +168,21 @@ export class CashRegisterService {
 
   /** Undoes an accidental close of today's register — nulls `closedAt`/
    * `closedBy` and the totals `close()` had frozen, so the day resumes as
-   * open on the *same* row (invoices/quotations/movements are matched by
-   * date range or FK, never touched by this). Re-closing later recomputes
+   * open on the *same* row (invoices/quotations/movements point at it by
+   * FK and are never touched by this). Re-closing later recomputes
    * everything from scratch. Only today's register can be reopened, same
    * "today" scoping as the rest of this service. */
-  async reopen(): Promise<CashRegisterResponseDto> {
-    const today = getStoreToday();
-    const register = await this.cashRegisterRepository.findOne({
-      where: { registerDate: today },
-    });
+  async reopen(registerNumber: number): Promise<CashRegisterResponseDto> {
+    const register = await this.findToday(registerNumber);
     if (!register) {
-      throw new NotFoundException('No hay una caja para hoy.');
+      throw new NotFoundException(
+        `La Caja ${registerNumber} no se ha abierto hoy.`,
+      );
     }
     if (register.closedAt === null) {
-      throw new ConflictException('La caja de hoy ya está abierta.');
+      throw new ConflictException(
+        `La Caja ${registerNumber} de hoy ya está abierta.`,
+      );
     }
 
     register.closedAt = null;
@@ -207,13 +207,9 @@ export class CashRegisterService {
   async updateCountedCash(
     id: string,
     countedCash: number,
+    allowedNumbers: readonly number[],
   ): Promise<CashRegisterResponseDto> {
-    const register = await this.cashRegisterRepository.findOne({
-      where: { id },
-    });
-    if (!register) {
-      throw new NotFoundException('Cash register not found');
-    }
+    const register = await this.findAllowed(id, allowedNumbers);
     if (register.closedAt === null || register.expectedCash === null) {
       throw new BadRequestException(
         'Solo se puede corregir el efectivo contado de una caja ya cerrada.',
@@ -228,19 +224,17 @@ export class CashRegisterService {
   }
 
   /** Records a cash movement that isn't a sale (e.g. bringing in change,
-   * pulling cash out for a supplier payment) against today's open
+   * pulling cash out for a supplier payment) against that till's open
    * register. */
   async addMovement(
     dto: CreateCashMovementDto,
     userId: string,
+    registerNumber: number,
   ): Promise<CashRegisterResponseDto> {
-    const today = getStoreToday();
-    const register = await this.cashRegisterRepository.findOne({
-      where: { registerDate: today },
-    });
+    const register = await this.findToday(registerNumber);
     if (!register || register.closedAt !== null) {
       throw new BadRequestException(
-        'No hay una caja abierta para hoy. Abre la caja antes de registrar movimientos.',
+        `La Caja ${registerNumber} no está abierta hoy. Ábrela antes de registrar movimientos.`,
       );
     }
 
@@ -255,10 +249,9 @@ export class CashRegisterService {
     return this.buildResponse(await this.findWithRelations(register.id));
   }
 
-  async getTodayStatus(): Promise<CashRegisterStatusDto> {
-    const today = getStoreToday();
+  async getTodayStatus(registerNumber: number): Promise<CashRegisterStatusDto> {
     const register = await this.cashRegisterRepository.findOne({
-      where: { registerDate: today },
+      where: { registerDate: getStoreToday(), registerNumber },
       relations: ['openedBy', 'closedBy', 'movements', 'movements.createdBy'],
     });
 
@@ -269,14 +262,14 @@ export class CashRegisterService {
         totalSoFar: null,
         totalOwedSoFar: null,
         expectedCashSoFar: null,
-        previousClosingCash: await this.findPreviousClosingCash(),
+        previousClosingCash: await this.findPreviousClosingCash(registerNumber),
       };
     }
 
     const isOpen = register.closedAt === null;
     let expectedCashSoFar: number | null = null;
     if (isOpen) {
-      const breakdown = await this.computePaymentBreakdown(today);
+      const breakdown = await this.computePaymentBreakdown(register.id);
       const netMovements = await this.computeCashMovementsNet(register.id);
       expectedCashSoFar =
         register.openingAmount + breakdown.cash + netMovements;
@@ -285,21 +278,53 @@ export class CashRegisterService {
     return {
       isOpen,
       register: await this.buildResponse(register),
-      totalSoFar: isOpen ? await this.computeTotal(today) : null,
-      totalOwedSoFar: isOpen ? await this.computeOwedTotal(today) : null,
+      totalSoFar: isOpen ? await this.computeTotal(register.id) : null,
+      totalOwedSoFar: isOpen ? await this.computeOwedTotal(register.id) : null,
       expectedCashSoFar,
       previousClosingCash: null,
     };
   }
 
+  /** Store-wide picture of today for the admin dashboard: every till added
+   * up. Same "only while open" rule as `getTodayStatus()`, with open
+   * meaning at least one till is. */
+  async getTodayStoreSummary(): Promise<{
+    isOpen: boolean;
+    totalSoFar: number | null;
+    totalOwedSoFar: number | null;
+  }> {
+    const registers = await this.cashRegisterRepository.find({
+      where: { registerDate: getStoreToday() },
+    });
+    if (!registers.some((register) => register.closedAt === null)) {
+      return { isOpen: false, totalSoFar: null, totalOwedSoFar: null };
+    }
+
+    const totals = await Promise.all(
+      registers.map(async (register) => ({
+        collected: await this.computeTotal(register.id),
+        owed: await this.computeOwedTotal(register.id),
+      })),
+    );
+    return {
+      isOpen: true,
+      totalSoFar: totals.reduce((sum, total) => sum + total.collected, 0),
+      totalOwedSoFar: totals.reduce((sum, total) => sum + total.owed, 0),
+    };
+  }
+
+  /** `allowedNumbers` — the caller's tills; other tills' registers are
+   * left out (see allowedCashRegisterNumbers). */
   async findAll(
     query: QueryCashRegisterDto,
+    allowedNumbers: readonly number[],
   ): Promise<PaginatedResponseDto<CashRegisterResponseDto>> {
     const { page, limit } = query;
 
     const [registers, total] = await this.cashRegisterRepository.findAndCount({
+      where: { registerNumber: In([...allowedNumbers]) },
       relations: ['openedBy', 'closedBy', 'movements', 'movements.createdBy'],
-      order: { registerDate: 'DESC' },
+      order: { registerDate: 'DESC', registerNumber: 'ASC' },
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -312,48 +337,42 @@ export class CashRegisterService {
     };
   }
 
-  /** Gate used by `InvoicesService.create` — throws if today has no open register. */
-  async assertOpenToday(): Promise<void> {
-    const today = getStoreToday();
-    const register = await this.cashRegisterRepository.findOne({
-      where: { registerDate: today },
-    });
+  /** Gate used by `InvoicesService.create` and the other sale documents —
+   * throws if that till has no open register today, otherwise returns the
+   * register so the caller can tie the document to it. */
+  async assertOpenToday(registerNumber: number): Promise<CashRegister> {
+    const register = await this.findToday(registerNumber);
     if (!register || register.closedAt !== null) {
       throw new BadRequestException(
-        'No hay una caja abierta para hoy. Abre la caja antes de facturar.',
+        `La Caja ${registerNumber} no está abierta hoy. Ábrela antes de facturar.`,
       );
     }
+    return register;
   }
 
-  /** Sum of `invoices.total_amount` created during the given store day —
-   * what was actually collected ("lo recaudado"). */
-  private async computeTotal(storeDate: string): Promise<number> {
-    const { start, end } = getStoreDayRangeUtc(storeDate);
+  /** Sum of `invoices.total_amount` made in the given register — what was
+   * actually collected ("lo recaudado"). */
+  private async computeTotal(cashRegisterId: string): Promise<number> {
     const result = await this.invoicesRepository
       .createQueryBuilder('invoice')
       .select('COALESCE(SUM(invoice.totalAmount), 0)', 'sum')
-      .where('invoice.createdAt >= :start AND invoice.createdAt < :end', {
-        start,
-        end,
-      })
+      .where('invoice.cash_register_id = :cashRegisterId', { cashRegisterId })
       .getRawOne<{ sum: string }>();
     return Number(result?.sum ?? 0);
   }
 
-  /** Sum of `quotations.total_amount` created during the given store day
-   * that are still open (not yet invoiced or cancelled) — what was handed
-   * out on credit and not yet collected ("lo adeudado"). Deliberately
-   * scoped to quotations *created that day*: a quotation opened yesterday
-   * and still unpaid is yesterday's debt, not today's — it was already
-   * counted in yesterday's close and doesn't roll forward. */
-  private async computeOwedTotal(storeDate: string): Promise<number> {
-    const { start, end } = getStoreDayRangeUtc(storeDate);
+  /** Sum of `quotations.total_amount` made in the given register that are
+   * still open (not yet invoiced or cancelled) — what was handed out on
+   * credit and not yet collected ("lo adeudado"). A quotation only ever
+   * counts in the register it was created in: one opened yesterday and
+   * still unpaid is yesterday's debt, already in that close, and doesn't
+   * roll forward. */
+  private async computeOwedTotal(cashRegisterId: string): Promise<number> {
     const result = await this.quotationsRepository
       .createQueryBuilder('quotation')
       .select('COALESCE(SUM(quotation.totalAmount), 0)', 'sum')
-      .where('quotation.createdAt >= :start AND quotation.createdAt < :end', {
-        start,
-        end,
+      .where('quotation.cash_register_id = :cashRegisterId', {
+        cashRegisterId,
       })
       .andWhere('quotation.invoicedAt IS NULL')
       .andWhere('quotation.cancelledAt IS NULL')
@@ -361,24 +380,20 @@ export class CashRegisterService {
     return Number(result?.sum ?? 0);
   }
 
-  /** `total_amount` broken down by `payment_means`, read out of that day's
-   * invoices' stored `request_payload` (never its own invoices column —
+  /** `total_amount` broken down by `payment_means`, read out of that
+   * register's invoices' stored `request_payload` (never its own invoices column —
    * see the interface above). Debit/credit notes are deliberately excluded
    * — see the comment on CashRegister.totalCash. Any payment_means outside
    * the three confirmed values (shouldn't happen — the invoice form only
    * offers these) is silently left out of the breakdown, though it's still
    * part of `total_amount` itself. */
   private async computePaymentBreakdown(
-    storeDate: string,
+    cashRegisterId: string,
   ): Promise<{ cash: number; card: number; transfer: number }> {
-    const { start, end } = getStoreDayRangeUtc(storeDate);
     const invoices = await this.invoicesRepository
       .createQueryBuilder('invoice')
       .select(['invoice.id', 'invoice.totalAmount', 'invoice.requestPayload'])
-      .where('invoice.createdAt >= :start AND invoice.createdAt < :end', {
-        start,
-        end,
-      })
+      .where('invoice.cash_register_id = :cashRegisterId', { cashRegisterId })
       .getMany();
 
     return invoices.reduce(
@@ -398,7 +413,7 @@ export class CashRegisterService {
     );
   }
 
-  /** Net of today's manual cash movements (entradas positive, salidas
+  /** Net of the manual cash movements (entradas positive, salidas
    * negative) for the given register. */
   private async computeCashMovementsNet(
     cashRegisterId: string,
@@ -411,43 +426,44 @@ export class CashRegisterService {
     return Number(result?.sum ?? 0);
   }
 
-  /** The last closed day's counted cash — surfaced by `getTodayStatus()`
-   * only while nothing is open yet, purely as a frontend placeholder for
-   * the next "abrir caja" input (see CashRegisterStatusDto). */
-  private async findPreviousClosingCash(): Promise<number | null> {
+  /** That till's last closed day's counted cash — surfaced by
+   * `getTodayStatus()` only while it isn't open yet, purely as a frontend
+   * placeholder for the next "abrir caja" input (see CashRegisterStatusDto). */
+  private async findPreviousClosingCash(
+    registerNumber: number,
+  ): Promise<number | null> {
     const previous = await this.cashRegisterRepository.findOne({
-      where: { closedAt: Not(IsNull()) },
+      where: { registerNumber, closedAt: Not(IsNull()) },
       order: { registerDate: 'DESC' },
     });
     return previous?.countedCash ?? null;
   }
 
-  /** Attaches that day's debit/credit notes (informational only) to an
+  /** Attaches the register's debit/credit notes (informational only) to an
    * already-built response — see CashRegisterResponseDto.notes. */
   private async buildResponse(
     register: CashRegister,
   ): Promise<CashRegisterResponseDto> {
     const dto = CashRegisterResponseDto.fromEntity(register);
-    dto.notes = await this.findNotesForDay(register.registerDate);
+    dto.notes = await this.findNotes(register.id);
     return dto;
   }
 
-  /** Debit/credit notes issued on the given store day, read straight off
+  /** Debit/credit notes issued in the given register, read straight off
    * their own tables (not folded into totalCash/expectedCash — see the
    * comment on CashRegister.totalCash for why). Shown purely so a manager
    * closing/reviewing the day can see a note happened, since it can move
    * real money without being a sale. */
-  private async findNotesForDay(
-    storeDate: string,
+  private async findNotes(
+    cashRegisterId: string,
   ): Promise<CashRegisterNoteResponseDto[]> {
-    const { start, end } = getStoreDayRangeUtc(storeDate);
     const [debitNotes, creditNotes] = await Promise.all([
       this.debitNotesRepository.find({
-        where: { createdAt: Between(start, end) },
+        where: { cashRegister: { id: cashRegisterId } },
         relations: ['invoice'],
       }),
       this.creditNotesRepository.find({
-        where: { createdAt: Between(start, end) },
+        where: { cashRegister: { id: cashRegisterId } },
         relations: ['invoice'],
       }),
     ]);
@@ -473,19 +489,16 @@ export class CashRegisterService {
   }
 
   /**
-   * Every invoice of a register's store day, with how they add up — printed
-   * as the second page of the cash-register slip. Uses the same day range as
+   * Every invoice of a register, with how they add up — printed as the
+   * second page of the cash-register slip. Matches invoices the same way as
    * the closing totals, so its total matches "recaudado".
    */
-  async getDayInvoicesReport(id: string): Promise<DayInvoicesReportDto> {
-    const register = await this.cashRegisterRepository.findOne({
-      where: { id },
-    });
-    if (!register) {
-      throw new NotFoundException('Cash register not found');
-    }
+  async getDayInvoicesReport(
+    id: string,
+    allowedNumbers: readonly number[],
+  ): Promise<DayInvoicesReportDto> {
+    const register = await this.findAllowed(id, allowedNumbers);
 
-    const { start, end } = getStoreDayRangeUtc(register.registerDate);
     const invoices = await this.invoicesRepository
       .createQueryBuilder('invoice')
       .select([
@@ -496,9 +509,8 @@ export class CashRegisterService {
         'invoice.totalAmount',
         'invoice.requestPayload',
       ])
-      .where('invoice.createdAt >= :start AND invoice.createdAt < :end', {
-        start,
-        end,
+      .where('invoice.cash_register_id = :cashRegisterId', {
+        cashRegisterId: register.id,
       })
       .orderBy('invoice.createdAt', 'ASC')
       // Invoices created in the same instant would otherwise list in any order.
@@ -506,6 +518,32 @@ export class CashRegisterService {
       .getMany();
 
     return buildDayInvoicesReport(register.registerDate, invoices);
+  }
+
+  private findToday(registerNumber: number): Promise<CashRegister | null> {
+    return this.cashRegisterRepository.findOne({
+      where: { registerDate: getStoreToday(), registerNumber },
+    });
+  }
+
+  /** A register by id, for the by-id actions of the history page — refused
+   * when it belongs to a till the caller doesn't work at. */
+  private async findAllowed(
+    id: string,
+    allowedNumbers: readonly number[],
+  ): Promise<CashRegister> {
+    const register = await this.cashRegisterRepository.findOne({
+      where: { id },
+    });
+    if (!register) {
+      throw new NotFoundException('Cash register not found');
+    }
+    if (!allowedNumbers.includes(register.registerNumber)) {
+      throw new ForbiddenException(
+        `No tienes permiso para la Caja ${register.registerNumber}.`,
+      );
+    }
+    return register;
   }
 
   private async findWithRelations(id: string): Promise<CashRegister> {

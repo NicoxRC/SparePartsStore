@@ -82,11 +82,12 @@ export class DebitNotesService {
   create(
     dto: CreateDebitNoteDto,
     createdById: string,
+    cashRegisterNumber: number,
   ): Promise<DebitNoteResponseDto> {
     return withNumberingLock(
       this.debitNotesRepository.manager,
       'debit_notes',
-      () => this.issue(dto, createdById),
+      () => this.issue(dto, createdById, cashRegisterNumber),
     );
   }
 
@@ -112,8 +113,10 @@ export class DebitNotesService {
   private async issue(
     dto: CreateDebitNoteDto,
     createdById: string,
+    cashRegisterNumber: number,
   ): Promise<DebitNoteResponseDto> {
-    await this.cashRegisterService.assertOpenToday();
+    const cashRegister =
+      await this.cashRegisterService.assertOpenToday(cashRegisterNumber);
 
     const invoice = await this.invoicesService.findOne(dto.invoiceId);
     if (!invoice.dataicoUuid) {
@@ -184,6 +187,7 @@ export class DebitNotesService {
         items.reduce((sum, item) => sum + item.taxBase + item.taxAmount, 0),
       ),
       requestPayload,
+      cashRegister: { id: cashRegister.id } as DebitNote['cashRegister'],
       createdBy: { id: createdById } as DebitNote['createdBy'],
       ...this.mapDataicoResponse(response),
     });

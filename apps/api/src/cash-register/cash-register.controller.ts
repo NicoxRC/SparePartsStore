@@ -10,10 +10,16 @@ import {
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiHeader,
   ApiOperation,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import {
+  allowedCashRegisterNumbers,
+  CASH_REGISTER_HEADER,
+} from '../common/constants/cash-register.constant';
+import { CurrentCashRegister } from '../common/decorators/cash-register-number.decorator';
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -33,14 +39,23 @@ import { OpenCashRegisterDto } from './dto/open-cash-register.dto';
 import { QueryCashRegisterDto } from './dto/query-cash-register.dto';
 import { UpdateCountedCashDto } from './dto/update-counted-cash.dto';
 
+// The store has several tills (see common/constants/cash-register.constant.ts).
+// The "today" routes act on the one named by the X-Cash-Register header; the
+// by-id and list routes are limited to the caller's tills.
 @ApiTags('Cash register')
 @ApiBearerAuth()
+@ApiHeader({
+  name: CASH_REGISTER_HEADER,
+  required: false,
+  description:
+    'Till the caller is working at (1, 2). Optional only for someone with a single till.',
+})
 @Controller('cash-register')
 @Roles(UserRole.ADMIN, UserRole.EMPLOYEE)
 export class CashRegisterController {
   constructor(private readonly cashRegisterService: CashRegisterService) {}
 
-  @ApiOperation({ summary: "Abrir caja — open today's cash register" })
+  @ApiOperation({ summary: "Abrir caja — open that till's register for today" })
   @ApiResponse({ status: 201, type: CashRegisterResponseDto })
   @ApiResponse({ status: 409, description: "Today's register is already open" })
   @Post('open')
@@ -48,13 +63,18 @@ export class CashRegisterController {
   open(
     @Body() dto: OpenCashRegisterDto,
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentCashRegister() registerNumber: number,
   ): Promise<CashRegisterResponseDto> {
-    return this.cashRegisterService.open(user.id, dto.openingAmount);
+    return this.cashRegisterService.open(
+      user.id,
+      registerNumber,
+      dto.openingAmount,
+    );
   }
 
   @ApiOperation({
     summary:
-      "Cerrar caja — close today's cash register, auto-computing the day's report",
+      "Cerrar caja — close that till's register for today, auto-computing its report",
   })
   @ApiResponse({ status: 200, type: CashRegisterResponseDto })
   @ApiResponse({ status: 404, description: 'No register open today' })
@@ -67,8 +87,13 @@ export class CashRegisterController {
   close(
     @Body() dto: CloseCashRegisterDto,
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentCashRegister() registerNumber: number,
   ): Promise<CashRegisterResponseDto> {
-    return this.cashRegisterService.close(user.id, dto.countedCash);
+    return this.cashRegisterService.close(
+      user.id,
+      registerNumber,
+      dto.countedCash,
+    );
   }
 
   @ApiOperation({
@@ -86,7 +111,12 @@ export class CashRegisterController {
     @Body() dto: ClosePastCashRegisterDto,
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<CashRegisterResponseDto> {
-    return this.cashRegisterService.closePast(id, user.id, dto.countedCash);
+    return this.cashRegisterService.closePast(
+      id,
+      user.id,
+      allowedCashRegisterNumbers(user),
+      dto.countedCash,
+    );
   }
 
   @ApiOperation({
@@ -98,8 +128,10 @@ export class CashRegisterController {
   @ApiResponse({ status: 409, description: "Today's register is already open" })
   @Post('reopen')
   @RequirePermission('cash_register.reopen')
-  reopen(): Promise<CashRegisterResponseDto> {
-    return this.cashRegisterService.reopen();
+  reopen(
+    @CurrentCashRegister() registerNumber: number,
+  ): Promise<CashRegisterResponseDto> {
+    return this.cashRegisterService.reopen(registerNumber);
   }
 
   @ApiOperation({
@@ -113,8 +145,13 @@ export class CashRegisterController {
   updateCountedCash(
     @Param('id') id: string,
     @Body() dto: UpdateCountedCashDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<CashRegisterResponseDto> {
-    return this.cashRegisterService.updateCountedCash(id, dto.countedCash);
+    return this.cashRegisterService.updateCountedCash(
+      id,
+      dto.countedCash,
+      allowedCashRegisterNumbers(user),
+    );
   }
 
   @ApiOperation({
@@ -128,24 +165,27 @@ export class CashRegisterController {
   addMovement(
     @Body() dto: CreateCashMovementDto,
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentCashRegister() registerNumber: number,
   ): Promise<CashRegisterResponseDto> {
-    return this.cashRegisterService.addMovement(dto, user.id);
+    return this.cashRegisterService.addMovement(dto, user.id, registerNumber);
   }
 
   @ApiOperation({
     summary:
-      "Today's cash register status — polled by the invoicing pages to gate/show it",
+      "That till's status today — polled by the invoicing pages to gate/show it",
   })
   @ApiResponse({ status: 200, type: CashRegisterStatusDto })
   @Get('today')
   @RequirePermission('cash_register.view')
-  getTodayStatus(): Promise<CashRegisterStatusDto> {
-    return this.cashRegisterService.getTodayStatus();
+  getTodayStatus(
+    @CurrentCashRegister() registerNumber: number,
+  ): Promise<CashRegisterStatusDto> {
+    return this.cashRegisterService.getTodayStatus(registerNumber);
   }
 
   @ApiOperation({
     summary:
-      "Every invoice of a register's day plus the totals — the second page of the printed cash-register slip",
+      'Every invoice of a register plus the totals — the second page of the printed cash-register slip',
   })
   @ApiResponse({ status: 200, type: DayInvoicesReportDto })
   @ApiResponse({ status: 404, description: 'Cash register not found' })
@@ -153,17 +193,27 @@ export class CashRegisterController {
   @RequirePermission('cash_register.view')
   getDayInvoicesReport(
     @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<DayInvoicesReportDto> {
-    return this.cashRegisterService.getDayInvoicesReport(id);
+    return this.cashRegisterService.getDayInvoicesReport(
+      id,
+      allowedCashRegisterNumbers(user),
+    );
   }
 
-  @ApiOperation({ summary: 'List past cash registers, most recent day first' })
+  @ApiOperation({
+    summary: "List the caller's tills' registers, most recent day first",
+  })
   @ApiResponse({ status: 200, type: [CashRegisterResponseDto] })
   @Get()
   @RequirePermission('cash_register.view')
   findAll(
     @Query() query: QueryCashRegisterDto,
+    @CurrentUser() user: AuthenticatedUser,
   ): Promise<PaginatedResponseDto<CashRegisterResponseDto>> {
-    return this.cashRegisterService.findAll(query);
+    return this.cashRegisterService.findAll(
+      query,
+      allowedCashRegisterNumbers(user),
+    );
   }
 }

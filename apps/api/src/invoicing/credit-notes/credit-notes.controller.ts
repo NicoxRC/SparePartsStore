@@ -13,6 +13,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentCashRegister } from '../../common/decorators/cash-register-number.decorator';
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -49,8 +50,9 @@ export class CreditNotesController {
   create(
     @Body() dto: CreateCreditNoteDto,
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentCashRegister() cashRegisterNumber: number,
   ): Promise<CreditNoteResponseDto> {
-    return this.creditNotesService.create(dto, user.id);
+    return this.creditNotesService.create(dto, user.id, cashRegisterNumber);
   }
 
   @ApiOperation({ summary: 'List credit notes, most recent first' })

@@ -57,9 +57,11 @@ export class QuotationsService {
   async create(
     dto: CreateQuotationDto,
     userId: string,
+    cashRegisterNumber: number,
   ): Promise<QuotationResponseDto> {
     // Stock is leaving the store today, same as a real sale.
-    await this.cashRegisterService.assertOpenToday();
+    const cashRegister =
+      await this.cashRegisterService.assertOpenToday(cashRegisterNumber);
 
     const resolved = await this.resolveNewLines(dto.items);
     const number = await this.resolveNextNumber();
@@ -87,6 +89,7 @@ export class QuotationsService {
       ...this.customerColumns(dto),
       notes: dto.notes ?? null,
       totalAmount,
+      cashRegister: { id: cashRegister.id } as Quotation['cashRegister'],
       createdBy: { id: userId } as Quotation['createdBy'],
       updatedBy: { id: userId } as Quotation['updatedBy'],
     });
@@ -325,6 +328,7 @@ export class QuotationsService {
     id: string,
     dto: InvoiceQuotationDto,
     userId: string,
+    cashRegisterNumber: number,
   ): Promise<InvoiceResponseDto[]> {
     const quotation = await this.loadWithItems(id);
     this.assertOpen(quotation);
@@ -378,12 +382,13 @@ export class QuotationsService {
       notes: dto.notes,
     };
 
+    // The money comes in where it's collected: the invoice goes to the
+    // till of whoever invoices it, not the one the quotation was made in.
     const invoices = await this.invoicesService.create(
       createInvoiceDto,
       userId,
-      {
-        skipInventoryEffects: true,
-      },
+      cashRegisterNumber,
+      { skipInventoryEffects: true },
     );
 
     // A "Consumidor final" sale may have been split into several invoices;

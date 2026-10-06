@@ -33,7 +33,7 @@ export class DashboardService {
   async getSummary(): Promise<DashboardSummaryDto> {
     const [todayStatus, salesLast7Days, openQuotations, productStats] =
       await Promise.all([
-        this.cashRegisterService.getTodayStatus(),
+        this.cashRegisterService.getTodayStoreSummary(),
         this.computeSalesLast7Days(),
         this.computeOpenQuotations(),
         this.computeProductStats(),

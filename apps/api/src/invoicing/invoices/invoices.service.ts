@@ -130,10 +130,18 @@ export class InvoicesService {
   async create(
     dto: CreateInvoiceDto,
     createdById: string,
+    cashRegisterNumber: number,
     options: { skipInventoryEffects?: boolean } = {},
   ): Promise<InvoiceResponseDto[]> {
     if (!isFinalConsumer(dto.customerIdentification)) {
-      return [await this.createOneLocked(dto, createdById, options)];
+      return [
+        await this.createOneLocked(
+          dto,
+          createdById,
+          cashRegisterNumber,
+          options,
+        ),
+      ];
     }
 
     // Resolving the whole sale first also checks stock for all of it before
@@ -147,7 +155,12 @@ export class InvoicesService {
     for (const items of groups) {
       try {
         invoices.push(
-          await this.createOneLocked({ ...dto, items }, createdById, options),
+          await this.createOneLocked(
+            { ...dto, items },
+            createdById,
+            cashRegisterNumber,
+            options,
+          ),
         );
       } catch (error) {
         if (invoices.length === 0) throw error;
@@ -161,10 +174,11 @@ export class InvoicesService {
   private createOneLocked(
     dto: CreateInvoiceDto,
     createdById: string,
+    cashRegisterNumber: number,
     options: { skipInventoryEffects?: boolean },
   ): Promise<InvoiceResponseDto> {
     return withNumberingLock(this.invoicesRepository.manager, 'invoices', () =>
-      this.createOne(dto, createdById, options),
+      this.createOne(dto, createdById, cashRegisterNumber, options),
     );
   }
 
@@ -175,9 +189,11 @@ export class InvoicesService {
   private async createOne(
     dto: CreateInvoiceDto,
     createdById: string,
+    cashRegisterNumber: number,
     options: { skipInventoryEffects?: boolean },
   ): Promise<InvoiceResponseDto> {
-    await this.cashRegisterService.assertOpenToday();
+    const cashRegister =
+      await this.cashRegisterService.assertOpenToday(cashRegisterNumber);
 
     // The subtype filter is explicit, not incidental: findActiveForDocumentType()
     // picks whichever matching row was created most recently, so without it a
@@ -297,6 +313,7 @@ export class InvoicesService {
         items.reduce((sum, item) => sum + item.taxBase + item.taxAmount, 0),
       ),
       requestPayload,
+      cashRegister: { id: cashRegister.id } as Invoice['cashRegister'],
       createdBy: { id: createdById } as Invoice['createdBy'],
       ...this.mapDataicoResponse(response),
     });

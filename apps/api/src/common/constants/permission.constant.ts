@@ -54,6 +54,9 @@ export const PERMISSIONS = [
   'third_parties.view',
 
   'cash_register.view',
+  // Which till(s) this employee works at — see cash-register.constant.ts.
+  'cash_register.box_1',
+  'cash_register.box_2',
   'cash_register.open',
   'cash_register.close',
   'cash_register.reopen',
@@ -124,6 +127,8 @@ const IMPLIES: Partial<Record<Permission, Permission[]>> = {
   'debit_notes.create': ['debit_notes.view', 'invoices.view'],
   'credit_notes.view': ['invoices.view'],
   'credit_notes.create': ['credit_notes.view', 'invoices.view'],
+  'cash_register.box_1': ['cash_register.view'],
+  'cash_register.box_2': ['cash_register.view'],
   'cash_register.open': ['cash_register.view'],
   'cash_register.close': ['cash_register.view'],
   'cash_register.reopen': ['cash_register.view'],

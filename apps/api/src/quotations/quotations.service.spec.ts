@@ -162,7 +162,7 @@ describe('QuotationsService', () => {
       createMovement: jest.fn().mockResolvedValue(undefined),
     };
     cashRegisterService = {
-      assertOpenToday: jest.fn().mockResolvedValue(undefined),
+      assertOpenToday: jest.fn().mockResolvedValue({ id: 'reg-1' }),
     };
     invoicesService = {
       create: jest
@@ -250,23 +250,38 @@ describe('QuotationsService', () => {
         new BadRequestException('No hay una caja abierta para hoy.'),
       );
 
-      await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+      await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
         BadRequestException,
       );
       expect(inventoryService.createMovement).not.toHaveBeenCalled();
     });
 
+    it("ties the quotation to the open register of the seller's till", async () => {
+      cashRegisterService.assertOpenToday.mockResolvedValue({
+        id: 'reg-caja-2',
+      });
+
+      await service.create(baseDto, 'user-1', 2);
+
+      expect(cashRegisterService.assertOpenToday).toHaveBeenCalledWith(2);
+      expect(quotationsRepository.create.mock.calls[0][0].cashRegister).toEqual(
+        {
+          id: 'reg-caja-2',
+        },
+      );
+    });
+
     it('rejects on insufficient stock, without creating any movement', async () => {
       productsService.findOne.mockResolvedValue({ ...productA, stock: 1 });
 
-      await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+      await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
         BadRequestException,
       );
       expect(inventoryService.createMovement).not.toHaveBeenCalled();
     });
 
     it("decrements stock exactly like a real sale, locking each line's current price", async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       expect(inventoryService.createMovement).toHaveBeenCalledWith(
         expect.objectContaining({ productId: 'prod-a', quantity: -2 }),
@@ -283,7 +298,7 @@ describe('QuotationsService', () => {
         taxExempt: true,
       });
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const savedItems = quotationItemsRepository.save.mock.calls[0][0];
       expect(savedItems[0].taxRate).toBe(0);
@@ -298,6 +313,7 @@ describe('QuotationsService', () => {
           ],
         },
         'user-1',
+        1,
       );
 
       const savedItems = quotationItemsRepository.save.mock.calls[0][0];
@@ -320,6 +336,7 @@ describe('QuotationsService', () => {
           items: [customLine, { productId: 'prod-a', quantity: 1 }],
         },
         'user-1',
+        1,
       );
 
       const savedItems = quotationItemsRepository.save.mock.calls[0][0];
@@ -346,6 +363,7 @@ describe('QuotationsService', () => {
             items: [{ ...customLine, productId: 'prod-a' }],
           },
           'user-1',
+          1,
         ),
       ).rejects.toThrow(BadRequestException);
       expect(inventoryService.createMovement).not.toHaveBeenCalled();
@@ -409,6 +427,7 @@ describe('QuotationsService', () => {
           useSameCustomer: true,
         },
         'user-1',
+        1,
       );
       expect(invoicesService.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -421,6 +440,7 @@ describe('QuotationsService', () => {
           ],
         }),
         'user-1',
+        1,
         { skipInventoryEffects: true },
       );
 
@@ -682,7 +702,7 @@ describe('QuotationsService', () => {
       );
 
       await expect(
-        service.invoice('q-1', invoiceDto, 'user-1'),
+        service.invoice('q-1', invoiceDto, 'user-1', 1),
       ).rejects.toThrow(BadRequestException);
       expect(invoicesService.create).not.toHaveBeenCalled();
     });
@@ -693,13 +713,25 @@ describe('QuotationsService', () => {
           'q-1',
           { ...invoiceDto, useSameCustomer: false },
           'user-1',
+          1,
         ),
       ).rejects.toThrow(BadRequestException);
       expect(invoicesService.create).not.toHaveBeenCalled();
     });
 
+    it('invoices into the till of whoever collects, not the one the quotation was made in', async () => {
+      await service.invoice('q-1', invoiceDto, 'user-2', 2);
+
+      expect(invoicesService.create).toHaveBeenCalledWith(
+        expect.anything(),
+        'user-2',
+        2,
+        { skipInventoryEffects: true },
+      );
+    });
+
     it("tells InvoicesService to skip its own stock effects and to use the quotation's locked price", async () => {
-      await service.invoice('q-1', invoiceDto, 'user-1');
+      await service.invoice('q-1', invoiceDto, 'user-1', 1);
 
       expect(invoicesService.create).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -713,6 +745,7 @@ describe('QuotationsService', () => {
           ],
         }),
         'user-1',
+        1,
         { skipInventoryEffects: true },
       );
     });
@@ -736,17 +769,19 @@ describe('QuotationsService', () => {
           },
         },
         'user-1',
+        1,
       );
 
       expect(invoicesService.create).toHaveBeenCalledWith(
         expect.objectContaining({ customerIdentification: '123' }),
         'user-1',
+        1,
         { skipInventoryEffects: true },
       );
     });
 
     it('marks the quotation invoiced and links the resulting invoice', async () => {
-      await service.invoice('q-1', invoiceDto, 'user-1');
+      await service.invoice('q-1', invoiceDto, 'user-1', 1);
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       expect(quotationsRepository.save).toHaveBeenCalledWith(

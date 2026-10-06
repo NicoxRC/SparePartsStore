@@ -14,7 +14,7 @@ describe('DashboardService', () => {
     createQueryBuilder: jest.Mock;
     find: jest.Mock;
   };
-  let cashRegisterService: { getTodayStatus: jest.Mock };
+  let cashRegisterService: { getTodayStoreSummary: jest.Mock };
   let invoiceQueryBuilder: {
     select: jest.Mock;
     where: jest.Mock;
@@ -62,13 +62,10 @@ describe('DashboardService', () => {
         ]),
     };
     cashRegisterService = {
-      getTodayStatus: jest.fn().mockResolvedValue({
+      getTodayStoreSummary: jest.fn().mockResolvedValue({
         isOpen: true,
-        register: null,
         totalSoFar: 300000,
         totalOwedSoFar: 50000,
-        expectedCashSoFar: 150000,
-        previousClosingCash: null,
       }),
     };
 
