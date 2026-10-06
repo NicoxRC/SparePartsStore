@@ -27,7 +27,9 @@ export function CashRegisterPrint({
       <div style={{ breakAfter: reportQuery.data ? 'page' : 'auto' }}>
         <CashRegisterTicket register={register} listingUnavailable={reportQuery.isError} />
       </div>
-      {reportQuery.data && <DayInvoicesTicket report={reportQuery.data} />}
+      {reportQuery.data && (
+        <DayInvoicesTicket report={reportQuery.data} registerNumber={register.registerNumber} />
+      )}
     </PrintTicket>
   );
 }

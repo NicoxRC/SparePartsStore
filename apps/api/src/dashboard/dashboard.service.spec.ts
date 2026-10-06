@@ -66,6 +66,10 @@ describe('DashboardService', () => {
         isOpen: true,
         totalSoFar: 300000,
         totalOwedSoFar: 50000,
+        registers: [
+          { registerNumber: 1, isOpen: true, collected: 200000, owed: 50000 },
+          { registerNumber: 2, isOpen: false, collected: 100000, owed: 0 },
+        ],
       }),
     };
 
@@ -89,6 +93,15 @@ describe('DashboardService', () => {
     expect(summary.cashRegisterOpen).toBe(true);
     expect(summary.todayRecaudado).toBe(300000);
     expect(summary.todayAdeudado).toBe(50000);
+  });
+
+  it('breaks today down till by till', async () => {
+    const summary = await service.getSummary();
+
+    expect(summary.cashRegisters).toEqual([
+      { registerNumber: 1, isOpen: true, recaudado: 200000, adeudado: 50000 },
+      { registerNumber: 2, isOpen: false, recaudado: 100000, adeudado: 0 },
+    ]);
   });
 
   it('returns 7 days of sales, oldest first, today included', async () => {

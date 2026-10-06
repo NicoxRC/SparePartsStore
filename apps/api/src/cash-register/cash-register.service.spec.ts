@@ -756,6 +756,25 @@ describe('CashRegisterService', () => {
         isOpen: true,
         totalSoFar: 300000,
         totalOwedSoFar: 80000,
+        // Each till on its own too — the closed one keeps its figures.
+        registers: [
+          { registerNumber: 1, isOpen: false, collected: 150000, owed: 40000 },
+          { registerNumber: 2, isOpen: true, collected: 150000, owed: 40000 },
+        ],
+      });
+    });
+
+    it('lists a till that was not opened today with no figures', async () => {
+      cashRegisterRepository.find.mockResolvedValue([{ ...openRegister }]);
+
+      const summary = await service.getTodayStoreSummary();
+
+      expect(summary.totalSoFar).toBe(150000);
+      expect(summary.registers[1]).toEqual({
+        registerNumber: 2,
+        isOpen: false,
+        collected: null,
+        owed: null,
       });
     });
 
@@ -764,7 +783,7 @@ describe('CashRegisterService', () => {
         { ...openRegister, closedAt: new Date() },
       ]);
 
-      await expect(service.getTodayStoreSummary()).resolves.toEqual({
+      await expect(service.getTodayStoreSummary()).resolves.toMatchObject({
         isOpen: false,
         totalSoFar: null,
         totalOwedSoFar: null,

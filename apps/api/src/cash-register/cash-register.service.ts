@@ -9,6 +9,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Not, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
+import { CASH_REGISTER_NUMBERS } from '../common/constants/cash-register.constant';
 import { getStoreToday } from '../common/utils/store-date.util';
 import { CreditNote } from '../invoicing/credit-notes/entities/credit-note.entity';
 import { DebitNote } from '../invoicing/debit-notes/entities/debit-note.entity';
@@ -286,30 +287,55 @@ export class CashRegisterService {
   }
 
   /** Store-wide picture of today for the admin dashboard: every till added
-   * up. Same "only while open" rule as `getTodayStatus()`, with open
-   * meaning at least one till is. */
+   * up, plus each till on its own. The added-up totals keep the "only while
+   * open" rule of `getTodayStatus()`, with open meaning at least one till
+   * is; a till's own figures stay visible once it's closed (null only if it
+   * wasn't opened today). */
   async getTodayStoreSummary(): Promise<{
     isOpen: boolean;
     totalSoFar: number | null;
     totalOwedSoFar: number | null;
+    registers: {
+      registerNumber: number;
+      isOpen: boolean;
+      collected: number | null;
+      owed: number | null;
+    }[];
   }> {
-    const registers = await this.cashRegisterRepository.find({
+    const todays = await this.cashRegisterRepository.find({
       where: { registerDate: getStoreToday() },
     });
-    if (!registers.some((register) => register.closedAt === null)) {
-      return { isOpen: false, totalSoFar: null, totalOwedSoFar: null };
-    }
 
-    const totals = await Promise.all(
-      registers.map(async (register) => ({
-        collected: await this.computeTotal(register.id),
-        owed: await this.computeOwedTotal(register.id),
-      })),
+    const registers = await Promise.all(
+      CASH_REGISTER_NUMBERS.map(async (registerNumber) => {
+        const register = todays.find(
+          (candidate) => candidate.registerNumber === registerNumber,
+        );
+        if (!register) {
+          return { registerNumber, isOpen: false, collected: null, owed: null };
+        }
+        return {
+          registerNumber,
+          isOpen: register.closedAt === null,
+          collected: await this.computeTotal(register.id),
+          owed: await this.computeOwedTotal(register.id),
+        };
+      }),
     );
+
+    const isOpen = registers.some((register) => register.isOpen);
     return {
-      isOpen: true,
-      totalSoFar: totals.reduce((sum, total) => sum + total.collected, 0),
-      totalOwedSoFar: totals.reduce((sum, total) => sum + total.owed, 0),
+      isOpen,
+      totalSoFar: isOpen
+        ? registers.reduce(
+            (sum, register) => sum + (register.collected ?? 0),
+            0,
+          )
+        : null,
+      totalOwedSoFar: isOpen
+        ? registers.reduce((sum, register) => sum + (register.owed ?? 0), 0)
+        : null,
+      registers,
     };
   }
 
