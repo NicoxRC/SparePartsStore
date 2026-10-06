@@ -14,6 +14,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentCashRegister } from '../common/decorators/cash-register-number.decorator';
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -46,8 +47,9 @@ export class QuotationsController {
   create(
     @Body() dto: CreateQuotationDto,
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentCashRegister() cashRegisterNumber: number,
   ): Promise<QuotationResponseDto> {
-    return this.quotationsService.create(dto, user.id);
+    return this.quotationsService.create(dto, user.id, cashRegisterNumber);
   }
 
   @ApiOperation({ summary: 'List quotations, most recent first' })
@@ -95,8 +97,9 @@ export class QuotationsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: InvoiceQuotationDto,
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentCashRegister() cashRegisterNumber: number,
   ): Promise<InvoiceResponseDto[]> {
-    return this.quotationsService.invoice(id, dto, user.id);
+    return this.quotationsService.invoice(id, dto, user.id, cashRegisterNumber);
   }
 
   @ApiOperation({ summary: 'Cancel a quotation — returns its stock' })

@@ -89,11 +89,12 @@ export class CreditNotesService {
   create(
     dto: CreateCreditNoteDto,
     createdById: string,
+    cashRegisterNumber: number,
   ): Promise<CreditNoteResponseDto> {
     return withNumberingLock(
       this.creditNotesRepository.manager,
       'credit_notes',
-      () => this.issue(dto, createdById),
+      () => this.issue(dto, createdById, cashRegisterNumber),
     );
   }
 
@@ -130,8 +131,10 @@ export class CreditNotesService {
   private async issue(
     dto: CreateCreditNoteDto,
     createdById: string,
+    cashRegisterNumber: number,
   ): Promise<CreditNoteResponseDto> {
-    await this.cashRegisterService.assertOpenToday();
+    const cashRegister =
+      await this.cashRegisterService.assertOpenToday(cashRegisterNumber);
 
     const invoice = await this.invoicesService.findOne(dto.invoiceId);
     if (!invoice.dataicoUuid) {
@@ -207,6 +210,7 @@ export class CreditNotesService {
         items.reduce((sum, item) => sum + item.taxBase + item.taxAmount, 0),
       ),
       requestPayload,
+      cashRegister: { id: cashRegister.id } as CreditNote['cashRegister'],
       createdBy: { id: createdById } as CreditNote['createdBy'],
       ...this.mapDataicoResponse(response),
     });

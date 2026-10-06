@@ -8,6 +8,7 @@ import { getApiErrorMessage } from '../lib/errors';
 import type { CashRegisterResponse } from '../services/cashRegister';
 
 interface CloseCashRegisterDialogProps {
+  registerNumber: number;
   totalSoFar: number;
   totalOwedSoFar: number;
   expectedCashSoFar: number;
@@ -20,6 +21,7 @@ function money(value: number) {
 }
 
 export function CloseCashRegisterDialog({
+  registerNumber,
   totalSoFar,
   totalOwedSoFar,
   expectedCashSoFar,
@@ -46,7 +48,7 @@ export function CloseCashRegisterDialog({
     return createPortal(
       <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-4 sm:items-center">
         <div className="w-full max-w-sm rounded bg-paper p-5 shadow-lg">
-          <h2 className="text-lg font-semibold text-ink">Reporte de cierre</h2>
+          <h2 className="text-lg font-semibold text-ink">Reporte de cierre — Caja {report.registerNumber}</h2>
 
           <dl className="mt-3 flex flex-col gap-1.5 text-sm">
             <div className="flex items-center justify-between px-1 py-1">
@@ -170,7 +172,7 @@ export function CloseCashRegisterDialog({
   return createPortal(
     <div className="fixed inset-0 z-30 flex items-end justify-center bg-black/40 p-4 sm:items-center">
       <div className="w-full max-w-sm rounded bg-paper p-5 shadow-lg">
-        <h2 className="text-lg font-semibold text-ink">¿Cerrar la caja del día?</h2>
+        <h2 className="text-lg font-semibold text-ink">¿Cerrar la Caja {registerNumber} del día?</h2>
 
         <dl className="mt-3 flex flex-col gap-2 text-sm">
           <div className="flex items-center justify-between rounded-sm bg-ok-tint px-3 py-2">

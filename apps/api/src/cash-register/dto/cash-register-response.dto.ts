@@ -10,6 +10,9 @@ export class CashRegisterResponseDto {
   @ApiProperty()
   registerDate: string;
 
+  @ApiProperty({ description: 'Which till (Caja 1, Caja 2, ...).' })
+  registerNumber: number;
+
   @ApiProperty()
   openedAt: string;
 
@@ -33,14 +36,14 @@ export class CashRegisterResponseDto {
 
   @ApiProperty({
     nullable: true,
-    description: 'Recaudado — sum of invoices sent that day.',
+    description: 'Recaudado — sum of the invoices made in this register.',
   })
   totalAmount: number | null;
 
   @ApiProperty({
     nullable: true,
     description:
-      "Adeudado — sum of that day's quotations still open (not invoiced/cancelled) at close time.",
+      'Adeudado — sum of the quotations made in this register still open (not invoiced/cancelled) at close time.',
   })
   totalOwed: number | null;
 
@@ -75,7 +78,7 @@ export class CashRegisterResponseDto {
   @ApiProperty({
     type: [CashRegisterNoteResponseDto],
     description:
-      'Debit/credit notes issued that store day — informational only, not part of totalCash/expectedCash. Set by CashRegisterService, not fromEntity (see there).',
+      'Debit/credit notes issued in this register — informational only, not part of totalCash/expectedCash. Set by CashRegisterService, not fromEntity (see there).',
   })
   notes: CashRegisterNoteResponseDto[];
 
@@ -86,6 +89,7 @@ export class CashRegisterResponseDto {
     const dto = new CashRegisterResponseDto();
     dto.id = register.id;
     dto.registerDate = register.registerDate;
+    dto.registerNumber = register.registerNumber;
     dto.openedAt = register.openedAt.toISOString();
     dto.openedById = register.openedBy?.id ?? null;
     dto.openedByName = register.openedBy

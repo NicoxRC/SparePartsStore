@@ -139,7 +139,7 @@ describe('CreditNotesService', () => {
       createMovement: jest.fn().mockResolvedValue(undefined),
     };
     cashRegisterService = {
-      assertOpenToday: jest.fn().mockResolvedValue(undefined),
+      assertOpenToday: jest.fn().mockResolvedValue({ id: 'reg-1' }),
     };
     configService = {
       get: jest.fn((key: string, defaultValue?: string) =>
@@ -168,7 +168,7 @@ describe('CreditNotesService', () => {
       new BadRequestException('No hay una caja abierta para hoy.'),
     );
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -180,7 +180,7 @@ describe('CreditNotesService', () => {
       dataicoUuid: null,
     });
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -197,7 +197,7 @@ describe('CreditNotesService', () => {
       },
     });
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -209,7 +209,7 @@ describe('CreditNotesService', () => {
       requestPayload: { invoice: { customer: dataicoCustomer } },
     });
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -228,8 +228,23 @@ describe('CreditNotesService', () => {
       });
     });
 
+    it("ties the note to the open register of the seller's till", async () => {
+      cashRegisterService.assertOpenToday.mockResolvedValue({
+        id: 'reg-caja-2',
+      });
+
+      await service.create(baseDto, 'user-1', 2);
+
+      expect(cashRegisterService.assertOpenToday).toHaveBeenCalledWith(2);
+      expect(
+        creditNotesRepository.create.mock.calls[0][0].cashRegister,
+      ).toEqual({
+        id: 'reg-caja-2',
+      });
+    });
+
     it('sends the credit note to Dataico with the confirmed field names, reusing the invoice uuid/customer/payment terms', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       expect(dataicoClient.post).toHaveBeenCalledWith(
@@ -305,7 +320,7 @@ describe('CreditNotesService', () => {
           invoiceWithItems([{ sku: 'REP-001', price: 30000, tax_rate: 19 }]),
         );
 
-        await service.create(baseDto, 'user-1');
+        await service.create(baseDto, 'user-1', 1);
 
         expect(sentItems()[0].price).toBe(30000);
       });
@@ -319,7 +334,7 @@ describe('CreditNotesService', () => {
           invoiceWithItems([{ sku: 'REP-001', price: 30000, tax_rate: 19 }]),
         );
 
-        await service.create(baseDto, 'user-1');
+        await service.create(baseDto, 'user-1', 1);
 
         expect(sentItems()[0].taxes).toEqual([
           { tax_category: 'IVA', tax_rate: 19 },
@@ -331,7 +346,7 @@ describe('CreditNotesService', () => {
           invoiceWithItems([{ sku: 'REP-001', price: 30000 }]),
         );
 
-        await service.create(baseDto, 'user-1');
+        await service.create(baseDto, 'user-1', 1);
 
         expect(sentItems()[0].taxes).toEqual([]);
       });
@@ -344,6 +359,7 @@ describe('CreditNotesService', () => {
         await service.create(
           { ...baseDto, items: [{ productId: 'prod-1', quantity: 2 }] },
           'user-1',
+          1,
         );
 
         // 2 x 30000 = 60000 base + 19% IVA (11400) = 71400
@@ -359,7 +375,7 @@ describe('CreditNotesService', () => {
           ]),
         );
 
-        await service.create(baseDto, 'user-1');
+        await service.create(baseDto, 'user-1', 1);
 
         expect(sentItems()[0].price).toBe(30000);
       });
@@ -369,14 +385,14 @@ describe('CreditNotesService', () => {
           invoiceWithItems([{ sku: 'OTHER', price: 999, tax_rate: 19 }]),
         );
 
-        await service.create(baseDto, 'user-1');
+        await service.create(baseDto, 'user-1', 1);
 
         // 50000 with IVA -> 42016.8067 pre-tax.
         expect(sentItems()[0].price).toBe(42016.8067);
       });
 
       it('falls back when the stored invoice has no items at all', async () => {
-        await service.create(baseDto, 'user-1');
+        await service.create(baseDto, 'user-1', 1);
 
         // 50000 with IVA -> 42016.8067 pre-tax.
         expect(sentItems()[0].price).toBe(42016.8067);
@@ -387,7 +403,7 @@ describe('CreditNotesService', () => {
       dataicoConfig.sendDian = false;
       dataicoConfig.sendEmail = false;
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const body = dataicoClient.post.mock.calls[0][1] as { actions: unknown };
       expect(body.actions).toEqual({ send_dian: false, send_email: false });
@@ -405,6 +421,7 @@ describe('CreditNotesService', () => {
           items: [{ productId: 'prod-1', quantity: 1 }],
         },
         'user-1',
+        1,
       );
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -422,11 +439,11 @@ describe('CreditNotesService', () => {
     it('does not check stock — a credit note only ever returns merchandise', async () => {
       productsService.findOne.mockResolvedValue({ ...product, stock: 0 });
 
-      await expect(service.create(baseDto, 'user-1')).resolves.toBeDefined();
+      await expect(service.create(baseDto, 'user-1', 1)).resolves.toBeDefined();
     });
 
     it('returns stock for each item (positive movement), only after Dataico accepts the note', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       expect(inventoryService.createMovement).toHaveBeenCalledWith(
         expect.objectContaining({ productId: 'prod-1', quantity: 1 }),
@@ -435,7 +452,7 @@ describe('CreditNotesService', () => {
     });
 
     it('persists the note with Dataico response fields mapped, excluding the xml blob, linked to the invoice', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const created = creditNotesRepository.create.mock.calls[0][0];
       expect(created.reason).toBe('DEVOLUCION');
@@ -449,7 +466,7 @@ describe('CreditNotesService', () => {
     it('auto-increments the number from the highest local one for this prefix, ignoring CREDIT_NOTE_NUMBER_START', async () => {
       queryBuilder.getRawOne.mockResolvedValue({ max: '5' });
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       expect(queryBuilder.where).toHaveBeenCalledWith('note.prefix = :prefix', {
         prefix: 'NCE',
@@ -459,7 +476,7 @@ describe('CreditNotesService', () => {
     });
 
     it("defaults issueDate to the store's current day", async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const created = creditNotesRepository.create.mock.calls[0][0];
       expect(created.issueDate).toBe('2026-09-07');
@@ -471,7 +488,7 @@ describe('CreditNotesService', () => {
         paymentDate: null,
       });
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       expect(dataicoClient.post).toHaveBeenCalledWith(

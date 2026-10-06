@@ -13,6 +13,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentCashRegister } from '../../common/decorators/cash-register-number.decorator';
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -48,8 +49,9 @@ export class DebitNotesController {
   create(
     @Body() dto: CreateDebitNoteDto,
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentCashRegister() cashRegisterNumber: number,
   ): Promise<DebitNoteResponseDto> {
-    return this.debitNotesService.create(dto, user.id);
+    return this.debitNotesService.create(dto, user.id, cashRegisterNumber);
   }
 
   @ApiOperation({ summary: 'List debit notes, most recent first' })

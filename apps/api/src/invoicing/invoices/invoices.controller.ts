@@ -13,6 +13,7 @@ import {
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { CurrentCashRegister } from '../../common/decorators/cash-register-number.decorator';
 import {
   AuthenticatedUser,
   CurrentUser,
@@ -58,8 +59,9 @@ export class InvoicesController {
   create(
     @Body() dto: CreateInvoiceDto,
     @CurrentUser() user: AuthenticatedUser,
+    @CurrentCashRegister() cashRegisterNumber: number,
   ): Promise<InvoiceResponseDto[]> {
-    return this.invoicesService.create(dto, user.id);
+    return this.invoicesService.create(dto, user.id, cashRegisterNumber);
   }
 
   @ApiOperation({ summary: 'List sent invoices, most recent first' })

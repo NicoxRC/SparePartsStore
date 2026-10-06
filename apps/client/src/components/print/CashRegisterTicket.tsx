@@ -32,6 +32,7 @@ export function CashRegisterTicket({
     <div className="mx-auto w-[300px] p-4 text-xs leading-relaxed">
       <p className="text-center text-sm font-bold">LA CASA DE LOS REPUESTOS</p>
       <p className="text-center">Comprobante de cierre de caja</p>
+      <p className="text-center font-bold">CAJA {register.registerNumber}</p>
       <p className="text-center">{register.registerDate}</p>
 
       <hr className="my-2 border-dashed border-black" />

@@ -94,10 +94,10 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <KpiCard
-          label="Caja hoy"
+          label="Cajas hoy"
           value={summary.cashRegisterOpen ? money(summary.todayRecaudado ?? 0) : '—'}
           tone={summary.cashRegisterOpen ? 'ok' : 'neutral'}
-          hint={summary.cashRegisterOpen ? 'Recaudado, abierta' : 'Cerrada'}
+          hint={summary.cashRegisterOpen ? 'Recaudado, suma de las cajas' : 'Cerradas'}
         />
         <KpiCard
           label="Cotizaciones pendientes"
@@ -115,6 +115,42 @@ export function DashboardPage() {
           value={String(summary.outOfStockCount)}
           tone={summary.outOfStockCount > 0 ? 'rust' : 'neutral'}
         />
+      </div>
+
+      <div className="rounded border border-line bg-paper p-4 sm:p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cajas hoy</h2>
+        <ul className="mt-3 flex flex-col divide-y divide-line">
+          {summary.cashRegisters.map((register) => (
+            <li
+              key={register.registerNumber}
+              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2 text-sm"
+            >
+              <span className="font-medium text-ink">
+                Caja {register.registerNumber}
+                <span
+                  className={`ml-2 text-xs font-normal ${register.isOpen ? 'text-ok' : 'text-fog'}`}
+                >
+                  {register.isOpen
+                    ? 'Abierta'
+                    : register.recaudado === null
+                      ? 'Sin abrir'
+                      : 'Cerrada'}
+                </span>
+              </span>
+              {register.recaudado !== null && (
+                <span className="text-steel">
+                  Recaudado{' '}
+                  <span className="font-mono font-semibold text-ink">
+                    {money(register.recaudado)}
+                  </span>
+                  <span className="ml-3">
+                    Adeudado <span className="font-mono">{money(register.adeudado ?? 0)}</span>
+                  </span>
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
       </div>
 
       <SalesTrendChart days={summary.salesLast7Days} />

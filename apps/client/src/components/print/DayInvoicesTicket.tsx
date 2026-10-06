@@ -28,7 +28,14 @@ function SummaryRow({ count, label, value }: { count?: number; label: string; va
  * stores the discounted price, so the discount itself isn't recoverable.
  * See PrintTicket for how this gets shown.
  */
-export function DayInvoicesTicket({ report }: { report: DayInvoicesReport }) {
+export function DayInvoicesTicket({
+  report,
+  registerNumber,
+}: {
+  report: DayInvoicesReport;
+  /** The till these invoices were made in — the listing is that till's only. */
+  registerNumber: number;
+}) {
   const dayLabel =
     report.registerDate === storeToday()
       ? `De hoy ${ticketDate(report.registerDate)}`
@@ -42,7 +49,7 @@ export function DayInvoicesTicket({ report }: { report: DayInvoicesReport }) {
         <span>{ticketTime(now)}</span>
       </div>
       <p className="mt-1 text-center text-[13px] font-bold">LA CASA DE LOS REPUESTOS</p>
-      <p className="text-center text-[12px]">{dayLabel} (General)</p>
+      <p className="text-center text-[12px]">{dayLabel} (Caja {registerNumber})</p>
 
       <Dotted />
 

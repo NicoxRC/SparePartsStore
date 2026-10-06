@@ -17,17 +17,20 @@ const decimalTransformer = {
 };
 
 /**
- * One row per calendar day the store opens/closes its cash register — see
- * docs/GLOSSARY.md ("Caja"). Local bookkeeping, not a Dataico integration;
- * gates `InvoicesService.create` (no open register for today -> no new
- * invoice). `openedAt`/`closedAt` double as this row's own timestamps — a
- * generic `createdAt` would just duplicate `openedAt` — and there's no
- * `deletedAt`/remove endpoint since nothing references this table. Closing
- * is meant to be final, but a same-day close can be undone via
+ * One row per till per calendar day — see docs/GLOSSARY.md ("Caja"). The
+ * store has a fixed set of tills (`registerNumber`, see
+ * common/constants/cash-register.constant.ts); several can be open at once
+ * and each keeps its own accounts: every invoice/quotation/note/movement
+ * points at the register it was made in. Local bookkeeping, not a Dataico
+ * integration; gates `InvoicesService.create` (no open register at the
+ * seller's till today -> no new invoice). `openedAt`/`closedAt` double as
+ * this row's own timestamps — a generic `createdAt` would just duplicate
+ * `openedAt` — and there's no `deletedAt`/remove endpoint. Closing is meant
+ * to be final, but a same-day close can be undone via
  * `CashRegisterService.reopen()` if it was a mistake — it just nulls
  * `closedAt`/`closedBy` and the frozen totals on this same row, never
- * touching `movements` or the invoices/quotations tied to the day. The
- * other exception to "closed is frozen" is `countedCash`/`cashDiscrepancy`,
+ * touching `movements` or the invoices/quotations tied to it. The other
+ * exception to "closed is frozen" is `countedCash`/`cashDiscrepancy`,
  * correctable after close via `CashRegisterService.updateCountedCash` —
  * see there.
  */
@@ -38,6 +41,11 @@ export class CashRegister {
 
   @Column({ name: 'register_date', type: 'date' })
   registerDate: string;
+
+  // Which till — unique together with registerDate. Every register that
+  // existed before the store had more than one is Caja 1.
+  @Column({ name: 'register_number', type: 'smallint', default: 1 })
+  registerNumber: number;
 
   @Column({ name: 'opened_at', type: 'timestamptz' })
   openedAt: Date;
@@ -74,8 +82,8 @@ export class CashRegister {
   })
   totalAmount: number | null;
 
-  // Sum of that day's quotations still open (not invoiced/cancelled) at
-  // close time — what was handed out on credit and not yet collected.
+  // Sum of this register's quotations still open (not invoiced/cancelled)
+  // at close time — what was handed out on credit and not yet collected.
   // `NULL` until closed, same as totalAmount. See CashRegisterService.
   @Column({
     name: 'total_owed',
@@ -87,8 +95,8 @@ export class CashRegister {
   })
   totalOwed: number | null;
 
-  // Breakdown of total_amount by payment_means — read out of that day's
-  // invoices' stored request_payload (not its own column there, see
+  // Breakdown of total_amount by payment_means — read out of this
+  // register's invoices' stored request_payload (not its own column there, see
   // InvoicesService). All NULL until closed. Debit/credit notes are
   // deliberately excluded from this breakdown — rare corrections, not
   // part of the day's till reconciliation.

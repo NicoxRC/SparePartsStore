@@ -132,7 +132,7 @@ describe('DebitNotesService', () => {
       createMovement: jest.fn().mockResolvedValue(undefined),
     };
     cashRegisterService = {
-      assertOpenToday: jest.fn().mockResolvedValue(undefined),
+      assertOpenToday: jest.fn().mockResolvedValue({ id: 'reg-1' }),
     };
     configService = {
       get: jest.fn((key: string, defaultValue?: string) =>
@@ -161,7 +161,7 @@ describe('DebitNotesService', () => {
       new BadRequestException('No hay una caja abierta para hoy.'),
     );
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -173,7 +173,7 @@ describe('DebitNotesService', () => {
       dataicoUuid: null,
     });
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -185,7 +185,7 @@ describe('DebitNotesService', () => {
       requestPayload: {},
     });
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -194,7 +194,7 @@ describe('DebitNotesService', () => {
   it('rejects on insufficient stock, without calling Dataico', async () => {
     productsService.findOne.mockResolvedValue({ ...product, stock: 0 });
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -213,8 +213,23 @@ describe('DebitNotesService', () => {
       });
     });
 
+    it("ties the note to the open register of the seller's till", async () => {
+      cashRegisterService.assertOpenToday.mockResolvedValue({
+        id: 'reg-caja-2',
+      });
+
+      await service.create(baseDto, 'user-1', 2);
+
+      expect(cashRegisterService.assertOpenToday).toHaveBeenCalledWith(2);
+      expect(debitNotesRepository.create.mock.calls[0][0].cashRegister).toEqual(
+        {
+          id: 'reg-caja-2',
+        },
+      );
+    });
+
     it('sends the debit note to Dataico with the confirmed field names, reusing the invoice uuid and customer block', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
       expect(dataicoClient.post).toHaveBeenCalledWith(
@@ -251,7 +266,7 @@ describe('DebitNotesService', () => {
       dataicoConfig.sendDian = false;
       dataicoConfig.sendEmail = false;
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const body = dataicoClient.post.mock.calls[0][1] as { actions: unknown };
       expect(body.actions).toEqual({ send_dian: false, send_email: false });
@@ -269,6 +284,7 @@ describe('DebitNotesService', () => {
           items: [{ productId: 'prod-1', quantity: 1 }],
         },
         'user-1',
+        1,
       );
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -284,7 +300,7 @@ describe('DebitNotesService', () => {
     });
 
     it('decrements stock for each item only after Dataico accepts the note', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       expect(inventoryService.createMovement).toHaveBeenCalledWith(
         expect.objectContaining({ productId: 'prod-1', quantity: -1 }),
@@ -293,7 +309,7 @@ describe('DebitNotesService', () => {
     });
 
     it('persists the note with Dataico response fields mapped, excluding the xml blob, linked to the invoice', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const created = debitNotesRepository.create.mock.calls[0][0];
       expect(created.dianStatus).toBe('DIAN_ACEPTADO');
@@ -306,7 +322,7 @@ describe('DebitNotesService', () => {
     it('auto-increments the number from the highest local one for this prefix, ignoring DEBIT_NOTE_NUMBER_START', async () => {
       queryBuilder.getRawOne.mockResolvedValue({ max: '5' });
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       expect(queryBuilder.where).toHaveBeenCalledWith('note.prefix = :prefix', {
         prefix: 'NDL',
@@ -316,7 +332,7 @@ describe('DebitNotesService', () => {
     });
 
     it("defaults issueDate to the store's current day", async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const created = debitNotesRepository.create.mock.calls[0][0];
       expect(created.issueDate).toBe('2026-09-07');

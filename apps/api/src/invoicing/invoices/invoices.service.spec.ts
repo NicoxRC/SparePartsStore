@@ -125,7 +125,7 @@ describe('InvoicesService', () => {
       createMovement: jest.fn().mockResolvedValue(undefined),
     };
     cashRegisterService = {
-      assertOpenToday: jest.fn().mockResolvedValue(undefined),
+      assertOpenToday: jest.fn().mockResolvedValue({ id: 'reg-1' }),
     };
     configService = {
       get: jest.fn((key: string, defaultValue?: string) =>
@@ -154,7 +154,7 @@ describe('InvoicesService', () => {
       new BadRequestException('No hay una caja abierta para hoy.'),
     );
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -163,7 +163,7 @@ describe('InvoicesService', () => {
   it('rejects when no active INVOICE resolution exists, without calling Dataico', async () => {
     resolutionsService.findActiveForDocumentType.mockResolvedValue(null);
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -184,7 +184,7 @@ describe('InvoicesService', () => {
       xml: 'huge-base64-blob-not-to-be-persisted',
     });
 
-    await service.create(baseDto, 'user-1');
+    await service.create(baseDto, 'user-1', 1);
 
     expect(resolutionsService.findActiveForDocumentType).toHaveBeenCalledWith(
       'invoice',
@@ -199,7 +199,7 @@ describe('InvoicesService', () => {
     });
     productsService.findOne.mockResolvedValue({ ...product, stock: 1 });
 
-    await expect(service.create(baseDto, 'user-1')).rejects.toThrow(
+    await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
       BadRequestException,
     );
     expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -222,6 +222,19 @@ describe('InvoicesService', () => {
       });
     });
 
+    it("ties the invoice to the open register of the seller's till", async () => {
+      cashRegisterService.assertOpenToday.mockResolvedValue({
+        id: 'reg-caja-2',
+      });
+
+      await service.create(baseDto, 'user-1', 2);
+
+      expect(cashRegisterService.assertOpenToday).toHaveBeenCalledWith(2);
+      expect(invoicesRepository.create.mock.calls[0][0].cashRegister).toEqual({
+        id: 'reg-caja-2',
+      });
+    });
+
     it('reads the next number and sends to Dataico while holding the invoices numbering lock', async () => {
       lockQuery.mockClear();
       dataicoClient.post.mockImplementationOnce(() => {
@@ -232,7 +245,7 @@ describe('InvoicesService', () => {
         return Promise.resolve({ number: 'FVE1225', uuid: 'dataico-uuid-1' });
       });
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       expect(invoicesRepository.manager.transaction).toHaveBeenCalledTimes(1);
       expect(invoicesRepository.save).toHaveBeenCalledTimes(1);
@@ -242,7 +255,7 @@ describe('InvoicesService', () => {
       dataicoConfig.sendDian = false;
       dataicoConfig.sendEmail = false;
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const body = dataicoClient.post.mock.calls[0][1] as {
         actions: unknown;
@@ -256,6 +269,7 @@ describe('InvoicesService', () => {
       await service.create(
         { ...baseDto, items: [{ productId: 'prod-1', quantity: 10 }] },
         'user-1',
+        1,
       );
 
       const body = dataicoClient.post.mock.calls[0][1] as {
@@ -273,7 +287,7 @@ describe('InvoicesService', () => {
     });
 
     it('sends the invoice to Dataico with the confirmed field names and computed tax', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       // jest's expect.objectContaining() types as `any`, which is unavoidable
       // when nesting it inside another object literal like this.
@@ -326,6 +340,7 @@ describe('InvoicesService', () => {
           items: [{ productId: 'prod-1', quantity: 2, discount: 20000 }],
         },
         'user-1',
+        1,
       );
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -367,6 +382,7 @@ describe('InvoicesService', () => {
           ],
         },
         'user-1',
+        1,
       );
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -408,6 +424,7 @@ describe('InvoicesService', () => {
           items: [{ productId: 'prod-1', quantity: 2 }],
         },
         'user-1',
+        1,
       );
 
       /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -435,7 +452,7 @@ describe('InvoicesService', () => {
     });
 
     it('decrements stock for each item only after Dataico accepts the invoice', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       expect(inventoryService.createMovement).toHaveBeenCalledWith(
         expect.objectContaining({ productId: 'prod-1', quantity: -2 }),
@@ -451,7 +468,7 @@ describe('InvoicesService', () => {
       };
 
       it('bills a typed line at its price with standard IVA, sku VARIOS, and never touches the catalog or stock', async () => {
-        await service.create({ ...baseDto, items: [customLine] }, 'user-1');
+        await service.create({ ...baseDto, items: [customLine] }, 'user-1', 1);
 
         /* eslint-disable @typescript-eslint/no-unsafe-assignment */
         expect(dataicoClient.post).toHaveBeenCalledWith(
@@ -487,6 +504,7 @@ describe('InvoicesService', () => {
         await service.create(
           { ...baseDto, items: [{ ...customLine, discount: 10000 }] },
           'user-1',
+          1,
         );
 
         /* eslint-disable @typescript-eslint/no-unsafe-assignment */
@@ -518,6 +536,7 @@ describe('InvoicesService', () => {
           service.create(
             { ...baseDto, items: [{ ...customLine, productId: 'prod-1' }] },
             'user-1',
+            1,
           ),
         ).rejects.toThrow(BadRequestException);
         expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -525,14 +544,14 @@ describe('InvoicesService', () => {
 
       it('rejects a line with neither a product nor a description and price', async () => {
         await expect(
-          service.create({ ...baseDto, items: [{ quantity: 1 }] }, 'user-1'),
+          service.create({ ...baseDto, items: [{ quantity: 1 }] }, 'user-1', 1),
         ).rejects.toThrow(BadRequestException);
         expect(dataicoClient.post).not.toHaveBeenCalled();
       });
     });
 
     it('persists the invoice with Dataico response fields mapped, excluding the xml blob', async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const created = invoicesRepository.create.mock.calls[0][0];
       expect(created.dianStatus).toBe('DIAN_ACEPTADO');
@@ -547,7 +566,7 @@ describe('InvoicesService', () => {
     it('auto-increments the number from the highest local one for this prefix when it is past INVOICE_NUMBER_START', async () => {
       numberQueryBuilder.getRawOne.mockResolvedValue({ max: '1300' });
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       expect(numberQueryBuilder.where).toHaveBeenCalledWith(
         'invoice.prefix = :prefix',
@@ -560,7 +579,7 @@ describe('InvoicesService', () => {
     it('jumps to INVOICE_NUMBER_START when it is higher than the next local number', async () => {
       numberQueryBuilder.getRawOne.mockResolvedValue({ max: '1100' });
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const created = invoicesRepository.create.mock.calls[0][0];
       expect(created.number).toBe(1225);
@@ -569,14 +588,14 @@ describe('InvoicesService', () => {
     it('falls back to INVOICE_NUMBER_START when nothing is recorded locally yet for this prefix', async () => {
       numberQueryBuilder.getRawOne.mockResolvedValue({ max: null });
 
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const created = invoicesRepository.create.mock.calls[0][0];
       expect(created.number).toBe(1225);
     });
 
     it("defaults issueDate to the store's current day, never client-supplied", async () => {
-      await service.create(baseDto, 'user-1');
+      await service.create(baseDto, 'user-1', 1);
 
       const created = invoicesRepository.create.mock.calls[0][0];
       expect(created.issueDate).toBe('2026-09-07');
@@ -586,7 +605,7 @@ describe('InvoicesService', () => {
       const { paymentDate: _paymentDate, ...dtoWithoutPaymentDate } = baseDto;
       void _paymentDate;
 
-      await service.create(dtoWithoutPaymentDate, 'user-1');
+      await service.create(dtoWithoutPaymentDate, 'user-1', 1);
 
       const created = invoicesRepository.create.mock.calls[0][0];
       expect(created.paymentDate).toBe('2026-09-07');
@@ -596,6 +615,7 @@ describe('InvoicesService', () => {
       const invoices = await service.create(
         { ...baseDto, items: [{ productId: 'prod-1', quantity: 10 }] },
         'user-1',
+        1,
       );
 
       expect(invoices).toHaveLength(1);
@@ -621,7 +641,7 @@ describe('InvoicesService', () => {
         );
 
       it('sends one invoice when the sale is within $235.000', async () => {
-        const invoices = await service.create(finalConsumerDto, 'user-1');
+        const invoices = await service.create(finalConsumerDto, 'user-1', 1);
 
         expect(invoices).toHaveLength(1);
         expect(sentQuantities()).toEqual([2]);
@@ -640,6 +660,7 @@ describe('InvoicesService', () => {
             items: [{ productId: 'prod-1', quantity: 10 }],
           },
           'user-1',
+          1,
         );
 
         expect(invoices).toHaveLength(3);
@@ -664,6 +685,7 @@ describe('InvoicesService', () => {
               items: [{ productId: 'prod-1', quantity: 10 }],
             },
             'user-1',
+            1,
           ),
         ).rejects.toThrow(BadRequestException);
         expect(dataicoClient.post).not.toHaveBeenCalled();
@@ -680,6 +702,7 @@ describe('InvoicesService', () => {
             items: [{ productId: 'prod-1', quantity: 10 }],
           },
           'user-1',
+          1,
         );
 
         await expect(promise).rejects.toThrow(

@@ -13,6 +13,7 @@ import { Alert } from '../components/Alert';
 import { BarcodeScannerModal } from '../components/BarcodeScannerModal';
 import { Button } from '../components/Button';
 import { CashMovementDialog } from '../components/CashMovementDialog';
+import { CashRegisterSwitcher } from '../components/CashRegisterSwitcher';
 import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { CustomLineDialog } from '../components/CustomLineDialog';
@@ -28,6 +29,7 @@ import {
   useReopenCashRegister,
   useTodayCashRegister,
 } from '../hooks/useCashRegister';
+import { useCashRegisterBox } from '../hooks/useCashRegisterBox';
 import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { useCreateCustomer } from '../hooks/useCustomers';
 import { useCreateInvoice } from '../hooks/useInvoices';
@@ -1092,6 +1094,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
 
 export function InvoiceFormPage() {
   const { has } = usePermissions();
+  const cashRegisterBox = useCashRegisterBox();
   const cashRegisterQuery = useTodayCashRegister();
   const openCashRegisterMutation = useOpenCashRegister();
   const reopenCashRegisterMutation = useReopenCashRegister();
@@ -1103,6 +1106,34 @@ export function InvoiceFormPage() {
     pdfs: InvoicePdf[];
   } | null>(null);
   const { drafts, activeDraftId, setActiveDraftId, addDraft, closeDraft } = useInvoiceDrafts();
+
+  if (cashRegisterBox.number === null) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
+        <h1 className="text-xl font-bold tracking-tight text-ink">Sin caja asignada</h1>
+        <p className="text-sm text-steel">
+          No tienes una caja asignada. Pide a un administrador que te asigne la Caja 1 o la Caja
+          2 para poder facturar.
+        </p>
+      </div>
+    );
+  }
+
+  const cashRegisterLabel = `Caja ${cashRegisterBox.number}`;
+  // What was typed or failed for one till must not carry over to the other.
+  const switchCashRegister = (number: number) => {
+    cashRegisterBox.select(number);
+    setOpeningAmount('');
+    openCashRegisterMutation.reset();
+    reopenCashRegisterMutation.reset();
+  };
+  const cashRegisterSwitcher = (
+    <CashRegisterSwitcher
+      number={cashRegisterBox.number}
+      allowed={cashRegisterBox.allowed}
+      onSelect={switchCashRegister}
+    />
+  );
 
   if (cashRegisterQuery.isPending) {
     return <Spinner label="Cargando…" />;
@@ -1127,13 +1158,14 @@ export function InvoiceFormPage() {
 
     return (
       <div className="mx-auto flex w-full max-w-md flex-col items-center gap-4 py-12 text-center">
-        <h1 className="text-xl font-bold tracking-tight text-ink">Caja cerrada</h1>
+        {cashRegisterSwitcher}
+        <h1 className="text-xl font-bold tracking-tight text-ink">{cashRegisterLabel} cerrada</h1>
         {closedToday ? (
           has('cash_register.reopen') ? (
             <>
               <p className="text-sm text-steel">
-                La caja de hoy ya fue cerrada. Si fue un error, puedes reabrirla — se conservan
-                todas las ventas y movimientos del día.
+                La {cashRegisterLabel} de hoy ya fue cerrada. Si fue un error, puedes reabrirla —
+                se conservan todas sus ventas y movimientos del día.
               </p>
               {reopenCashRegisterMutation.isError && (
                 <Alert variant="error">
@@ -1150,15 +1182,15 @@ export function InvoiceFormPage() {
             </>
           ) : (
             <p className="text-sm text-steel">
-              La caja de hoy ya fue cerrada. Pide a un administrador o a un compañero que la
-              reabra si fue un error.
+              La {cashRegisterLabel} de hoy ya fue cerrada. Pide a un administrador o a un
+              compañero que la reabra si fue un error.
             </p>
           )
         ) : has('cash_register.open') ? (
           <>
             <p className="text-sm text-steel">
-              La caja no está abierta hoy. Cuenta el efectivo en caja y ábrela para poder
-              facturar.
+              La {cashRegisterLabel} no está abierta hoy. Cuenta el efectivo en caja y ábrela
+              para poder facturar.
             </p>
             <div className="flex w-full flex-col gap-1.5 text-left">
               <label htmlFor="opening-amount" className="text-sm font-medium text-steel">
@@ -1195,8 +1227,8 @@ export function InvoiceFormPage() {
           </>
         ) : (
           <p className="text-sm text-steel">
-            La caja no está abierta hoy. Pide a un administrador o a un compañero que la abra
-            para poder facturar.
+            La {cashRegisterLabel} no está abierta hoy. Pide a un administrador o a un compañero
+            que la abra para poder facturar.
           </p>
         )}
       </div>
@@ -1219,12 +1251,13 @@ export function InvoiceFormPage() {
           Venta
         </h1>
         <div className="flex flex-wrap items-center gap-2">
+          {cashRegisterSwitcher}
           <span className="inline-flex items-center gap-1.5 rounded-full bg-ok-tint px-2.5 py-1 text-xs font-medium text-ok">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ok opacity-75" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-ok" />
             </span>
-            Caja abierta desde{' '}
+            {cashRegisterLabel} abierta desde{' '}
             {new Date(cashRegisterQuery.data.register?.openedAt ?? '').toLocaleTimeString(
               'es-CO',
               { hour: '2-digit', minute: '2-digit' },
@@ -1266,6 +1299,7 @@ export function InvoiceFormPage() {
 
       {isCloseDialogOpen && (
         <CloseCashRegisterDialog
+          registerNumber={cashRegisterBox.number}
           totalSoFar={cashRegisterQuery.data.totalSoFar ?? 0}
           totalOwedSoFar={cashRegisterQuery.data.totalOwedSoFar ?? 0}
           expectedCashSoFar={cashRegisterQuery.data.expectedCashSoFar ?? 0}

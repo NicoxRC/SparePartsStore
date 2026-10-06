@@ -12,10 +12,20 @@ export interface LowStockProduct {
   stock: number;
 }
 
+export interface DashboardCashRegister {
+  registerNumber: number;
+  isOpen: boolean;
+  /** null when this till wasn't opened today. */
+  recaudado: number | null;
+  adeudado: number | null;
+}
+
 export interface DashboardSummary {
   cashRegisterOpen: boolean;
   todayRecaudado: number | null;
   todayAdeudado: number | null;
+  /** Today, till by till. */
+  cashRegisters: DashboardCashRegister[];
   salesLast7Days: DailySales[];
   openQuotationsTotal: number;
   openQuotationsCount: number;

@@ -33,7 +33,7 @@ export class DashboardService {
   async getSummary(): Promise<DashboardSummaryDto> {
     const [todayStatus, salesLast7Days, openQuotations, productStats] =
       await Promise.all([
-        this.cashRegisterService.getTodayStatus(),
+        this.cashRegisterService.getTodayStoreSummary(),
         this.computeSalesLast7Days(),
         this.computeOpenQuotations(),
         this.computeProductStats(),
@@ -43,6 +43,12 @@ export class DashboardService {
       cashRegisterOpen: todayStatus.isOpen,
       todayRecaudado: todayStatus.totalSoFar,
       todayAdeudado: todayStatus.totalOwedSoFar,
+      cashRegisters: todayStatus.registers.map((register) => ({
+        registerNumber: register.registerNumber,
+        isOpen: register.isOpen,
+        recaudado: register.collected,
+        adeudado: register.owed,
+      })),
       salesLast7Days,
       openQuotationsTotal: openQuotations.total,
       openQuotationsCount: openQuotations.count,

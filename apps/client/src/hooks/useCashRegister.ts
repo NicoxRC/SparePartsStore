@@ -11,14 +11,19 @@ import {
   updateCountedCash,
   type CashRegisterQuery,
 } from '../services/cashRegister';
+import { useCashRegisterBox } from './useCashRegisterBox';
 
 const TODAY_KEY = ['cash-register', 'today'];
 const HISTORY_KEY = ['cash-register', 'history'];
 
+/** Today's status of the till this device is working at (the request
+ * carries it, see lib/api.ts) — keyed by till so switching refetches. */
 export function useTodayCashRegister() {
+  const { number } = useCashRegisterBox();
   return useQuery({
-    queryKey: TODAY_KEY,
+    queryKey: [...TODAY_KEY, number],
     queryFn: getTodayCashRegister,
+    enabled: number !== null,
   });
 }
 

@@ -1,4 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, OneToMany } from 'typeorm';
+import { CashRegister } from '../../cash-register/entities/cash-register.entity';
 import { BaseEntity } from '../../common/entities/base.entity';
 import { Invoice } from '../../invoicing/invoices/entities/invoice.entity';
 import { User } from '../../users/entities/user.entity';
@@ -130,6 +131,12 @@ export class Quotation extends BaseEntity {
 
   @OneToMany(() => QuotationItem, (item) => item.quotation)
   items: QuotationItem[];
+
+  // The till this was made in — what its close report adds up. Nullable
+  // only for rows older than the register they'd belong to.
+  @ManyToOne(() => CashRegister, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'cash_register_id' })
+  cashRegister: CashRegister | null;
 
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'created_by_id' })

@@ -3,6 +3,7 @@ import { Alert } from '../components/Alert';
 import { Spinner } from '../components/Spinner';
 import { InvoiceDraftsProvider } from '../context/InvoiceDraftsContext';
 import { useTodayCashRegister } from '../hooks/useCashRegister';
+import { useCashRegisterBox } from '../hooks/useCashRegisterBox';
 import { useInvoiceDrafts } from '../hooks/useInvoiceDrafts';
 import { getApiErrorMessage } from '../lib/errors';
 import { InvoiceDraftForm } from './InvoiceFormPage';
@@ -21,6 +22,7 @@ export function QuotationFormPage() {
 }
 
 function QuotationDraft() {
+  const cashRegisterBox = useCashRegisterBox();
   const cashRegisterQuery = useTodayCashRegister();
   const { drafts, activeDraftId } = useInvoiceDrafts();
   const draft = drafts.find((candidate) => candidate.id === activeDraftId) ?? drafts[0];
@@ -36,7 +38,15 @@ function QuotationDraft() {
         </Link>
       </div>
 
-      {cashRegisterQuery.isPending && <Spinner label="Cargando…" />}
+      {cashRegisterBox.number === null && (
+        <Alert variant="info">
+          No tienes una caja asignada. Pide a un administrador que te asigne una para poder
+          cotizar.
+        </Alert>
+      )}
+      {cashRegisterBox.number !== null && cashRegisterQuery.isPending && (
+        <Spinner label="Cargando…" />
+      )}
       {cashRegisterQuery.isError && (
         <Alert variant="error">
           No se pudo verificar el estado de la caja: {getApiErrorMessage(cashRegisterQuery.error)}
@@ -45,8 +55,8 @@ function QuotationDraft() {
       {cashRegisterQuery.data && !cashRegisterQuery.data.isOpen && (
         // Stock leaves the store like a sale, so the API needs an open register.
         <Alert variant="info">
-          La caja de hoy no está abierta. Ábrela en <Link to="/ventas" className="underline">Venta</Link>{' '}
-          para poder cotizar.
+          La Caja {cashRegisterBox.number} no está abierta hoy. Ábrela en{' '}
+          <Link to="/ventas" className="underline">Venta</Link> para poder cotizar.
         </Alert>
       )}
 

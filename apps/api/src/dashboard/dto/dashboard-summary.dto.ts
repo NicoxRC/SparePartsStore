@@ -22,6 +22,27 @@ export class LowStockProductDto {
   stock: number;
 }
 
+export class DashboardCashRegisterDto {
+  @ApiProperty({ description: 'Which till (Caja 1, Caja 2).' })
+  registerNumber: number;
+
+  @ApiProperty()
+  isOpen: boolean;
+
+  @ApiProperty({
+    nullable: true,
+    description:
+      "Recaudado in this till today (kept once closed), null if it wasn't opened today.",
+  })
+  recaudado: number | null;
+
+  @ApiProperty({
+    nullable: true,
+    description: "Adeudado in this till today, null if it wasn't opened today.",
+  })
+  adeudado: number | null;
+}
+
 /**
  * A single read-only snapshot for the admin dashboard — see
  * DashboardService for what each figure means and why. Nothing here is
@@ -42,6 +63,12 @@ export class DashboardSummaryDto {
     description: "Adeudado so far today, null if caja isn't open.",
   })
   todayAdeudado: number | null;
+
+  @ApiProperty({
+    type: [DashboardCashRegisterDto],
+    description: 'Today, till by till — what the two totals above add up.',
+  })
+  cashRegisters: DashboardCashRegisterDto[];
 
   @ApiProperty({
     type: [DailySalesDto],

@@ -25,6 +25,8 @@ export interface CashRegisterNote {
 export interface CashRegisterResponse {
   id: string;
   registerDate: string;
+  /** Which till — Caja 1, Caja 2. */
+  registerNumber: number;
   openedAt: string;
   openedById: string | null;
   openedByName: string | null;
@@ -33,9 +35,9 @@ export interface CashRegisterResponse {
   closedAt: string | null;
   closedById: string | null;
   closedByName: string | null;
-  /** Recaudado — sum of invoices sent that day. */
+  /** Recaudado — sum of the invoices made in this register. */
   totalAmount: number | null;
-  /** Adeudado — sum of that day's quotations still open (not invoiced/cancelled) at close time. */
+  /** Adeudado — sum of this register's quotations still open (not invoiced/cancelled) at close time. */
   totalOwed: number | null;
   totalCash: number | null;
   totalCard: number | null;
@@ -44,7 +46,7 @@ export interface CashRegisterResponse {
   countedCash: number | null;
   cashDiscrepancy: number | null;
   movements: CashMovement[];
-  /** Debit/credit notes issued that store day — informational only, not
+  /** Debit/credit notes issued in this register — informational only, not
    * part of totalCash/expectedCash. */
   notes: CashRegisterNote[];
   isOpen: boolean;
