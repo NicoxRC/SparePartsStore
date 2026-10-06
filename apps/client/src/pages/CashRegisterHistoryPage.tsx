@@ -188,6 +188,7 @@ export function CashRegisterHistoryPage() {
                 <thead className="bg-canvas text-left text-xs font-medium uppercase tracking-wide text-fog">
                   <tr>
                     <th className="px-4 py-3">Fecha</th>
+                    <th className="px-4 py-3">Caja</th>
                     <th className="px-4 py-3 text-right">Base</th>
                     <th className="px-4 py-3 text-right">Efectivo</th>
                     <th className="px-4 py-3 text-right">Tarjeta</th>
@@ -216,6 +217,9 @@ export function CashRegisterHistoryPage() {
                             ) : (
                               <span className="ml-2 text-xs font-normal text-ok">(abierta)</span>
                             ))}
+                        </td>
+                        <td className="whitespace-nowrap px-4 py-3 text-steel">
+                          Caja {register.registerNumber}
                         </td>
                         <td className="px-4 py-3 text-right font-mono">
                           {money(register.openingAmount)}
@@ -285,7 +289,7 @@ export function CashRegisterHistoryPage() {
                       </tr>
                       {isExpanded && register.movements.length + register.notes.length > 0 && (
                         <tr>
-                          <td colSpan={10} className="bg-canvas px-4 py-3">
+                          <td colSpan={11} className="bg-canvas px-4 py-3">
                             <div className="flex flex-col gap-3 text-sm">
                               {register.movements.length > 0 && (
                                 <div className="flex flex-col gap-1">

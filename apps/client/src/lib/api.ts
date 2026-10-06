@@ -3,6 +3,7 @@ import axios, {
   type AxiosRequestConfig,
   type InternalAxiosRequestConfig,
 } from 'axios';
+import { CASH_REGISTER_HEADER, getSelectedCashRegister } from './cashRegisterBox';
 import {
   clearTokens,
   getAccessToken,
@@ -25,11 +26,16 @@ interface RefreshResponse {
   refreshToken: string;
 }
 
-// Request interceptor: attach access token if present.
+// Request interceptor: attach access token if present, and the till this
+// device is working at (see lib/cashRegisterBox.ts).
 api.interceptors.request.use((config) => {
   const token = getAccessToken();
   if (token) {
     config.headers.set('Authorization', `Bearer ${token}`);
+  }
+  const cashRegister = getSelectedCashRegister();
+  if (cashRegister !== null) {
+    config.headers.set(CASH_REGISTER_HEADER, String(cashRegister));
   }
   return config;
 });

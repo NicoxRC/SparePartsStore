@@ -7,6 +7,7 @@ import {
   logout as logoutRequest,
   type AuthUser,
 } from '../services/auth';
+import { syncSelectedCashRegister } from '../lib/cashRegisterBox';
 import { clearTokens, getAccessToken, setTokens } from '../lib/storage';
 import { getApiErrorMessage } from '../lib/errors';
 import { AuthContext, type AuthContextValue } from './auth-context';
@@ -35,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // after changing it) aren't overwritten by an older cached one.
   const [syncedMe, setSyncedMe] = useState<AuthUser | null>(null);
   if (meQuery.data && meQuery.data !== syncedMe) {
+    syncSelectedCashRegister(meQuery.data);
     setSyncedMe(meQuery.data);
     setUser(meQuery.data);
   }
@@ -43,6 +45,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: loginRequest,
     onSuccess: (data) => {
       setTokens(data.accessToken, data.refreshToken);
+      syncSelectedCashRegister(data.user);
       setUser(data.user);
       setLoginError(null);
     },

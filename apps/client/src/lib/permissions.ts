@@ -99,6 +99,8 @@ export const PERMISSION_SCOPES = [
     label: 'Caja',
     actions: [
       { code: 'cash_register.view', label: 'Ver' },
+      { code: 'cash_register.box_1', label: 'Trabajar en Caja 1' },
+      { code: 'cash_register.box_2', label: 'Trabajar en Caja 2' },
       { code: 'cash_register.open', label: 'Abrir' },
       { code: 'cash_register.close', label: 'Cerrar' },
       { code: 'cash_register.reopen', label: 'Reabrir' },
