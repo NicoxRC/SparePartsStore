@@ -370,7 +370,7 @@ Local bookkeeping, **not a Dataico integration** — one row per caja (till) per
 | `register_number` | SMALLINT | `NOT NULL` default `1` — which caja. One row per caja per day; every register from before the store had two is Caja 1. Validated against `CASH_REGISTER_NUMBERS` in code, not by a DB constraint. |
 | `opened_at` | TIMESTAMPTZ | `NOT NULL` |
 | `opened_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
-| `opening_amount` | NUMERIC(12,2) | `NOT NULL` — cash physically counted into the drawer at open time ("base"), always cashier-entered, no default. |
+| `opening_amount` | NUMERIC(12,2) | `NOT NULL` — cash physically counted into the drawer at open time ("base"), always cashier-entered, no default. Correctable afterwards **only by an admin**, via `CashRegisterService.updateOpeningAmount` (`PATCH /api/cash-register/:id/opening-amount`) — on an open register or a closed one; on a closed one `expected_cash` and `cash_discrepancy` move by the same difference. |
 | `closed_at` | TIMESTAMPTZ, nullable | `NULL` until closed. **State is derived from `closed_at IS NULL`** — no status enum, same reasoning as `dian_resolutions`/`invoices` not carrying a redundant status column when a timestamp already implies it. |
 | `closed_by_id` | UUID, nullable, FK → `users.id`, `SET NULL` | |
 | `total_amount` | NUMERIC(12,2), nullable | `NULL` until closed. **Auto-computed at close time** as the sum of that day's `invoices.total_amount` — what was actually collected ("recaudado"), never manually entered. |

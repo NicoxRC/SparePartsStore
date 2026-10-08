@@ -55,7 +55,8 @@ export class CashRegister {
   openedBy: User | null;
 
   // Cash physically counted into the drawer at open time ("base") —
-  // required going forward; no default, always cashier-entered.
+  // required going forward; no default, always cashier-entered. An admin
+  // can correct a mistyped one via `updateOpeningAmount`.
   @Column({
     name: 'opening_amount',
     type: 'numeric',

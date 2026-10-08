@@ -544,6 +544,52 @@ describe('CashRegisterService', () => {
     });
   });
 
+  describe('updateOpeningAmount', () => {
+    it('changes only the base on an open register', async () => {
+      cashRegisterRepository.findOne
+        .mockResolvedValueOnce({ ...openRegister })
+        .mockResolvedValueOnce({ ...openRegister });
+
+      await service.updateOpeningAmount('reg-1', 80000, [1, 2]);
+
+      const saved = cashRegisterRepository.save.mock
+        .calls[0][0] as CashRegister;
+      expect(saved.openingAmount).toBe(80000);
+      expect(saved.expectedCash).toBeNull();
+      expect(saved.cashDiscrepancy).toBeNull();
+    });
+
+    it('moves the expected cash and the discrepancy of a closed register by the same difference', async () => {
+      cashRegisterRepository.findOne
+        .mockResolvedValueOnce({
+          ...openRegister,
+          closedAt: new Date(),
+          expectedCash: 150000,
+          countedCash: 180000,
+          cashDiscrepancy: 30000,
+        })
+        .mockResolvedValueOnce({ ...openRegister, closedAt: new Date() });
+
+      await service.updateOpeningAmount('reg-1', 80000, [1, 2]);
+
+      const saved = cashRegisterRepository.save.mock
+        .calls[0][0] as CashRegister;
+      expect(saved.openingAmount).toBe(80000);
+      expect(saved.expectedCash).toBe(180000);
+      expect(saved.countedCash).toBe(180000);
+      expect(saved.cashDiscrepancy).toBe(0);
+    });
+
+    it('rejects with NotFoundException when the register does not exist', async () => {
+      cashRegisterRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.updateOpeningAmount('missing', 100, [1, 2]),
+      ).rejects.toThrow(NotFoundException);
+      expect(cashRegisterRepository.save).not.toHaveBeenCalled();
+    });
+  });
+
   describe('addMovement', () => {
     it("creates a cash movement against that till's open register", async () => {
       cashRegisterRepository.findOne

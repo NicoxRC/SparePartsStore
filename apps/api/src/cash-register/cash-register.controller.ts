@@ -38,6 +38,7 @@ import { DayInvoicesReportDto } from './dto/day-invoices-report.dto';
 import { OpenCashRegisterDto } from './dto/open-cash-register.dto';
 import { QueryCashRegisterDto } from './dto/query-cash-register.dto';
 import { UpdateCountedCashDto } from './dto/update-counted-cash.dto';
+import { UpdateOpeningAmountDto } from './dto/update-opening-amount.dto';
 
 // The store has several tills (see common/constants/cash-register.constant.ts).
 // The "today" routes act on the one named by the X-Cash-Register header; the
@@ -150,6 +151,28 @@ export class CashRegisterController {
     return this.cashRegisterService.updateCountedCash(
       id,
       dto.countedCash,
+      allowedCashRegisterNumbers(user),
+    );
+  }
+
+  // Admin-only on purpose, not a grantable permission: the base is what the
+  // whole day's expected cash is measured against.
+  @ApiOperation({
+    summary:
+      'Corregir la base (efectivo al abrir) de una caja, abierta o ya cerrada. Solo admin.',
+  })
+  @ApiResponse({ status: 200, type: CashRegisterResponseDto })
+  @ApiResponse({ status: 404, description: 'Cash register not found' })
+  @Patch(':id/opening-amount')
+  @Roles(UserRole.ADMIN)
+  updateOpeningAmount(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateOpeningAmountDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<CashRegisterResponseDto> {
+    return this.cashRegisterService.updateOpeningAmount(
+      id,
+      dto.openingAmount,
       allowedCashRegisterNumbers(user),
     );
   }

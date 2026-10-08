@@ -9,6 +9,7 @@ import {
   openCashRegister,
   reopenCashRegister,
   updateCountedCash,
+  updateOpeningAmount,
   type CashRegisterQuery,
 } from '../services/cashRegister';
 import { useCashRegisterBox } from './useCashRegisterBox';
@@ -103,6 +104,19 @@ export function useUpdateCountedCash() {
     mutationFn: ({ id, countedCash }: { id: string; countedCash: number }) =>
       updateCountedCash(id, countedCash),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: HISTORY_KEY });
+    },
+  });
+}
+
+export function useUpdateOpeningAmount() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, openingAmount }: { id: string; openingAmount: number }) =>
+      updateOpeningAmount(id, openingAmount),
+    onSuccess: () => {
+      // Today's expected cash is computed from the base.
+      void queryClient.invalidateQueries({ queryKey: TODAY_KEY });
       void queryClient.invalidateQueries({ queryKey: HISTORY_KEY });
     },
   });

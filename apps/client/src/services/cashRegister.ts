@@ -117,6 +117,18 @@ export async function updateCountedCash(
   return data;
 }
 
+/** Corrects a register's opening cash ("base"). Admin-only on the server. */
+export async function updateOpeningAmount(
+  id: string,
+  openingAmount: number,
+): Promise<CashRegisterResponse> {
+  const { data } = await api.patch<CashRegisterResponse>(
+    `/cash-register/${id}/opening-amount`,
+    { openingAmount },
+  );
+  return data;
+}
+
 export async function createCashMovement(input: {
   amount: number;
   reason: string;
