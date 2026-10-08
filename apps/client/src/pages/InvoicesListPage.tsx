@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { InvoiceDetailDialog } from '../components/InvoiceDetailDialog';
 import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
+import { TextField } from '../components/TextField';
 import {
   useInvoices,
   useRefreshInvoiceStatus,
@@ -65,7 +66,19 @@ export function InvoicesListPage() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
-  const invoicesQuery = useInvoices({ page, limit: PAGE_SIZE });
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timeout);
+  }, [search]);
+
+  const invoicesQuery = useInvoices({
+    page,
+    limit: PAGE_SIZE,
+    search: debouncedSearch || undefined,
+  });
   const resendMutation = useResendInvoice();
   const refreshMutation = useRefreshInvoiceStatus();
 
@@ -125,6 +138,15 @@ export function InvoicesListPage() {
         </div>
       </div>
 
+      <TextField
+        label="Buscar por número de factura, cliente o identificación"
+        value={search}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
+      />
+
       {actionError && <Alert variant="error">{actionError}</Alert>}
       {actionNotice && <Alert variant="success">{actionNotice}</Alert>}
 
@@ -137,7 +159,11 @@ export function InvoicesListPage() {
       {invoicesQuery.data && (
         <>
           {invoicesQuery.data.data.length === 0 ? (
-            <Alert variant="info">Todavía no se ha enviado ninguna factura.</Alert>
+            <Alert variant="info">
+              {debouncedSearch
+                ? 'No hay facturas para esta búsqueda.'
+                : 'Todavía no se ha enviado ninguna factura.'}
+            </Alert>
           ) : (
             <div className="flex flex-col gap-6">
               {groupInvoicesByDate(invoicesQuery.data.data).map(([date, dayInvoices]) => {

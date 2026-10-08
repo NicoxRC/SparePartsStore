@@ -32,6 +32,7 @@ export interface InvoiceResponse {
 export interface InvoicesQuery {
   page?: number;
   limit?: number;
+  search?: string;
 }
 
 /** A catalog product (`productId`) or a one-off line (`description` + `customUnitPrice`) — never both. */
