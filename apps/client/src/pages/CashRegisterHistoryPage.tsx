@@ -7,7 +7,9 @@ import {
   useCashRegisterHistory,
   useClosePastCashRegister,
   useUpdateCountedCash,
+  useUpdateOpeningAmount,
 } from '../hooks/useCashRegister';
+import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { getApiErrorMessage } from '../lib/errors';
 import { storeToday } from '../lib/ticketFormat';
@@ -78,6 +80,80 @@ function CorrectCountedCashCell({ register }: { register: CashRegisterResponse }
       </div>
       {updateCountedCash.isError && (
         <p className="text-xs text-rust">{getApiErrorMessage(updateCountedCash.error)}</p>
+      )}
+    </div>
+  );
+}
+
+/** The "Base" cell for an admin: the amount plus a "Corregir" for when it was
+ * mistyped at open. Works on an open register too — unlike the counted cash. */
+function CorrectOpeningAmountCell({ register }: { register: CashRegisterResponse }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const updateOpeningAmount = useUpdateOpeningAmount();
+
+  if (!isEditing) {
+    return (
+      <div className="flex items-center justify-end gap-2">
+        <span>{money(register.openingAmount)}</span>
+        <button
+          type="button"
+          onClick={() => {
+            setValue(String(register.openingAmount));
+            updateOpeningAmount.reset();
+            setIsEditing(true);
+          }}
+          className="font-sans text-xs font-medium text-steel hover:text-ink hover:underline"
+        >
+          Corregir
+        </button>
+      </div>
+    );
+  }
+
+  const parsedValue = parseFloat(value);
+  const isValid = !isNaN(parsedValue) && parsedValue >= 0;
+
+  const handleSave = async () => {
+    if (!isValid) return;
+    try {
+      await updateOpeningAmount.mutateAsync({ id: register.id, openingAmount: parsedValue });
+      setIsEditing(false);
+    } catch {
+      // Error shown via mutation.isError
+    }
+  };
+
+  return (
+    <div className="flex flex-col items-end gap-1 font-sans">
+      <div className="flex items-center gap-1">
+        <input
+          type="number"
+          inputMode="decimal"
+          min={0}
+          aria-label="Base corregida"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="w-24 rounded-sm border border-line bg-paper px-2 py-1 text-right text-sm text-ink focus:border-ink focus:outline-none focus:ring-2 focus:ring-ink/30"
+        />
+        <button
+          type="button"
+          disabled={!isValid || updateOpeningAmount.isPending}
+          onClick={() => void handleSave()}
+          className="text-xs font-medium text-ok hover:underline disabled:cursor-not-allowed disabled:text-fog"
+        >
+          Guardar
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsEditing(false)}
+          className="text-xs font-medium text-fog hover:text-steel hover:underline"
+        >
+          Cancelar
+        </button>
+      </div>
+      {updateOpeningAmount.isError && (
+        <p className="text-xs text-rust">{getApiErrorMessage(updateOpeningAmount.error)}</p>
       )}
     </div>
   );
@@ -159,6 +235,9 @@ function ClosePastRegisterCell({ register }: { register: CashRegisterResponse })
 
 export function CashRegisterHistoryPage() {
   const { has } = usePermissions();
+  const { user } = useAuth();
+  // The base is admin-only on the server — not a grantable permission.
+  const canCorrectOpeningAmount = user?.role === 'admin';
   const canCorrect = has('cash_register.counted_cash.correct');
   const canClose = has('cash_register.close');
   const today = storeToday();
@@ -222,7 +301,11 @@ export function CashRegisterHistoryPage() {
                           Caja {register.registerNumber}
                         </td>
                         <td className="px-4 py-3 text-right font-mono">
-                          {money(register.openingAmount)}
+                          {canCorrectOpeningAmount ? (
+                            <CorrectOpeningAmountCell register={register} />
+                          ) : (
+                            money(register.openingAmount)
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right font-mono">
                           {money(register.totalCash)}

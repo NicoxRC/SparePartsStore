@@ -224,6 +224,30 @@ export class CashRegisterService {
     return this.buildResponse(await this.findWithRelations(saved.id));
   }
 
+  /** Corrects the opening cash ("base") when it was mistyped at open —
+   * admin-only (see the controller). Works on an open register (the running
+   * expected cash follows by itself) and on a closed one, where the frozen
+   * `expectedCash`/`cashDiscrepancy` are moved by the same difference;
+   * nothing else about the day changes. */
+  async updateOpeningAmount(
+    id: string,
+    openingAmount: number,
+    allowedNumbers: readonly number[],
+  ): Promise<CashRegisterResponseDto> {
+    const register = await this.findAllowed(id, allowedNumbers);
+
+    if (register.expectedCash !== null) {
+      register.expectedCash += openingAmount - register.openingAmount;
+      if (register.countedCash !== null) {
+        register.cashDiscrepancy = register.countedCash - register.expectedCash;
+      }
+    }
+    register.openingAmount = openingAmount;
+
+    const saved = await this.cashRegisterRepository.save(register);
+    return this.buildResponse(await this.findWithRelations(saved.id));
+  }
+
   /** Records a cash movement that isn't a sale (e.g. bringing in change,
    * pulling cash out for a supplier payment) against that till's open
    * register. */
