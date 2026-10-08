@@ -18,6 +18,7 @@ import {
   STANDARD_TAX_RATE,
 } from '../../common/utils/invoice-math.util';
 import { assertLineKind } from '../../common/utils/custom-line.util';
+import { escapeLike } from '../../common/utils/escape-like.util';
 import { withNumberingLock } from '../../common/utils/numbering-lock.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
@@ -327,11 +328,25 @@ export class InvoicesService {
   ): Promise<PaginatedResponseDto<InvoiceResponseDto>> {
     const { page, limit } = query;
 
-    const [invoices, total] = await this.invoicesRepository.findAndCount({
-      order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
-    });
+    const qb = this.invoicesRepository
+      .createQueryBuilder('invoice')
+      .orderBy('invoice.createdAt', 'DESC');
+
+    if (query.search) {
+      qb.andWhere(
+        `(invoice.dataicoNumber ILIKE :search ESCAPE '\\' OR
+          CONCAT(invoice.prefix, invoice.number) ILIKE :search ESCAPE '\\' OR
+          invoice.customerCompanyName ILIKE :search ESCAPE '\\' OR
+          CONCAT_WS(' ', invoice.customerFirstName, invoice.customerFamilyName) ILIKE :search ESCAPE '\\' OR
+          invoice.customerIdentification ILIKE :search ESCAPE '\\')`,
+        { search: `%${escapeLike(query.search)}%` },
+      );
+    }
+
+    const [invoices, total] = await qb
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
 
     return {
       data: invoices.map((invoice) => InvoiceResponseDto.fromEntity(invoice)),

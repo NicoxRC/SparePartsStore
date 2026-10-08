@@ -715,6 +715,82 @@ describe('InvoicesService', () => {
     });
   });
 
+  describe('findAll', () => {
+    let listQueryBuilder: {
+      orderBy: jest.Mock;
+      andWhere: jest.Mock;
+      skip: jest.Mock;
+      take: jest.Mock;
+      getManyAndCount: jest.Mock;
+    };
+
+    beforeEach(() => {
+      listQueryBuilder = {
+        orderBy: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      invoicesRepository.createQueryBuilder.mockReturnValue(listQueryBuilder);
+    });
+
+    it('returns the requested page, newest first, with meta built from the total count', async () => {
+      listQueryBuilder.getManyAndCount.mockResolvedValue([
+        [
+          {
+            id: 'inv-1',
+            prefix: 'FVE',
+            number: 1225,
+            createdAt: new Date(),
+            requestPayload: null,
+          } as Invoice,
+        ],
+        41,
+      ]);
+
+      const result = await service.findAll({ page: 3, limit: 20 });
+
+      expect(result.data).toHaveLength(1);
+      expect(result.meta).toEqual({
+        total: 41,
+        page: 3,
+        limit: 20,
+        totalPages: 3,
+      });
+      expect(listQueryBuilder.orderBy).toHaveBeenCalledWith(
+        'invoice.createdAt',
+        'DESC',
+      );
+      expect(listQueryBuilder.skip).toHaveBeenCalledWith(40);
+      expect(listQueryBuilder.take).toHaveBeenCalledWith(20);
+      expect(listQueryBuilder.andWhere).not.toHaveBeenCalled();
+    });
+
+    it('searches by invoice number and customer', async () => {
+      await service.findAll({ page: 1, limit: 20, search: 'ACME' });
+
+      const [where, params] = listQueryBuilder.andWhere.mock.calls[0] as [
+        string,
+        { search: string },
+      ];
+      expect(where).toContain('invoice.dataicoNumber ILIKE :search');
+      expect(where).toContain('CONCAT(invoice.prefix, invoice.number)');
+      expect(where).toContain('invoice.customerCompanyName ILIKE :search');
+      expect(where).toContain('invoice.customerIdentification ILIKE :search');
+      expect(params).toEqual({ search: '%ACME%' });
+    });
+
+    it('escapes LIKE wildcards in the search term', async () => {
+      await service.findAll({ page: 1, limit: 20, search: '50%_off' });
+
+      expect(listQueryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE :search'),
+        { search: '%50\\%\\_off%' },
+      );
+    });
+  });
+
   describe('getTicket', () => {
     it('builds the ticket from the invoice and the resolution it was numbered under', async () => {
       resolutionsService.findByNumber.mockResolvedValue({
