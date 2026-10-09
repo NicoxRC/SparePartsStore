@@ -84,24 +84,16 @@ Squash and merge into `main`, keeping one commit per feature/fix. Delete the bra
 
 ## Keeping a branch updated
 
-During the invoicing pivot, rebase feature branches onto `develop`, not `main` (see below):
-
 ```bash
-git checkout develop
-git pull origin develop
+git checkout main
+git pull origin main
 git checkout feature/dataico-resolutions
-git rebase develop
+git rebase main
 ```
 
-Outside the pivot (or once it's over), rebase onto `main` instead. Resolve conflicts, then `git push --force-with-lease` (only ever force-push your **own** branch, never `main`/`develop`).
+Resolve conflicts, then `git push --force-with-lease` (only ever force-push your **own** branch, never `main`).
 
-## Temporary: `develop` integration branch during the invoicing pivot
-
-`main` is what's currently deployed to production. While the Dataico invoicing pivot (`docs/PROJECT_ROADMAP.md` phases 7–14) is in progress, work accumulates on a long-lived **`develop`** branch instead of going straight to `main`, so production stays untouched until the whole pivot is ready — not just one phase.
-
-- Feature branches for each invoicing phase (`feature/dataico-foundation`, `feature/dataico-resolutions`, etc.) branch off `develop` and merge back into `develop` via PR, following the same rules as everywhere else in this document.
-- **No PR against `main` exists while the pivot is in progress** — every PR during this period targets `develop`. A single `develop` → `main` PR is opened only once the full pivot is production-ready, reviewed, and ready to merge — not before.
-- This is a deliberate, temporary exception to the GitHub Flow described above. Once the pivot ships and `develop` merges into `main`, `develop` is deleted and branching goes back to feature branches off `main` directly.
+> **History:** while the Dataico invoicing pivot (`docs/PROJECT_ROADMAP.md` phases 7–14) was in progress, work accumulated on a temporary long-lived `develop` branch so production stayed untouched until the whole pivot was ready. The pivot shipped, `develop` was merged into `main` and deleted — every branch now comes off `main` and every PR targets `main`.
 
 ## AI attribution in commits/PRs
 

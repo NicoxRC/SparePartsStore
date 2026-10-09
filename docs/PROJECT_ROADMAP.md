@@ -78,7 +78,7 @@ Corresponds to Dataico's "4. Documento soporte" collection — self-issued docum
 
 ## Phase 14 — Retire Sisco export
 
-**Done.** Removed the `export` module (`GET /export/articulos` and `ExportService`) and its Sisco-format `.xlsx` generation entirely, now that standard invoicing (Phase 10) is the store's live, trusted invoicing channel — confirmed with the human as the intended end state (see the "Sisco" decision recorded in `GLOSSARY.md`). Removal was full: backend module/controller/service, the `exceljs` dependency, the client's "Exportar" button/hook/service, and `docs/ARCHITECTURE.md`/`DATABASE.md`/`README.md` no longer describe it as current (kept historically in `docs/phases/PHASE_6_SISCO_EXPORT.md` and `docs/GLOSSARY.md`).
+**Done.** Removed the `export` module (`GET /export/articulos` and `ExportService`) and its Sisco-format `.xlsx` generation entirely, now that standard invoicing (Phase 10) is the store's live, trusted invoicing channel — confirmed with the human as the intended end state (see the "Sisco" decision recorded in `GLOSSARY.md`). Removal was full: backend module/controller/service, the `exceljs` dependency (re-added later in Phase 16, only for the purchase-import Excel template — unrelated to Sisco), the client's "Exportar" button/hook/service, and `docs/ARCHITECTURE.md`/`DATABASE.md`/`README.md` no longer describe it as current (kept historically in `docs/phases/PHASE_6_SISCO_EXPORT.md` and `docs/GLOSSARY.md`).
 
 **Exit criteria (met):** no `export` code, route, or UI remains; docs describe Dataico as the only invoicing channel with no lingering "current" references to Sisco.
 
