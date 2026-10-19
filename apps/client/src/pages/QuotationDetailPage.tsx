@@ -14,6 +14,7 @@ import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
+import { useCreateCustomer } from '../hooks/useCustomers';
 import { usePermissions } from '../hooks/usePermissions';
 import { useProducts } from '../hooks/useProducts';
 import {
@@ -37,7 +38,11 @@ import {
 } from '../lib/invoiceMath';
 import { TotalsSummary } from '../components/TotalsSummary';
 import { toLowerCase, toUpperCase } from '../lib/textCase';
-import type { CustomerResponse } from '../services/customers';
+import type {
+  CustomerInput,
+  CustomerPartyType,
+  CustomerResponse,
+} from '../services/customers';
 import type { ProductResponse } from '../services/products';
 import type { ThirdPartyResponse } from '../services/thirdParties';
 import type {
@@ -176,6 +181,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   });
   const [overrideSearchQuery, setOverrideSearchQuery] = useState('');
   const invoiceMutation = useInvoiceQuotation();
+  const createCustomerMutation = useCreateCustomer();
 
   // Same "find a customer" widget as Venta, filling the override customer.
   const handleSelectOverrideCustomer = (customer: CustomerResponse) => {
@@ -326,6 +332,32 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   };
 
   const handleInvoice = async () => {
+    // Same rule as Venta: a new "otros datos" customer is saved to the
+    // address book, best effort — a failure (or an already-saved
+    // identification, which the API rejects) never blocks the invoice.
+    if (!useSameCustomer) {
+      try {
+        const customerPayload: CustomerInput = {
+          identificationType: overrideCustomer.customerIdentificationType,
+          identification: overrideCustomer.customerIdentification,
+          partyType: overrideCustomer.customerPartyType as CustomerPartyType,
+          companyName: overrideCustomer.customerCompanyName || undefined,
+          firstName: overrideCustomer.customerFirstName || undefined,
+          familyName: overrideCustomer.customerFamilyName || undefined,
+          taxLevelCode: overrideCustomer.customerTaxLevelCode || undefined,
+          regimen: overrideCustomer.customerRegimen || undefined,
+          countryCode: overrideCustomer.customerCountryCode || undefined,
+          department: overrideCustomer.customerDepartment || undefined,
+          city: overrideCustomer.customerCity || undefined,
+          addressLine: overrideCustomer.customerAddressLine || undefined,
+          email: overrideCustomer.customerEmail,
+        };
+        await createCustomerMutation.mutateAsync(customerPayload);
+      } catch {
+        // best-effort, see comment above
+      }
+    }
+
     await invoiceMutation.mutateAsync({
       id: quotation.id,
       input: {
