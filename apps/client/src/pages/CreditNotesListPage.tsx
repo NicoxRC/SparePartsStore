@@ -53,6 +53,9 @@ export function CreditNotesListPage() {
                       <span className="font-mono">{note.invoiceLabel}</span>
                     </p>
                     <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <span className="text-xs font-medium text-steel">
+                        {note.reason === 'ANULACION' ? 'Anulación total' : 'Devolución'}
+                      </span>
                       {note.dianStatus === 'DIAN_ACEPTADO' && (
                         <span className="stamp">Aceptado DIAN</span>
                       )}

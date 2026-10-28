@@ -26,8 +26,22 @@ export interface CreditNotesQuery {
   invoiceId?: string;
 }
 
+/** A line of an invoice and how much of it can still be credited. */
+export interface ReturnableLine {
+  sku: string;
+  description: string;
+  /** Pre-tax, post-discount unit price exactly as invoiced. */
+  unitPrice: number;
+  /** IVA rate charged on the line (0 if none). */
+  taxRate: number;
+  invoicedQuantity: number;
+  /** Invoiced quantity minus what earlier credit notes already returned. */
+  returnableQuantity: number;
+}
+
 export interface CreateCreditNoteItemInput {
-  productId: string;
+  /** The sku the line was invoiced with. */
+  sku: string;
   quantity: number;
 }
 
@@ -48,6 +62,13 @@ export async function getCreditNotes(
 
 export async function getCreditNote(id: string): Promise<CreditNoteResponse> {
   const { data } = await api.get<CreditNoteResponse>(`/invoicing/credit-notes/${id}`);
+  return data;
+}
+
+export async function getReturnableLines(invoiceId: string): Promise<ReturnableLine[]> {
+  const { data } = await api.get<ReturnableLine[]>(
+    `/invoicing/credit-notes/returnable/${invoiceId}`,
+  );
   return data;
 }
 
