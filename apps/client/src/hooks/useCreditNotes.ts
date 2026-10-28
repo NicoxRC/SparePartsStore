@@ -3,6 +3,7 @@ import {
   createCreditNote,
   getCreditNote,
   getCreditNotes,
+  getReturnableLines,
   type CreateCreditNoteInput,
   type CreditNotesQuery,
 } from '../services/creditNotes';
@@ -20,6 +21,15 @@ export function useCreditNote(id: string | undefined) {
     queryKey: ['creditNotes', id],
     queryFn: () => getCreditNote(id as string),
     enabled: Boolean(id),
+  });
+}
+
+// Under 'creditNotes' so a new note refreshes what is left to return.
+export function useReturnableLines(invoiceId: string | undefined) {
+  return useQuery({
+    queryKey: ['creditNotes', 'returnable', invoiceId],
+    queryFn: () => getReturnableLines(invoiceId as string),
+    enabled: Boolean(invoiceId),
   });
 }
 

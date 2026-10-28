@@ -20,7 +20,7 @@ Let staff issue a real electronic invoice against a sale, from a phone, as easil
 ## Deliberately left out (keep it simple)
 
 - No DANE department/city picker — plain text inputs for the codes, matching the backend's own simplification.
-- No credit-note/debit-note UI — blocked/deferred on the backend side, see `docs/phases/PHASE_10_INVOICING_STANDARD.md`'s "Still not confirmed" section.
+- Credit/debit note UI was added later — see `docs/phases/PHASE_10_INVOICING_STANDARD.md` ("What shipped").
 - No draft/preview step before sending — matches the backend hardcoding `send_dian: true`; submitting the form IS sending the real invoice.
 - No toast/notification system — resend/refresh feedback is a simple top-of-page `Alert` on failure, not a per-action toast; this app has no toast component yet, and adding one just for this felt like more than the action warrants.
 

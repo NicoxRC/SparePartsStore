@@ -11,7 +11,11 @@ export class CreateCreditNoteDto {
   @IsUUID()
   invoiceId: string;
 
-  @ApiProperty({ type: [CreateCreditNoteItemDto] })
+  @ApiProperty({
+    type: [CreateCreditNoteItemDto],
+    description:
+      'Every remaining line at its full remaining quantity, on an invoice with no earlier credit note, is sent as an ANULACION; anything less is a DEVOLUCION.',
+  })
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
