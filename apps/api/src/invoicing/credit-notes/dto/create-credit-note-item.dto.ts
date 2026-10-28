@@ -1,19 +1,21 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { IsInt, IsUUID, Min } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString, Min } from 'class-validator';
 
 /**
- * No `taxRate` field — IVA is never client-supplied, same reasoning as
- * CreateInvoiceItemDto: CreditNotesService derives it from
- * `Product.taxExempt` via `resolveTaxRate()`.
+ * A line of the original invoice to return, identified by the `sku` it was
+ * invoiced with. No price or `taxRate` field — CreditNotesService credits
+ * the price and IVA the invoice itself charged, never client-supplied.
  */
 export class CreateCreditNoteItemDto {
   @ApiProperty({
     description:
-      'An existing product id — sku/description/price are pulled from it, same as an invoice line.',
+      'The sku (product reference) of a line on the original invoice.',
+    example: 'REP-001',
   })
-  @IsUUID()
-  productId: string;
+  @IsString()
+  @IsNotEmpty()
+  sku: string;
 
   @ApiProperty({ example: 1 })
   @Type(() => Number)

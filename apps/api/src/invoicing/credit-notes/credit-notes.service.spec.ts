@@ -20,6 +20,7 @@ describe('CreditNotesService', () => {
     create: jest.Mock<Partial<CreditNote>, [Partial<CreditNote>]>;
     save: jest.Mock<Promise<CreditNote>, [Partial<CreditNote>]>;
     findOne: jest.Mock;
+    find: jest.Mock;
     createQueryBuilder: jest.Mock;
     manager: { transaction: jest.Mock };
   };
@@ -42,7 +43,7 @@ describe('CreditNotesService', () => {
     sendEmail: boolean;
   };
   let invoicesService: { findOne: jest.Mock };
-  let productsService: { findOne: jest.Mock };
+  let productsService: { findByReference: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
   let cashRegisterService: { assertOpenToday: jest.Mock };
   let configService: { get: jest.Mock };
@@ -80,14 +81,30 @@ describe('CreditNotesService', () => {
         customer: dataicoCustomer,
         payment_means: 'BANK_TRANSFER',
         payment_means_type: 'DEBITO',
+        // salePrice (50000) includes IVA: the invoice sent the pre-tax
+        // price (50000 / 1.19 = 42016.8067).
+        items: [
+          {
+            sku: 'REP-001',
+            description: 'Filtro de aceite',
+            quantity: 2,
+            price: 42016.8067,
+            taxes: [{ tax_category: 'IVA', tax_rate: 19 }],
+          },
+        ],
       },
     },
   } as unknown as Invoice;
 
+  // One of the two invoiced units — a partial return.
   const baseDto: CreateCreditNoteDto = {
     invoiceId: 'inv-1',
-    items: [{ productId: 'prod-1', quantity: 1 }],
+    items: [{ sku: 'REP-001', quantity: 1 }],
   };
+
+  const earlierNote = (items: Array<{ sku: string; quantity: number }>) => ({
+    requestPayload: { credit_note: { items } },
+  });
 
   beforeEach(() => {
     // 10am Bogotá (UTC-5) on 2026-09-07 — getStoreToday() resolves to
@@ -119,6 +136,8 @@ describe('CreditNotesService', () => {
         } as CreditNote),
       ),
       findOne: jest.fn(),
+      // No earlier credit note against the invoice by default.
+      find: jest.fn().mockResolvedValue([]),
       createQueryBuilder: jest.fn(() => queryBuilder),
       manager: {
         transaction: jest.fn((run: (m: unknown) => Promise<unknown>) =>
@@ -134,7 +153,9 @@ describe('CreditNotesService', () => {
       sendEmail: false,
     };
     invoicesService = { findOne: jest.fn().mockResolvedValue(existingInvoice) };
-    productsService = { findOne: jest.fn().mockResolvedValue(product) };
+    productsService = {
+      findByReference: jest.fn().mockResolvedValue(product),
+    };
     inventoryService = {
       createMovement: jest.fn().mockResolvedValue(undefined),
     };
@@ -268,8 +289,6 @@ describe('CreditNotesService', () => {
                 'measuring-unit': '94',
                 description: 'Filtro de aceite',
                 quantity: 1,
-                // salePrice (50000) includes IVA: Dataico gets the pre-tax
-                // price (50000 / 1.19 = 42016.8067).
                 price: 42016.8067,
                 taxes: [{ tax_category: 'IVA', tax_rate: 19 }],
               }),
@@ -291,7 +310,7 @@ describe('CreditNotesService', () => {
             ...(existingInvoice.requestPayload as { invoice: object }).invoice,
             items: items.map(({ sku, price, tax_rate }) => ({
               sku,
-              quantity: 1,
+              quantity: 5,
               price,
               taxes:
                 tax_rate === undefined
@@ -326,7 +345,7 @@ describe('CreditNotesService', () => {
       });
 
       it('keeps the IVA rate the invoice used, even if the product has since become exempt', async () => {
-        productsService.findOne.mockResolvedValue({
+        productsService.findByReference.mockResolvedValue({
           ...product,
           taxExempt: true,
         });
@@ -357,7 +376,7 @@ describe('CreditNotesService', () => {
         );
 
         await service.create(
-          { ...baseDto, items: [{ productId: 'prod-1', quantity: 2 }] },
+          { ...baseDto, items: [{ sku: 'REP-001', quantity: 2 }] },
           'user-1',
           1,
         );
@@ -379,24 +398,6 @@ describe('CreditNotesService', () => {
 
         expect(sentItems()[0].price).toBe(30000);
       });
-
-      it("falls back to the product's current price when it isn't on the invoice", async () => {
-        invoicesService.findOne.mockResolvedValue(
-          invoiceWithItems([{ sku: 'OTHER', price: 999, tax_rate: 19 }]),
-        );
-
-        await service.create(baseDto, 'user-1', 1);
-
-        // 50000 with IVA -> 42016.8067 pre-tax.
-        expect(sentItems()[0].price).toBe(42016.8067);
-      });
-
-      it('falls back when the stored invoice has no items at all', async () => {
-        await service.create(baseDto, 'user-1', 1);
-
-        // 50000 with IVA -> 42016.8067 pre-tax.
-        expect(sentItems()[0].price).toBe(42016.8067);
-      });
     });
 
     it('sends send_dian/send_email off when the switches are off (the default)', async () => {
@@ -409,35 +410,11 @@ describe('CreditNotesService', () => {
       expect(body.actions).toEqual({ send_dian: false, send_email: false });
     });
 
-    it('sends an empty taxes array for a tax-exempt product', async () => {
-      productsService.findOne.mockResolvedValue({
-        ...product,
-        taxExempt: true,
-      });
-
-      await service.create(
-        {
-          ...baseDto,
-          items: [{ productId: 'prod-1', quantity: 1 }],
-        },
-        'user-1',
-        1,
-      );
-
-      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-      expect(dataicoClient.post).toHaveBeenCalledWith(
-        '/credit_notes',
-        expect.objectContaining({
-          credit_note: expect.objectContaining({
-            items: [expect.objectContaining({ taxes: [] })],
-          }),
-        }),
-      );
-      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
-    });
-
     it('does not check stock — a credit note only ever returns merchandise', async () => {
-      productsService.findOne.mockResolvedValue({ ...product, stock: 0 });
+      productsService.findByReference.mockResolvedValue({
+        ...product,
+        stock: 0,
+      });
 
       await expect(service.create(baseDto, 'user-1', 1)).resolves.toBeDefined();
     });
@@ -498,6 +475,233 @@ describe('CreditNotesService', () => {
         }),
       );
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    });
+  });
+
+  describe('what can be returned', () => {
+    it('rejects a product that is not on the invoice, without calling Dataico', async () => {
+      await expect(
+        service.create(
+          { ...baseDto, items: [{ sku: 'OTHER', quantity: 1 }] },
+          'user-1',
+          1,
+        ),
+      ).rejects.toThrow('El producto OTHER no está en la factura original.');
+      expect(dataicoClient.post).not.toHaveBeenCalled();
+    });
+
+    it('rejects more units than were invoiced', async () => {
+      await expect(
+        service.create(
+          { ...baseDto, items: [{ sku: 'REP-001', quantity: 3 }] },
+          'user-1',
+          1,
+        ),
+      ).rejects.toThrow(
+        'Del producto REP-001 solo quedan 2 unidades por devolver.',
+      );
+      expect(dataicoClient.post).not.toHaveBeenCalled();
+    });
+
+    it('counts what earlier credit notes already returned', async () => {
+      creditNotesRepository.find.mockResolvedValue([
+        earlierNote([{ sku: 'REP-001', quantity: 1 }]),
+      ]);
+
+      await expect(
+        service.create(
+          { ...baseDto, items: [{ sku: 'REP-001', quantity: 2 }] },
+          'user-1',
+          1,
+        ),
+      ).rejects.toThrow(
+        'Del producto REP-001 solo quedan 1 unidades por devolver.',
+      );
+      expect(creditNotesRepository.find).toHaveBeenCalledWith({
+        where: { invoice: { id: 'inv-1' } },
+      });
+    });
+
+    it('rejects a line that was already returned in full', async () => {
+      creditNotesRepository.find.mockResolvedValue([
+        earlierNote([{ sku: 'REP-001', quantity: 2 }]),
+      ]);
+
+      await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
+        'El producto REP-001 ya fue devuelto por completo.',
+      );
+    });
+
+    it('adds up repeated lines of the same sku in the request', async () => {
+      await expect(
+        service.create(
+          {
+            ...baseDto,
+            items: [
+              { sku: 'REP-001', quantity: 2 },
+              { sku: 'REP-001', quantity: 1 },
+            ],
+          },
+          'user-1',
+          1,
+        ),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects when the invoiced product no longer exists in the catalog', async () => {
+      productsService.findByReference.mockResolvedValue(null);
+
+      await expect(service.create(baseDto, 'user-1', 1)).rejects.toThrow(
+        'El producto REP-001 ya no existe en el inventario, no se puede devolver.',
+      );
+      expect(dataicoClient.post).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('reason', () => {
+    const twoLineInvoice = {
+      ...existingInvoice,
+      requestPayload: {
+        invoice: {
+          ...(existingInvoice.requestPayload as { invoice: object }).invoice,
+          items: [
+            { sku: 'REP-001', quantity: 2, price: 1000, taxes: [] },
+            { sku: 'REP-002', quantity: 1, price: 500, taxes: [] },
+          ],
+        },
+      },
+    };
+
+    const sentReason = () =>
+      (
+        dataicoClient.post.mock.calls[0][1] as {
+          credit_note: { reason: string };
+        }
+      ).credit_note.reason;
+
+    beforeEach(() => {
+      invoicesService.findOne.mockResolvedValue(twoLineInvoice);
+      dataicoClient.post.mockResolvedValue({ uuid: 'note-uuid' });
+    });
+
+    it('voids the invoice (ANULACION) when every line is returned in full at once', async () => {
+      await service.create(
+        {
+          invoiceId: 'inv-1',
+          items: [
+            { sku: 'REP-001', quantity: 2 },
+            { sku: 'REP-002', quantity: 1 },
+          ],
+        },
+        'user-1',
+        1,
+      );
+
+      expect(sentReason()).toBe('ANULACION');
+      expect(creditNotesRepository.create.mock.calls[0][0].reason).toBe(
+        'ANULACION',
+      );
+    });
+
+    it('is a DEVOLUCION when a line is left out', async () => {
+      await service.create(
+        { invoiceId: 'inv-1', items: [{ sku: 'REP-001', quantity: 2 }] },
+        'user-1',
+        1,
+      );
+
+      expect(sentReason()).toBe('DEVOLUCION');
+    });
+
+    it('is a DEVOLUCION when a line is returned only partly', async () => {
+      await service.create(
+        {
+          invoiceId: 'inv-1',
+          items: [
+            { sku: 'REP-001', quantity: 1 },
+            { sku: 'REP-002', quantity: 1 },
+          ],
+        },
+        'user-1',
+        1,
+      );
+
+      expect(sentReason()).toBe('DEVOLUCION');
+    });
+
+    it('is a DEVOLUCION when it returns the rest of an invoice already partly credited', async () => {
+      creditNotesRepository.find.mockResolvedValue([
+        earlierNote([{ sku: 'REP-001', quantity: 2 }]),
+      ]);
+
+      await service.create(
+        { invoiceId: 'inv-1', items: [{ sku: 'REP-002', quantity: 1 }] },
+        'user-1',
+        1,
+      );
+
+      expect(sentReason()).toBe('DEVOLUCION');
+    });
+  });
+
+  describe('findReturnableLines', () => {
+    it('lists each invoiced sku once, minus what earlier notes returned', async () => {
+      invoicesService.findOne.mockResolvedValue({
+        ...existingInvoice,
+        requestPayload: {
+          invoice: {
+            items: [
+              {
+                sku: 'REP-001',
+                description: 'Filtro',
+                quantity: 2,
+                price: 1000,
+                taxes: [{ tax_rate: 19 }],
+              },
+              {
+                sku: 'REP-002',
+                description: 'Bujía',
+                quantity: 1,
+                price: 500,
+                taxes: [],
+              },
+              {
+                sku: 'REP-001',
+                description: 'Filtro',
+                quantity: 1,
+                price: 1000,
+                taxes: [{ tax_rate: 19 }],
+              },
+            ],
+          },
+        },
+      });
+      creditNotesRepository.find.mockResolvedValue([
+        earlierNote([{ sku: 'REP-001', quantity: 1 }]),
+        earlierNote([
+          { sku: 'REP-001', quantity: 1 },
+          { sku: 'REP-002', quantity: 1 },
+        ]),
+      ]);
+
+      await expect(service.findReturnableLines('inv-1')).resolves.toEqual([
+        {
+          sku: 'REP-001',
+          description: 'Filtro',
+          unitPrice: 1000,
+          taxRate: 19,
+          invoicedQuantity: 3,
+          returnableQuantity: 1,
+        },
+        {
+          sku: 'REP-002',
+          description: 'Bujía',
+          unitPrice: 500,
+          taxRate: 0,
+          invoicedQuantity: 1,
+          returnableQuantity: 0,
+        },
+      ]);
     });
   });
 

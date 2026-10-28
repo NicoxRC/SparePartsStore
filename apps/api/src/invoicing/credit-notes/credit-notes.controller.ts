@@ -25,6 +25,7 @@ import { UserRole } from '../../common/enums/user-role.enum';
 import { CreateCreditNoteDto } from './dto/create-credit-note.dto';
 import { CreditNoteResponseDto } from './dto/credit-note-response.dto';
 import { QueryCreditNotesDto } from './dto/query-credit-notes.dto';
+import { ReturnableLineDto } from './dto/returnable-line.dto';
 import { CreditNotesService } from './credit-notes.service';
 
 @ApiTags('Invoicing — credit notes')
@@ -42,7 +43,7 @@ export class CreditNotesController {
   @ApiResponse({
     status: 400,
     description:
-      'The invoice has no Dataico uuid, or its stored payload is missing customer/payment data',
+      'The invoice has no Dataico uuid, its stored payload is missing customer/payment data, or an item is not on the invoice / exceeds what is left to return',
   })
   @ApiResponse({ status: 502, description: 'Dataico/DIAN rejected the note' })
   @Post()
@@ -53,6 +54,20 @@ export class CreditNotesController {
     @CurrentCashRegister() cashRegisterNumber: number,
   ): Promise<CreditNoteResponseDto> {
     return this.creditNotesService.create(dto, user.id, cashRegisterNumber);
+  }
+
+  @ApiOperation({
+    summary:
+      "An invoice's lines with the quantity still returnable after earlier credit notes",
+  })
+  @ApiResponse({ status: 200, type: [ReturnableLineDto] })
+  @ApiResponse({ status: 404, description: 'Invoice not found' })
+  @Get('returnable/:invoiceId')
+  @RequirePermission('credit_notes.create')
+  findReturnableLines(
+    @Param('invoiceId', ParseUUIDPipe) invoiceId: string,
+  ): Promise<ReturnableLineDto[]> {
+    return this.creditNotesService.findReturnableLines(invoiceId);
   }
 
   @ApiOperation({ summary: 'List credit notes, most recent first' })

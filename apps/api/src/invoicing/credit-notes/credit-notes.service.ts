@@ -8,11 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../../common/dto/paginated-response.dto';
-import {
-  computeLineAmounts,
-  round,
-  resolveTaxRate,
-} from '../../common/utils/invoice-math.util';
+import { round } from '../../common/utils/invoice-math.util';
 import { withNumberingLock } from '../../common/utils/numbering-lock.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CreateMovementDto } from '../../inventory/dto/create-movement.dto';
@@ -22,13 +18,17 @@ import { ProductsService } from '../../products/products.service';
 import { DataicoClientService } from '../dataico/dataico-client.service';
 import { DataicoConfig } from '../dataico/dataico.config';
 import { toDataicoDate } from '../dataico/dataico-date.util';
-import { readInvoicedItems } from '../invoices/invoiced-items.util';
+import {
+  InvoicedItem,
+  readInvoicedItems,
+} from '../invoices/invoiced-items.util';
 import { Invoice } from '../invoices/entities/invoice.entity';
 import { InvoicesService } from '../invoices/invoices.service';
 import { CreateCreditNoteDto } from './dto/create-credit-note.dto';
 import { CreateCreditNoteItemDto } from './dto/create-credit-note-item.dto';
 import { CreditNoteResponseDto } from './dto/credit-note-response.dto';
 import { QueryCreditNotesDto } from './dto/query-credit-notes.dto';
+import { ReturnableLineDto } from './dto/returnable-line.dto';
 import { CreditNote } from './entities/credit-note.entity';
 
 /**
@@ -57,6 +57,8 @@ interface DataicoCreditNoteResponse {
 }
 
 interface ResolvedItem {
+  /** The sku the original invoice carried — what this note credits. */
+  sku: string;
   product: Product;
   quantity: number;
   taxRate: number;
@@ -64,6 +66,14 @@ interface ResolvedItem {
   taxBase: number;
   taxAmount: number;
 }
+
+/**
+ * DEVOLUCION returns part of an invoice; ANULACION voids all of it. Both
+ * seen in Dataico's own credit note examples — ANULACION only in its
+ * "Anular FE" requests, which also carry health-sector fields this store
+ * doesn't send (see docs/phases/PHASE_10_INVOICING_STANDARD.md).
+ */
+type CreditNoteReason = 'DEVOLUCION' | 'ANULACION';
 
 interface OriginalInvoiceFields {
   customer: Record<string, unknown>;
@@ -123,10 +133,10 @@ export class CreditNotesService {
    *
    * Unlike a debit note, a credit note returns merchandise — inventory
    * moves the opposite direction (stock increases, no "insufficient
-   * stock" check makes sense here) and `reason` is `'DEVOLUCION'`, the
-   * only value confirmed against a real, clean credit note example (the
-   * original shared example's `'ANULACION'` came from the health-
-   * contaminated fixture — see docs/GLOSSARY.md — and isn't trusted here).
+   * stock" check makes sense here). Only lines of the original invoice can
+   * be returned, never more than what's left after earlier notes, and the
+   * `reason` is derived, not chosen: the whole invoice at once is an
+   * `'ANULACION'`, anything less a `'DEVOLUCION'` (see `resolveReason()`).
    */
   private async issue(
     dto: CreateCreditNoteDto,
@@ -145,7 +155,9 @@ export class CreditNotesService {
 
     const { customer, paymentMeans, paymentMeansType } =
       this.extractOriginalInvoiceFields(invoice);
-    const items = await this.resolveItems(dto.items, invoice);
+    const lines = await this.buildReturnableLines(invoice);
+    const items = await this.resolveItems(dto.items, lines);
+    const reason = this.resolveReason(items, lines);
 
     const issueDate = getStoreToday();
     const prefix = this.dataicoConfig.creditNotePrefix;
@@ -166,10 +178,10 @@ export class CreditNotesService {
         payment_date: toDataicoDate(invoice.paymentDate ?? issueDate),
         number,
         numbering: { prefix, flexible: true },
-        reason: 'DEVOLUCION',
+        reason,
         customer,
         items: items.map((item) => ({
-          sku: item.product.reference,
+          sku: item.sku,
           'measuring-unit': '94',
           quantity: item.quantity,
           description: item.product.description,
@@ -195,7 +207,7 @@ export class CreditNotesService {
       const movementDto: CreateMovementDto = {
         productId: item.product.id,
         quantity: item.quantity,
-        notes: `Nota crédito ${prefix}${number} — devolución factura ${invoice.prefix}${invoice.number}`,
+        notes: `Nota crédito ${prefix}${number} — ${reason === 'ANULACION' ? 'anulación' : 'devolución'} factura ${invoice.prefix}${invoice.number}`,
       };
       await this.inventoryService.createMovement(movementDto, createdById);
     }
@@ -204,7 +216,7 @@ export class CreditNotesService {
       number,
       prefix,
       invoice,
-      reason: 'DEVOLUCION',
+      reason,
       issueDate,
       totalAmount: round(
         items.reduce((sum, item) => sum + item.taxBase + item.taxAmount, 0),
@@ -218,6 +230,12 @@ export class CreditNotesService {
     const saved = await this.creditNotesRepository.save(note);
     saved.invoice = invoice;
     return CreditNoteResponseDto.fromEntity(saved);
+  }
+
+  /** What the credit note form offers for `invoiceId` — see buildReturnableLines(). */
+  async findReturnableLines(invoiceId: string): Promise<ReturnableLineDto[]> {
+    const invoice = await this.invoicesService.findOne(invoiceId);
+    return this.buildReturnableLines(invoice);
   }
 
   async findAll(
@@ -288,68 +306,127 @@ export class CreditNotesService {
   }
 
   /**
-   * The price and IVA rate the original invoice charged for this product,
-   * read from its stored `request_payload` (matched by `sku`, which is the
-   * product reference at the time). A return must be credited at what the
-   * customer actually paid — not at today's price, which may have changed
-   * since. `price` there is already the pre-tax, post-discount unit price.
-   * null when the product isn't on that invoice.
+   * The invoice's lines (one per sku — repeated lines are added up, at the
+   * first one's price) with what earlier credit notes against it already
+   * returned taken off. Prices come from the invoice's stored
+   * `request_payload`: a return is credited at what the customer actually
+   * paid, not at today's price. Earlier notes are read the same way, from
+   * the items each one sent. Called inside the numbering lock when issuing,
+   * so two notes against the same invoice can't both pass the check.
    */
-  private findInvoicedLine(
+  private async buildReturnableLines(
     invoice: Invoice,
-    sku: string,
-  ): { unitPrice: number; taxRate: number } | null {
-    const line = readInvoicedItems(invoice.requestPayload).find(
-      (item) => item.sku === sku,
-    );
-    return line ? { unitPrice: line.unitPrice, taxRate: line.taxRate } : null;
+  ): Promise<ReturnableLineDto[]> {
+    const invoiced = new Map<string, InvoicedItem>();
+    for (const item of readInvoicedItems(invoice.requestPayload)) {
+      const existing = invoiced.get(item.sku);
+      invoiced.set(
+        item.sku,
+        existing
+          ? { ...existing, quantity: existing.quantity + item.quantity }
+          : item,
+      );
+    }
+
+    const earlierNotes = await this.creditNotesRepository.find({
+      where: { invoice: { id: invoice.id } },
+    });
+    const returned = new Map<string, number>();
+    for (const note of earlierNotes) {
+      for (const item of readNoteItems(note.requestPayload)) {
+        returned.set(item.sku, (returned.get(item.sku) ?? 0) + item.quantity);
+      }
+    }
+
+    return [...invoiced.values()].map((item) => ({
+      sku: item.sku,
+      description: item.description,
+      unitPrice: item.unitPrice,
+      taxRate: item.taxRate,
+      invoicedQuantity: item.quantity,
+      returnableQuantity: Math.max(
+        0,
+        item.quantity - (returned.get(item.sku) ?? 0),
+      ),
+    }));
   }
 
   /**
-   * No stock-sufficiency check — a credit note returns merchandise, so
-   * any quantity is always valid to add back, unlike a debit note or a
-   * normal sale where stock can run out.
+   * Each requested line must be on the invoice with enough left to return.
+   * The product is looked up by the invoiced sku so its stock can come
+   * back. No stock-sufficiency check — a credit note returns merchandise.
    */
   private async resolveItems(
     itemDtos: CreateCreditNoteItemDto[],
-    invoice: Invoice,
+    lines: ReturnableLineDto[],
   ): Promise<ResolvedItem[]> {
-    return Promise.all(
-      itemDtos.map(async (itemDto) => {
-        const product = await this.productsService.findOne(itemDto.productId);
+    const requested = new Map<string, number>();
+    for (const itemDto of itemDtos) {
+      requested.set(
+        itemDto.sku,
+        (requested.get(itemDto.sku) ?? 0) + itemDto.quantity,
+      );
+    }
 
-        const invoiced = this.findInvoicedLine(invoice, product.reference);
-        if (invoiced) {
-          const taxBase = round(invoiced.unitPrice * itemDto.quantity);
-          return {
-            product,
-            quantity: itemDto.quantity,
-            taxRate: invoiced.taxRate,
-            unitPrice: invoiced.unitPrice,
-            taxBase,
-            taxAmount: round(taxBase * (invoiced.taxRate / 100)),
-          };
+    return Promise.all(
+      [...requested].map(async ([sku, quantity]) => {
+        const line = lines.find((candidate) => candidate.sku === sku);
+        if (!line) {
+          throw new BadRequestException(
+            `El producto ${sku} no está en la factura original.`,
+          );
+        }
+        if (quantity > line.returnableQuantity) {
+          throw new BadRequestException(
+            line.returnableQuantity === 0
+              ? `El producto ${sku} ya fue devuelto por completo.`
+              : `Del producto ${sku} solo quedan ${line.returnableQuantity} unidades por devolver.`,
+          );
         }
 
-        // Not on the original invoice (or its reference changed since):
-        // nothing to mirror, so fall back to the product's current price.
-        const taxRate = resolveTaxRate(product);
-        const { unitPrice, taxBase, taxAmount } = computeLineAmounts(
-          Number(product.salePrice),
-          itemDto.quantity,
-          taxRate,
-        );
+        const product = await this.productsService.findByReference(sku);
+        if (!product) {
+          throw new BadRequestException(
+            `El producto ${sku} ya no existe en el inventario, no se puede devolver.`,
+          );
+        }
 
+        const taxBase = round(line.unitPrice * quantity);
         return {
+          sku,
           product,
-          quantity: itemDto.quantity,
-          taxRate,
-          unitPrice,
+          quantity,
+          taxRate: line.taxRate,
+          unitPrice: line.unitPrice,
           taxBase,
-          taxAmount,
+          taxAmount: round(taxBase * (line.taxRate / 100)),
         };
       }),
     );
+  }
+
+  /**
+   * ANULACION only when this note returns the whole invoice in one go —
+   * every line at its full invoiced quantity, nothing returned before.
+   * Once a partial return exists, the rest goes back as a DEVOLUCION:
+   * voiding an invoice that was already partly credited would credit
+   * those units twice.
+   */
+  private resolveReason(
+    items: ResolvedItem[],
+    lines: ReturnableLineDto[],
+  ): CreditNoteReason {
+    const isWholeInvoice =
+      lines.length > 0 &&
+      lines.every(
+        (line) =>
+          line.returnableQuantity === line.invoicedQuantity &&
+          items.some(
+            (item) =>
+              item.sku === line.sku && item.quantity === line.invoicedQuantity,
+          ),
+      );
+    return isWholeInvoice ? 'ANULACION' : 'DEVOLUCION';
   }
 
   private mapDataicoResponse(
@@ -389,4 +466,20 @@ export class CreditNotesService {
       this.configService.get<string>('CREDIT_NOTE_NUMBER_START', '1'),
     );
   }
+}
+
+/** The `sku`/`quantity` of each item a stored credit note sent. */
+function readNoteItems(
+  requestPayload: unknown,
+): Array<{ sku: string; quantity: number }> {
+  const items = (requestPayload as { credit_note?: { items?: unknown } } | null)
+    ?.credit_note?.items;
+  if (!Array.isArray(items)) return [];
+
+  return (items as Array<{ sku?: unknown; quantity?: unknown }>).flatMap(
+    (item) =>
+      typeof item?.sku === 'string' && typeof item.quantity === 'number'
+        ? [{ sku: item.sku, quantity: item.quantity }]
+        : [],
+  );
 }
