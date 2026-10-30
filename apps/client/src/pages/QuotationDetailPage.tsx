@@ -13,6 +13,7 @@ import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { Toast } from '../components/Toast';
 import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { useCreateCustomer } from '../hooks/useCustomers';
 import { usePermissions } from '../hooks/usePermissions';
@@ -160,6 +161,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   const [filterGroupId, setFilterGroupId] = useState('');
   const [isCustomLineOpen, setIsCustomLineOpen] = useState(false);
   const updateItemsMutation = useUpdateQuotationItems();
+  const [saveToast, setSaveToast] = useState<string | null>(null);
 
   const [isInvoicePanelOpen, setIsInvoicePanelOpen] = useState(false);
   const [paymentMeans, setPaymentMeans] = useState('CASH');
@@ -327,8 +329,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
       id: quotation.id,
       input: { items: input },
     });
-    // Back to the list — same pattern as Facturar/Cancelar below.
-    navigate('/cotizaciones');
+    setSaveToast('Cambios guardados');
   };
 
   const handleInvoice = async () => {
@@ -926,6 +927,8 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           <QuotationTicket quotation={quotation} />
         </PrintTicket>
       )}
+
+      {saveToast && <Toast message={saveToast} onDismiss={() => setSaveToast(null)} />}
     </div>
   );
 }
