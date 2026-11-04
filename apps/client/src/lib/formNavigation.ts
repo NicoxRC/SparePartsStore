@@ -35,3 +35,15 @@ export function handleEnterAsTab(event: KeyboardEvent<HTMLElement>): void {
     next.select();
   }
 }
+
+/**
+ * Keeps focus on a search field when Enter is pressed, opting it out of
+ * `handleEnterAsTab`. Barcode scanners type the code and finish with Enter;
+ * without this, the scan jumps focus to the next field (and opens it, if it's
+ * a select) before the cashier can pick a result.
+ */
+export function keepFocusOnEnter(event: KeyboardEvent<HTMLElement>): void {
+  if (event.key !== 'Enter') return;
+  event.preventDefault();
+  event.stopPropagation();
+}

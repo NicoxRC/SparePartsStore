@@ -30,7 +30,7 @@ import {
   DEFAULT_DANE_DEPARTMENT_CODE,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
-import { handleEnterAsTab } from '../lib/formNavigation';
+import { handleEnterAsTab, keepFocusOnEnter } from '../lib/formNavigation';
 import {
   computeGrossSubtotal,
   computeItemDiscount,
@@ -466,6 +466,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                   label="Buscar producto por referencia o descripción"
                   value={productQuery}
                   onChange={(e) => setProductQuery(e.target.value)}
+                  onKeyDown={keepFocusOnEnter}
                 />
               </div>
               <SearchableSelect
