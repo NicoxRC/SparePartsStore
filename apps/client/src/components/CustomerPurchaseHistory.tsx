@@ -15,12 +15,14 @@ interface CustomerPurchaseHistoryProps {
 const QUOTATION_STATUS_LABEL: Record<QuotationResponse['status'], string> = {
   open: 'Abierta',
   invoiced: 'Facturada',
+  completed: 'Completada',
   cancelled: 'Cancelada',
 };
 
 const QUOTATION_STATUS_STYLE: Record<QuotationResponse['status'], string> = {
   open: 'bg-amber-tint text-amber',
   invoiced: 'bg-ok-tint text-ok',
+  completed: 'bg-ok-tint text-ok',
   cancelled: 'bg-rust-tint text-rust-2',
 };
 

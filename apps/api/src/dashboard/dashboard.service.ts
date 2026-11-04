@@ -105,6 +105,7 @@ export class DashboardService {
       .select('COALESCE(SUM(quotation.totalAmount), 0)', 'sum')
       .addSelect('COUNT(*)', 'count')
       .where('quotation.invoicedAt IS NULL')
+      .andWhere('quotation.completedAt IS NULL')
       .andWhere('quotation.cancelledAt IS NULL')
       .getRawOne<{ sum: string; count: string }>();
     return {

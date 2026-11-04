@@ -425,6 +425,7 @@ export class CashRegisterService {
         cashRegisterId,
       })
       .andWhere('quotation.invoicedAt IS NULL')
+      .andWhere('quotation.completedAt IS NULL')
       .andWhere('quotation.cancelledAt IS NULL')
       .getRawOne<{ sum: string }>();
     return Number(result?.sum ?? 0);

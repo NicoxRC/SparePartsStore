@@ -40,8 +40,8 @@ export class QuotationItemResponseDto {
 export class QuotationResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() number: number;
-  @ApiProperty({ enum: ['open', 'invoiced', 'cancelled'] })
-  status: 'open' | 'invoiced' | 'cancelled';
+  @ApiProperty({ enum: ['open', 'invoiced', 'completed', 'cancelled'] })
+  status: 'open' | 'invoiced' | 'completed' | 'cancelled';
   @ApiProperty() customerIdentificationType: string;
   @ApiProperty() customerIdentification: string;
   @ApiProperty({ nullable: true }) customerIdentificationDv: string | null;
@@ -86,7 +86,9 @@ export class QuotationResponseDto {
       ? 'cancelled'
       : quotation.invoicedAt
         ? 'invoiced'
-        : 'open';
+        : quotation.completedAt
+          ? 'completed'
+          : 'open';
     dto.customerIdentificationType = quotation.customerIdentificationType;
     dto.customerIdentification = quotation.customerIdentification;
     dto.customerIdentificationDv = quotation.customerIdentificationDv;

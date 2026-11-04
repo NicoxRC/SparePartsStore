@@ -2,7 +2,7 @@ import { api } from '../lib/api';
 import type { InvoiceResponse } from './invoices';
 import type { PaginatedResponse } from './products';
 
-export type QuotationStatus = 'open' | 'invoiced' | 'cancelled';
+export type QuotationStatus = 'open' | 'invoiced' | 'completed' | 'cancelled';
 
 /** Derived server-side from the identification type: NIT → empresa, cédula → empleado. */
 export type QuotationCustomerType = 'empresa' | 'empleado';
@@ -160,6 +160,11 @@ export async function invoiceQuotation(
     `/quotations/${id}/invoice`,
     input,
   );
+  return data;
+}
+
+export async function completeQuotation(id: string): Promise<QuotationResponse> {
+  const { data } = await api.post<QuotationResponse>(`/quotations/${id}/complete`);
   return data;
 }
 

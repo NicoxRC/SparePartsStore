@@ -6,6 +6,7 @@ import { QuotationDayCounters } from '../components/QuotationDayCounters';
 import { Button } from '../components/Button';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
+import { CompleteQuotationDialog } from '../components/CompleteQuotationDialog';
 import { PrintTicket } from '../components/print/PrintTicket';
 import { QuotationTicket } from '../components/print/QuotationTicket';
 import { CustomLineDialog } from '../components/CustomLineDialog';
@@ -58,12 +59,14 @@ const DEFAULT_TAX_RATE = 19;
 const STATUS_LABEL: Record<QuotationResponse['status'], string> = {
   open: 'Abierta',
   invoiced: 'Facturada',
+  completed: 'Completada',
   cancelled: 'Cancelada',
 };
 
 const STATUS_STYLE: Record<QuotationResponse['status'], string> = {
   open: 'bg-amber-tint text-amber',
   invoiced: 'bg-ok-tint text-ok',
+  completed: 'bg-ok-tint text-ok',
   cancelled: 'bg-rust-tint text-rust-2',
 };
 
@@ -222,6 +225,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   };
 
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
+  const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
 
   const hasActiveProductSearch =
     productQuery.trim().length > 0 || Boolean(filterDepartmentId) || Boolean(filterGroupId);
@@ -425,6 +429,9 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
         <Alert variant="success">
           Facturada — revisa el resultado en Facturas.
         </Alert>
+      )}
+      {quotation.status === 'completed' && (
+        <Alert variant="success">Completada sin factura.</Alert>
       )}
       {quotation.status === 'cancelled' && (
         <Alert variant="info">Esta cotización fue cancelada; el stock ya fue devuelto.</Alert>
@@ -652,15 +659,25 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           <div className="flex items-center justify-between gap-2">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Facturar</h2>
             {!isInvoicePanelOpen && (
-              <Button
-                type="button"
-                className="sm:w-auto sm:px-6"
-                disabled={!DATAICO_ENABLED}
-                title={DATAICO_ENABLED ? undefined : DATAICO_DISABLED_HINT}
-                onClick={() => setIsInvoicePanelOpen(true)}
-              >
-                Facturar
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="sm:w-auto sm:px-6"
+                  onClick={() => setIsCompleteDialogOpen(true)}
+                >
+                  Completar
+                </Button>
+                <Button
+                  type="button"
+                  className="sm:w-auto sm:px-6"
+                  disabled={!DATAICO_ENABLED}
+                  title={DATAICO_ENABLED ? undefined : DATAICO_DISABLED_HINT}
+                  onClick={() => setIsInvoicePanelOpen(true)}
+                >
+                  Facturar
+                </Button>
+              </div>
             )}
           </div>
 
@@ -920,6 +937,14 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           quotationId={quotation.id}
           onClose={() => setIsCancelDialogOpen(false)}
           onCancelled={() => setIsCancelDialogOpen(false)}
+        />
+      )}
+
+      {isCompleteDialogOpen && (
+        <CompleteQuotationDialog
+          quotationId={quotation.id}
+          onClose={() => setIsCompleteDialogOpen(false)}
+          onCompleted={() => setIsCompleteDialogOpen(false)}
         />
       )}
 
