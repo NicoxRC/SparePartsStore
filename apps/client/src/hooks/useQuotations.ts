@@ -6,6 +6,7 @@ import {
 } from '@tanstack/react-query';
 import {
   cancelQuotation,
+  completeQuotation,
   createQuotation,
   getQuotation,
   getQuotations,
@@ -67,6 +68,21 @@ export function useInvoiceQuotation() {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
       void queryClient.invalidateQueries({ queryKey: ['invoices'] });
+    },
+  });
+}
+
+/** Paid without an invoice — stock stays out, it just stops counting as
+ * owed, so the caja/dashboard "adeudado" totals change too. */
+export function useCompleteQuotation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => completeQuotation(id),
+    onSuccess: (_data, id) => {
+      void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
+      void queryClient.invalidateQueries({ queryKey: ['cash-register'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
   });
 }

@@ -22,18 +22,21 @@ const PAGE_SIZE = 20;
 const STATUS_LABEL: Record<QuotationStatus, string> = {
   open: 'Abierta',
   invoiced: 'Facturada',
+  completed: 'Completada',
   cancelled: 'Cancelada',
 };
 
 const STATUS_STYLE: Record<QuotationStatus, string> = {
   open: 'bg-amber-tint text-amber',
   invoiced: 'bg-ok-tint text-ok',
+  completed: 'bg-ok-tint text-ok',
   cancelled: 'bg-rust-tint text-rust-2',
 };
 
 const FILTERS: Array<{ label: string; value: QuotationStatus | undefined }> = [
   { label: 'Abiertas', value: 'open' },
   { label: 'Facturadas', value: 'invoiced' },
+  { label: 'Completadas', value: 'completed' },
   { label: 'Canceladas', value: 'cancelled' },
   { label: 'Todas', value: undefined },
 ];

@@ -44,7 +44,7 @@ import {
   DEFAULT_DANE_DEPARTMENT_CODE,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
-import { handleEnterAsTab } from '../lib/formNavigation';
+import { handleEnterAsTab, keepFocusOnEnter } from '../lib/formNavigation';
 import { invoiceDraftLabel, type InvoiceDraft, type InvoiceStep } from '../lib/invoiceDraft';
 import { FINAL_CONSUMER_INVOICE_CAP, isFinalConsumer } from '../lib/finalConsumer';
 import { computeItemDiscount, computeItemTotal, summarizeLines } from '../lib/invoiceMath';
@@ -686,6 +686,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                       label="Buscar producto por referencia o descripción"
                       value={productQuery}
                       onChange={(e) => setProductQuery(e.target.value)}
+                      onKeyDown={keepFocusOnEnter}
                     />
                   </div>
                   <button

@@ -99,6 +99,7 @@ describe('QuotationsService', () => {
       notes: null,
       totalAmount: 100000,
       invoicedAt: null,
+      completedAt: null,
       invoice: null,
       cancelledAt: null,
       createdAt: new Date('2026-09-15T10:00:00.000Z'),
@@ -200,7 +201,7 @@ describe('QuotationsService', () => {
       await service.findAll({ page: 1, limit: 20, status: 'open' });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'quotation.invoicedAt IS NULL AND quotation.cancelledAt IS NULL',
+        'quotation.invoicedAt IS NULL AND quotation.completedAt IS NULL AND quotation.cancelledAt IS NULL',
       );
     });
 
@@ -795,7 +796,44 @@ describe('QuotationsService', () => {
     });
   });
 
+  describe('complete', () => {
+    it('rejects completing a quotation that is no longer open', async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({ cancelledAt: new Date() }),
+      );
+
+      await expect(service.complete('q-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(quotationsRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('closes the quotation without moving stock or invoicing', async () => {
+      await service.complete('q-1', 'user-1');
+
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+      expect(invoicesService.create).not.toHaveBeenCalled();
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(quotationsRepository.update).toHaveBeenCalledWith(
+        'q-1',
+        expect.objectContaining({ completedAt: expect.any(Date) }),
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    });
+  });
+
   describe('cancel', () => {
+    it('rejects cancelling a completed quotation', async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({ completedAt: new Date() }),
+      );
+
+      await expect(service.cancel('q-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
     it('rejects cancelling a quotation that is no longer open', async () => {
       queryBuilder.getOne.mockResolvedValue(
         openQuotation({ invoicedAt: new Date() }),

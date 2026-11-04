@@ -121,10 +121,12 @@ export class QuotationsService {
 
     if (query.status === 'open') {
       qb.andWhere(
-        'quotation.invoicedAt IS NULL AND quotation.cancelledAt IS NULL',
+        'quotation.invoicedAt IS NULL AND quotation.completedAt IS NULL AND quotation.cancelledAt IS NULL',
       );
     } else if (query.status === 'invoiced') {
       qb.andWhere('quotation.invoicedAt IS NOT NULL');
+    } else if (query.status === 'completed') {
+      qb.andWhere('quotation.completedAt IS NOT NULL');
     } else if (query.status === 'cancelled') {
       qb.andWhere('quotation.cancelledAt IS NOT NULL');
     }
@@ -406,6 +408,24 @@ export class QuotationsService {
     return invoices;
   }
 
+  /**
+   * Closes the quotation as paid without issuing an invoice — the stock
+   * already left with the quotation, so nothing moves. Deliberately not
+   * counted in the cash register's "recaudado": the store chose to keep
+   * this as a plain close (no payment means, no till).
+   */
+  async complete(id: string, userId: string): Promise<QuotationResponseDto> {
+    const quotation = await this.loadWithItems(id);
+    this.assertOpen(quotation);
+
+    await this.quotationsRepository.update(quotation.id, {
+      completedAt: new Date(),
+      updatedBy: { id: userId },
+    });
+
+    return this.findOne(quotation.id);
+  }
+
   /** Returns every line's stock to inventory and closes the quotation. */
   async cancel(id: string, userId: string): Promise<QuotationResponseDto> {
     const quotation = await this.loadWithItems(id);
@@ -560,6 +580,9 @@ export class QuotationsService {
     }
     if (quotation.invoicedAt) {
       throw new BadRequestException('Esta cotización ya fue facturada.');
+    }
+    if (quotation.completedAt) {
+      throw new BadRequestException('Esta cotización ya fue completada.');
     }
   }
 
