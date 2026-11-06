@@ -113,6 +113,20 @@ export class QuotationsController {
     return this.quotationsService.invoice(id, dto, user.id, cashRegisterNumber);
   }
 
+  @ApiOperation({
+    summary:
+      'Complete a quotation — paid without an invoice; stock stays out and it is not added to the cash register',
+  })
+  @ApiResponse({ status: 200, type: QuotationResponseDto })
+  @Post(':id/complete')
+  @RequirePermission('quotations.invoice')
+  complete(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<QuotationResponseDto> {
+    return this.quotationsService.complete(id, user.id);
+  }
+
   @ApiOperation({ summary: 'Cancel a quotation — returns its stock' })
   @ApiResponse({ status: 200, type: QuotationResponseDto })
   @Post(':id/cancel')

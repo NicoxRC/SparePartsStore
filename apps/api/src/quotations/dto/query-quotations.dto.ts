@@ -18,10 +18,12 @@ export class QueryQuotationsDto {
   @Max(100)
   limit: number = 20;
 
-  @ApiPropertyOptional({ enum: ['open', 'invoiced', 'cancelled'] })
+  @ApiPropertyOptional({
+    enum: ['open', 'invoiced', 'completed', 'cancelled'],
+  })
   @IsOptional()
-  @IsIn(['open', 'invoiced', 'cancelled'])
-  status?: 'open' | 'invoiced' | 'cancelled';
+  @IsIn(['open', 'invoiced', 'completed', 'cancelled'])
+  status?: 'open' | 'invoiced' | 'completed' | 'cancelled';
 
   @ApiPropertyOptional({
     description:

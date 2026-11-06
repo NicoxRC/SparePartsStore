@@ -20,7 +20,8 @@ const decimalTransformer = {
  * inventory exactly like a real sale, via the same InventoryService used
  * by InvoicesService — see QuotationsService.
  *
- * No stored status enum — derived from `invoicedAt`/`cancelledAt`, same
+ * No stored status enum — derived from `invoicedAt`/`completedAt`/
+ * `cancelledAt`, same
  * reasoning as `cash_registers.closed_at` (see docs/DATABASE.md): a
  * timestamp that's either null or set already tells the whole story.
  */
@@ -125,6 +126,11 @@ export class Quotation extends BaseEntity {
   @ManyToOne(() => Invoice, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'invoice_id' })
   invoice: Invoice | null;
+
+  // "Completada": paid but never invoiced — closed like an invoiced one
+  // (stock stays out), just without the invoice.
+  @Column({ name: 'completed_at', type: 'timestamptz', nullable: true })
+  completedAt: Date | null;
 
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;

@@ -6,8 +6,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * loudly, listing the numbers, if active customers already share one, so
  * staff can merge or delete them first.
  */
-export class MakeCustomerIdentificationUnique1789930000015 implements MigrationInterface {
-  name = 'MakeCustomerIdentificationUnique1789930000015';
+export class MakeCustomerIdentificationUnique1789930000016 implements MigrationInterface {
+  name = 'MakeCustomerIdentificationUnique1789930000016';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     const duplicates = (await queryRunner.query(
