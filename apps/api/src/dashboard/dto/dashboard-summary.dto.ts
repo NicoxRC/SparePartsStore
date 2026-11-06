@@ -8,20 +8,6 @@ export class DailySalesDto {
   total: number;
 }
 
-export class LowStockProductDto {
-  @ApiProperty()
-  id: string;
-
-  @ApiProperty()
-  reference: string;
-
-  @ApiProperty()
-  description: string;
-
-  @ApiProperty()
-  stock: number;
-}
-
 export class DashboardCashRegisterDto {
   @ApiProperty({ description: 'Which till (Caja 1, Caja 2).' })
   registerNumber: number;
@@ -76,25 +62,12 @@ export class DashboardSummaryDto {
   })
   salesLast7Days: DailySalesDto[];
 
-  @ApiProperty({
-    description:
-      'Sum of every currently open quotation (not invoiced/cancelled), any day.',
-  })
-  openQuotationsTotal: number;
-
-  @ApiProperty()
-  openQuotationsCount: number;
-
   @ApiProperty()
   totalProducts: number;
 
-  @ApiProperty()
-  outOfStockCount: number;
-
   @ApiProperty({
-    type: [LowStockProductDto],
     description:
-      'Up to 10 out-of-stock products, for a quick glance — see outOfStockCount for the full count.',
+      'Products with stock = 0. The list itself is GET /api/products?outOfStock=true.',
   })
-  outOfStockProducts: LowStockProductDto[];
+  outOfStockCount: number;
 }

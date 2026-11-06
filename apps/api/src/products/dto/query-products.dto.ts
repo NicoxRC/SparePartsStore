@@ -1,5 +1,13 @@
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, IsUUID, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import {
+  IsBoolean,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class QueryProductsDto {
   @IsOptional()
@@ -34,4 +42,10 @@ export class QueryProductsDto {
   @IsOptional()
   @IsUUID()
   supplierId?: string;
+
+  /** Only products with `stock = 0` ("agotados"). */
+  @IsOptional()
+  @Transform(({ value }) => value === 'true' || value === true)
+  @IsBoolean()
+  outOfStock?: boolean;
 }

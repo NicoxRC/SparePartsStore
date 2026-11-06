@@ -162,8 +162,16 @@ export class ProductsService {
   async findAll(
     query: QueryProductsDto,
   ): Promise<PaginatedResponseDto<ProductResponseDto>> {
-    const { page, limit, search, departmentId, groupId, brandId, supplierId } =
-      query;
+    const {
+      page,
+      limit,
+      search,
+      departmentId,
+      groupId,
+      brandId,
+      supplierId,
+      outOfStock,
+    } = query;
     const qb = this.productsRepository
       .createQueryBuilder('product')
       // .withDeleted() disables TypeORM's automatic "deleted_at IS NULL" filter
@@ -199,6 +207,10 @@ export class ProductsService {
 
     if (supplierId) {
       qb.andWhere('product.supplier_id = :supplierId', { supplierId });
+    }
+
+    if (outOfStock) {
+      qb.andWhere('product.stock = 0');
     }
 
     qb.orderBy('product.createdAt', 'DESC')

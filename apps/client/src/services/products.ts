@@ -49,6 +49,8 @@ export interface ProductsQuery {
   groupId?: string;
   brandId?: string;
   supplierId?: string;
+  /** Only products with stock 0 ("agotados"). */
+  outOfStock?: boolean;
 }
 
 export interface ProductInput {

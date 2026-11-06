@@ -5,13 +5,6 @@ export interface DailySales {
   total: number;
 }
 
-export interface LowStockProduct {
-  id: string;
-  reference: string;
-  description: string;
-  stock: number;
-}
-
 export interface DashboardCashRegister {
   registerNumber: number;
   isOpen: boolean;
@@ -27,11 +20,9 @@ export interface DashboardSummary {
   /** Today, till by till. */
   cashRegisters: DashboardCashRegister[];
   salesLast7Days: DailySales[];
-  openQuotationsTotal: number;
-  openQuotationsCount: number;
   totalProducts: number;
+  /** The list itself comes from `getProducts({ outOfStock: true })`. */
   outOfStockCount: number;
-  outOfStockProducts: LowStockProduct[];
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
