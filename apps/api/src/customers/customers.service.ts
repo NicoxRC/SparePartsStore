@@ -105,12 +105,16 @@ export class CustomersService {
     const { page, limit, search } = query;
     const qb = this.customersRepository.createQueryBuilder('customer');
 
-    if (search) {
+    // Word by word, so "javier cantuca" finds JAVIER JOSE / CANTUCA:
+    // every word has to appear in some field, in any order.
+    const words = (search ?? '').trim().split(/\s+/).filter(Boolean);
+    words.forEach((word, index) => {
+      const param = `search${index}`;
       qb.andWhere(
-        "(customer.identification ILIKE :search ESCAPE '\\' OR customer.companyName ILIKE :search ESCAPE '\\' OR customer.firstName ILIKE :search ESCAPE '\\' OR customer.familyName ILIKE :search ESCAPE '\\')",
-        { search: `%${escapeLike(search)}%` },
+        `(customer.identification ILIKE :${param} ESCAPE '\\' OR customer.companyName ILIKE :${param} ESCAPE '\\' OR customer.firstName ILIKE :${param} ESCAPE '\\' OR customer.familyName ILIKE :${param} ESCAPE '\\')`,
+        { [param]: `%${escapeLike(word)}%` },
       );
-    }
+    });
 
     qb.orderBy('customer.createdAt', 'DESC')
       .skip((page - 1) * limit)
