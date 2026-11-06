@@ -125,11 +125,9 @@ describe('CustomersService', () => {
 
       const result = await service.create(baseDto, 'user-1');
 
+      // Uniqueness is on the number alone, regardless of document type.
       expect(repository.findOne).toHaveBeenCalledWith({
-        where: {
-          identificationType: 'NIT',
-          identification: '830033494',
-        },
+        where: { identification: '830033494' },
       });
       expect(repository.save).toHaveBeenCalled();
       expect(result.identification).toBe('830033494');
@@ -207,6 +205,37 @@ describe('CustomersService', () => {
     });
   });
 
+  describe('findAll', () => {
+    it('matches the search word by word, so first name plus surname finds the customer', async () => {
+      const qb = {
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      repository.createQueryBuilder.mockReturnValue(qb);
+
+      await service.findAll({
+        page: 1,
+        limit: 20,
+        search: '  javier  cantuca ',
+      });
+
+      expect(qb.andWhere).toHaveBeenCalledTimes(2);
+      expect(qb.andWhere).toHaveBeenNthCalledWith(
+        1,
+        expect.stringContaining('customer.firstName ILIKE :search0'),
+        { search0: '%javier%' },
+      );
+      expect(qb.andWhere).toHaveBeenNthCalledWith(
+        2,
+        expect.stringContaining('customer.familyName ILIKE :search1'),
+        { search1: '%cantuca%' },
+      );
+    });
+  });
+
   describe('findOne', () => {
     it('throws NotFoundException when the customer does not exist', async () => {
       repository.findOne.mockResolvedValue(null);
@@ -236,7 +265,7 @@ describe('CustomersService', () => {
       expect(result.identification).toBe(existingCustomer.identification);
       expect(result.companyName).toBe(existingCustomer.companyName);
       expect(result.email).toBe(existingCustomer.email);
-      // The identification pair was untouched, so no duplicate lookup runs.
+      // The identification number was untouched, so no duplicate lookup runs.
       expect(repository.findOne).toHaveBeenCalledTimes(1);
     });
 
@@ -251,6 +280,16 @@ describe('CustomersService', () => {
         ConflictException,
       );
       expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('does not look up duplicates when only the document type changes', async () => {
+      repository.findOne.mockResolvedValue({ ...existingCustomer });
+
+      const dto: UpdateCustomerDto = { identificationType: 'CC' };
+      const result = await service.update('cust-1', dto, 'user-2');
+
+      expect(result.identificationType).toBe('CC');
+      expect(repository.findOne).toHaveBeenCalledTimes(1);
     });
   });
 

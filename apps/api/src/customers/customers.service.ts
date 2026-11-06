@@ -42,10 +42,7 @@ export class CustomersService {
     dto: CreateCustomerDto,
     createdById: string,
   ): Promise<CustomerResponseDto> {
-    const existing = await this.findByIdentification(
-      dto.identificationType,
-      dto.identification,
-    );
+    const existing = await this.findByIdentification(dto.identification);
     if (existing) {
       throw new ConflictException(DUPLICATE_MESSAGE);
     }
@@ -108,12 +105,16 @@ export class CustomersService {
     const { page, limit, search } = query;
     const qb = this.customersRepository.createQueryBuilder('customer');
 
-    if (search) {
+    // Word by word, so "javier cantuca" finds JAVIER JOSE / CANTUCA:
+    // every word has to appear in some field, in any order.
+    const words = (search ?? '').trim().split(/\s+/).filter(Boolean);
+    words.forEach((word, index) => {
+      const param = `search${index}`;
       qb.andWhere(
-        "(customer.identification ILIKE :search ESCAPE '\\' OR customer.companyName ILIKE :search ESCAPE '\\' OR customer.firstName ILIKE :search ESCAPE '\\' OR customer.familyName ILIKE :search ESCAPE '\\')",
-        { search: `%${escapeLike(search)}%` },
+        `(customer.identification ILIKE :${param} ESCAPE '\\' OR customer.companyName ILIKE :${param} ESCAPE '\\' OR customer.firstName ILIKE :${param} ESCAPE '\\' OR customer.familyName ILIKE :${param} ESCAPE '\\')`,
+        { [param]: `%${escapeLike(word)}%` },
       );
-    }
+    });
 
     qb.orderBy('customer.createdAt', 'DESC')
       .skip((page - 1) * limit)
@@ -151,18 +152,10 @@ export class CustomersService {
   ): Promise<CustomerResponseDto> {
     const customer = await this.findOne(id);
 
-    const nextIdentificationType =
-      dto.identificationType ?? customer.identificationType;
     const nextIdentification = dto.identification ?? customer.identification;
-    const identificationChanged =
-      nextIdentificationType !== customer.identificationType ||
-      nextIdentification !== customer.identification;
 
-    if (identificationChanged) {
-      const existing = await this.findByIdentification(
-        nextIdentificationType,
-        nextIdentification,
-      );
+    if (nextIdentification !== customer.identification) {
+      const existing = await this.findByIdentification(nextIdentification);
       if (existing && existing.id !== id) {
         throw new ConflictException(DUPLICATE_MESSAGE);
       }
@@ -284,12 +277,13 @@ export class CustomersService {
     };
   }
 
+  /**
+   * The document number alone is unique — the same number can't be stored
+   * twice under different document types (e.g. a CC and a NIT).
+   */
   private async findByIdentification(
-    identificationType: string,
     identification: string,
   ): Promise<Customer | null> {
-    return this.customersRepository.findOne({
-      where: { identificationType, identification },
-    });
+    return this.customersRepository.findOne({ where: { identification } });
   }
 }

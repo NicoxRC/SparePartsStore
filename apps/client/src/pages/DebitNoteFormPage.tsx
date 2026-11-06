@@ -15,6 +15,7 @@ import { handleEnterAsTab } from '../lib/formNavigation';
 import { summarizeLines } from '../lib/invoiceMath';
 import { TotalsSummary } from '../components/TotalsSummary';
 import type { ProductResponse } from '../services/products';
+import { fixScannerDash } from '../lib/textCase';
 
 const DEFAULT_TAX_RATE = 19;
 
@@ -145,7 +146,7 @@ export function DebitNoteFormPage() {
             <TextField
               label="Buscar producto por referencia o descripción"
               value={productQuery}
-              onChange={(e) => setProductQuery(e.target.value)}
+              onChange={(e) => setProductQuery(fixScannerDash(e.target.value))}
             />
           </div>
           <SearchableSelect

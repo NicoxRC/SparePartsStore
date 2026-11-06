@@ -1,8 +1,16 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
+import { Pagination } from '../components/Pagination';
+import { SearchableSelect } from '../components/SearchableSelect';
 import { Spinner } from '../components/Spinner';
+import { TextField } from '../components/TextField';
 import { useDashboardSummary } from '../hooks/useDashboard';
+import { useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
+import { fixScannerDash } from '../lib/textCase';
+
+const OUT_OF_STOCK_PAGE_SIZE = 20;
 
 function money(value: number) {
   return `$${Math.round(value).toLocaleString('es-CO')}`;
@@ -92,18 +100,12 @@ export function DashboardPage() {
     <div className="flex flex-col gap-6">
       <h1 className="text-xl font-bold tracking-tight text-ink sm:text-2xl">Panel</h1>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 [&>*:first-child]:col-span-2 sm:[&>*:first-child]:col-span-1">
         <KpiCard
           label="Cajas hoy"
           value={summary.cashRegisterOpen ? money(summary.todayRecaudado ?? 0) : '—'}
           tone={summary.cashRegisterOpen ? 'ok' : 'neutral'}
           hint={summary.cashRegisterOpen ? 'Recaudado, suma de las cajas' : 'Cerradas'}
-        />
-        <KpiCard
-          label="Cotizaciones pendientes"
-          value={money(summary.openQuotationsTotal)}
-          tone="amber"
-          hint={`${summary.openQuotationsCount} sin cobrar`}
         />
         <KpiCard
           label="Productos"
@@ -155,36 +157,109 @@ export function DashboardPage() {
 
       <SalesTrendChart days={summary.salesLast7Days} />
 
-      <div className="rounded border border-line bg-paper p-4 sm:p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
-          Productos agotados
-        </h2>
-        {summary.outOfStockProducts.length === 0 ? (
-          <p className="mt-3 text-sm text-steel">Ningún producto está agotado ahora mismo.</p>
-        ) : (
-          <ul className="mt-3 flex flex-col divide-y divide-line">
-            {summary.outOfStockProducts.map((product) => (
-              <li key={product.id} className="flex items-center justify-between gap-2 py-2 text-sm">
-                <div className="min-w-0">
-                  <span className="font-mono font-medium text-ink">{product.reference}</span>{' '}
-                  <span className="text-steel">{product.description}</span>
-                </div>
-                <Link
-                  to={`/products/${product.id}/edit`}
-                  className="shrink-0 text-xs font-medium text-steel hover:text-ink hover:underline"
-                >
-                  Ver producto
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        {summary.outOfStockCount > summary.outOfStockProducts.length && (
-          <p className="mt-2 text-xs text-fog">
-            Mostrando {summary.outOfStockProducts.length} de {summary.outOfStockCount}.
-          </p>
-        )}
+      <OutOfStockProducts />
+    </div>
+  );
+}
+
+/**
+ * Every product at stock 0, from the regular products list
+ * (`outOfStock: true`), with the same search and department/group filters
+ * as the product search on Venta.
+ */
+function OutOfStockProducts() {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [groupId, setGroupId] = useState('');
+
+  const productsQuery = useProducts({
+    outOfStock: true,
+    page,
+    limit: OUT_OF_STOCK_PAGE_SIZE,
+    search: search.trim() || undefined,
+    departmentId: departmentId || undefined,
+    groupId: groupId || undefined,
+  });
+
+  const hasFilters = Boolean(search.trim() || departmentId || groupId);
+
+  return (
+    <div className="flex flex-col gap-3 rounded border border-line bg-paper p-4 sm:p-6">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">
+        Productos agotados
+      </h2>
+
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="sm:col-span-2">
+          <TextField
+            label="Buscar producto por referencia o descripción"
+            value={search}
+            onChange={(e) => {
+              setSearch(fixScannerDash(e.target.value));
+              setPage(1);
+            }}
+          />
+        </div>
+        <SearchableSelect
+          label="Filtrar por departamento"
+          resource="departments"
+          value={departmentId}
+          onChange={(value) => {
+            setDepartmentId(value);
+            setPage(1);
+          }}
+          clearLabel="Todos"
+        />
+        <SearchableSelect
+          label="Filtrar por grupo"
+          resource="groups"
+          value={groupId}
+          onChange={(value) => {
+            setGroupId(value);
+            setPage(1);
+          }}
+          clearLabel="Todos"
+        />
       </div>
+
+      {productsQuery.isPending && <Spinner label="Cargando…" />}
+
+      {productsQuery.isError && (
+        <Alert variant="error">{getApiErrorMessage(productsQuery.error)}</Alert>
+      )}
+
+      {productsQuery.data &&
+        (productsQuery.data.data.length === 0 ? (
+          <p className="text-sm text-steel">
+            {hasFilters
+              ? 'Ningún producto agotado coincide con la búsqueda.'
+              : 'Ningún producto está agotado ahora mismo.'}
+          </p>
+        ) : (
+          <>
+            <ul className="flex flex-col divide-y divide-line">
+              {productsQuery.data.data.map((product) => (
+                <li
+                  key={product.id}
+                  className="flex items-center justify-between gap-2 py-2 text-sm"
+                >
+                  <div className="min-w-0">
+                    <span className="font-mono font-medium text-ink">{product.reference}</span>{' '}
+                    <span className="text-steel">{product.description}</span>
+                  </div>
+                  <Link
+                    to={`/products/${product.id}/edit`}
+                    className="shrink-0 text-xs font-medium text-steel hover:text-ink hover:underline"
+                  >
+                    Ver producto
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <Pagination meta={productsQuery.data.meta} onPageChange={setPage} />
+          </>
+        ))}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import {
   type PurchaseImportLineInput,
   type PurchaseImportLineValues,
 } from '../../lib/schemas/purchaseImport';
-import { noAccentsField } from '../../lib/textCase';
+import { noAccentsField, referenceField } from '../../lib/textCase';
 import type {
   PurchaseImportItem,
   UpdatePurchaseImportItemInput,
@@ -84,7 +84,7 @@ export function LineFieldsForm({ item, showDescription, onPatch }: LineFieldsFor
         id={`line-reference-${item.id}`}
         className="font-mono uppercase"
         error={errors.reference?.message}
-        {...noAccentsField(register('reference', { onBlur: () => void commitReference() }))}
+        {...referenceField(register('reference', { onBlur: () => void commitReference() }))}
       />
       <div className="flex flex-col gap-1">
         <TextField

@@ -17,6 +17,7 @@ import { CashRegisterSwitcher } from '../components/CashRegisterSwitcher';
 import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { CustomLineDialog } from '../components/CustomLineDialog';
+import { SavedCustomerNotice } from '../components/SavedCustomerNotice';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
@@ -54,7 +55,13 @@ import {
   type InvoiceFormInput,
   type InvoiceFormValues,
 } from '../lib/schemas/invoice';
-import { lowerCaseField, toLowerCase, toUpperCase, upperCaseField } from '../lib/textCase';
+import {
+  fixScannerDash,
+  lowerCaseField,
+  toLowerCase,
+  toUpperCase,
+  upperCaseField,
+} from '../lib/textCase';
 import type { CustomerInput, CustomerPartyType, CustomerResponse } from '../services/customers';
 import type { ProductResponse } from '../services/products';
 import type { ThirdPartyResponse } from '../services/thirdParties';
@@ -70,6 +77,12 @@ interface CustomerSectionProps {
   customerIdentification: string;
   customerIdentificationType: string;
   customerDepartment: string;
+  typedCustomer: {
+    companyName: string;
+    firstName: string;
+    familyName: string;
+    email: string;
+  };
   onDepartmentChange: (departmentCode: string) => void;
   onSelectCustomer: (customer: CustomerResponse) => void;
   onDianResult: (result: ThirdPartyResponse) => void;
@@ -84,6 +97,7 @@ function CustomerSection({
   customerIdentification,
   customerIdentificationType,
   customerDepartment,
+  typedCustomer,
   onDepartmentChange,
   onSelectCustomer,
   onDianResult,
@@ -129,6 +143,12 @@ function CustomerSection({
           />
         )}
       </div>
+
+      <SavedCustomerNotice
+        identification={customerIdentification}
+        typed={typedCustomer}
+        onUseSaved={onSelectCustomer}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <SelectField
@@ -322,6 +342,10 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
   const customerIdentification = useWatch({ control, name: 'customerIdentification' });
   const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
   const customerDepartment = useWatch({ control, name: 'customerDepartment' });
+  const customerCompanyName = useWatch({ control, name: 'customerCompanyName' });
+  const customerFirstName = useWatch({ control, name: 'customerFirstName' });
+  const customerFamilyName = useWatch({ control, name: 'customerFamilyName' });
+  const customerEmail = useWatch({ control, name: 'customerEmail' });
   const paymentMeans = useWatch({ control, name: 'paymentMeans' });
   const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
   // `useWatch` can briefly lag one render behind `itemFields` right after
@@ -685,7 +709,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                     <TextField
                       label="Buscar producto por referencia o descripción"
                       value={productQuery}
-                      onChange={(e) => setProductQuery(e.target.value)}
+                      onChange={(e) => setProductQuery(fixScannerDash(e.target.value))}
                       onKeyDown={keepFocusOnEnter}
                     />
                   </div>
@@ -910,6 +934,12 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
               customerIdentification={customerIdentification}
               customerIdentificationType={customerIdentificationType}
               customerDepartment={customerDepartment}
+              typedCustomer={{
+                companyName: customerCompanyName ?? '',
+                firstName: customerFirstName ?? '',
+                familyName: customerFamilyName ?? '',
+                email: customerEmail ?? '',
+              }}
               onDepartmentChange={handleDepartmentChange}
               onSelectCustomer={handleSelectCustomer}
               onDianResult={handleDianResult}

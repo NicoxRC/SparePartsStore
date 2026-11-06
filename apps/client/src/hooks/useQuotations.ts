@@ -8,6 +8,7 @@ import {
   cancelQuotation,
   completeQuotation,
   createQuotation,
+  getOpenQuotationsSummary,
   getQuotation,
   getQuotations,
   invoiceQuotation,
@@ -23,6 +24,14 @@ export function useQuotations(query: QuotationsQuery = {}) {
     queryKey: ['quotations', query],
     queryFn: () => getQuotations(query),
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Under the 'quotations' key, so every quotation mutation refreshes it. */
+export function useOpenQuotationsSummary() {
+  return useQuery({
+    queryKey: ['quotations', 'open-summary'],
+    queryFn: getOpenQuotationsSummary,
   });
 }
 

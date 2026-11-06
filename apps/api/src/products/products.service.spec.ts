@@ -384,5 +384,26 @@ describe('ProductsService', () => {
         { supplierId: 's-1' },
       );
     });
+
+    it('filters to out-of-stock products only when outOfStock is set', async () => {
+      const qb = {
+        withDeleted: jest.fn().mockReturnThis(),
+        leftJoinAndSelect: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        orderBy: jest.fn().mockReturnThis(),
+        skip: jest.fn().mockReturnThis(),
+        take: jest.fn().mockReturnThis(),
+        getManyAndCount: jest.fn().mockResolvedValue([[], 0]),
+      };
+      products.createQueryBuilder = jest.fn().mockReturnValue(qb);
+
+      await service.findAll({ page: 1, limit: 20, outOfStock: true });
+      expect(qb.andWhere).toHaveBeenCalledWith('product.stock = 0');
+
+      qb.andWhere.mockClear();
+      await service.findAll({ page: 1, limit: 20 });
+      expect(qb.andWhere).not.toHaveBeenCalledWith('product.stock = 0');
+    });
   });
 });

@@ -28,6 +28,7 @@ describe('QuotationsService', () => {
   };
   let queryBuilder: {
     select: jest.Mock;
+    addSelect: jest.Mock;
     leftJoinAndSelect: jest.Mock;
     orderBy: jest.Mock;
     where: jest.Mock;
@@ -121,6 +122,7 @@ describe('QuotationsService', () => {
   beforeEach(() => {
     queryBuilder = {
       select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
       leftJoinAndSelect: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
@@ -179,6 +181,34 @@ describe('QuotationsService', () => {
       cashRegisterService as unknown as CashRegisterService,
       invoicesService as unknown as InvoicesService,
     );
+  });
+
+  describe('getOpenSummary', () => {
+    it('sums only quotations that are not invoiced, completed or cancelled', async () => {
+      queryBuilder.getRawOne.mockResolvedValueOnce({
+        sum: '250000',
+        count: '3',
+      });
+
+      const summary = await service.getOpenSummary();
+
+      expect(summary).toEqual({ total: 250000, count: 3 });
+      expect(queryBuilder.where).toHaveBeenCalledWith(
+        'quotation.invoicedAt IS NULL',
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.completedAt IS NULL',
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.cancelledAt IS NULL',
+      );
+    });
+
+    it('returns zeros when there are no open quotations', async () => {
+      queryBuilder.getRawOne.mockResolvedValueOnce(undefined);
+
+      expect(await service.getOpenSummary()).toEqual({ total: 0, count: 0 });
+    });
   });
 
   describe('findAll', () => {

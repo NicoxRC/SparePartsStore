@@ -18,6 +18,15 @@ const stripAccents: CaseTransform = (value) =>
     .normalize('NFC');
 
 /**
+ * The store's USB barcode reader types with a US keyboard layout while the
+ * computers use a Spanish one, so the "-" in a code arrives as "'". No
+ * product reference uses an apostrophe, so it's always turned back into a
+ * dash in the fields a code gets scanned into (references and product
+ * searches).
+ */
+export const fixScannerDash: CaseTransform = (value) => value.replace(/'/g, '-');
+
+/**
  * Rewrites the input's value in place as the user types and keeps the caret
  * where it was — assigning `target.value` alone sends it to the end, which
  * breaks editing in the middle of a word.
@@ -58,6 +67,11 @@ export function lowerCaseField(field: UseFormRegisterReturn): UseFormRegisterRet
 /** Spread in place of `register('field')` so accents are removed as they're typed (products only). */
 export function noAccentsField(field: UseFormRegisterReturn): UseFormRegisterReturn {
   return withCase(field, stripAccents);
+}
+
+/** `noAccentsField` plus `fixScannerDash` — for product reference fields. */
+export function referenceField(field: UseFormRegisterReturn): UseFormRegisterReturn {
+  return withCase(field, (value) => fixScannerDash(stripAccents(value)));
 }
 
 export const toUpperCase = upper;

@@ -7,6 +7,7 @@ import { TextField } from '../TextField';
 import { useProducts } from '../../hooks/useProducts';
 import { getApiErrorMessage } from '../../lib/errors';
 import type { ProductResponse } from '../../services/products';
+import { fixScannerDash } from '../../lib/textCase';
 
 interface ProductPickerDialogProps {
   title?: string;
@@ -45,7 +46,7 @@ export function ProductPickerDialog({
           label="Buscar por referencia o descripción"
           value={search}
           autoFocus
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => setSearch(fixScannerDash(e.target.value))}
         />
 
         <div className="min-h-24 flex-1 overflow-y-auto rounded-sm border border-line bg-paper">

@@ -20,7 +20,7 @@ import {
   type ProductFormInput,
   type ProductFormValues,
 } from '../lib/schemas/product';
-import { noAccentsField } from '../lib/textCase';
+import { noAccentsField, referenceField } from '../lib/textCase';
 
 const EMPTY_PRODUCT_FORM: ProductFormInput = {
   reference: '',
@@ -190,7 +190,7 @@ export function ProductFormPage() {
                 }`}
                 aria-invalid={referenceInputInvalid}
                 aria-describedby={referenceInputInvalid ? 'reference-error' : undefined}
-                {...noAccentsField(register('reference'))}
+                {...referenceField(register('reference'))}
               />
               <button
                 type="button"

@@ -24,6 +24,7 @@ import { CreateQuotationItemDto } from './dto/create-quotation-item.dto';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
 import { QueryQuotationsDto } from './dto/query-quotations.dto';
+import { OpenQuotationsSummaryDto } from './dto/open-quotations-summary.dto';
 import { QuotationResponseDto } from './dto/quotation-response.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
 import { QuotationItem } from './entities/quotation-item.entity';
@@ -163,6 +164,22 @@ export class QuotationsService {
         limit: query.limit,
         totalPages: Math.ceil(total / query.limit),
       },
+    };
+  }
+
+  /** Every open quotation (not invoiced, completed or cancelled), any day — what's still owed on credit. */
+  async getOpenSummary(): Promise<OpenQuotationsSummaryDto> {
+    const result = await this.quotationsRepository
+      .createQueryBuilder('quotation')
+      .select('COALESCE(SUM(quotation.totalAmount), 0)', 'sum')
+      .addSelect('COUNT(*)', 'count')
+      .where('quotation.invoicedAt IS NULL')
+      .andWhere('quotation.completedAt IS NULL')
+      .andWhere('quotation.cancelledAt IS NULL')
+      .getRawOne<{ sum: string; count: string }>();
+    return {
+      total: Number(result?.sum ?? 0),
+      count: Number(result?.count ?? 0),
     };
   }
 

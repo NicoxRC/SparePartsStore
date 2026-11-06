@@ -9,6 +9,7 @@ import { useCreateMovement, useMovements } from '../hooks/useInventory';
 import { useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import type { ProductResponse, ProductsQuery } from '../services/products';
+import { fixScannerDash } from '../lib/textCase';
 
 const PAGE_SIZE = 20;
 
@@ -181,7 +182,7 @@ export function InventoryPage() {
             placeholder="Referencia o descripción"
             value={filters.search ?? ''}
             onChange={(e) =>
-              setFilters((prev) => ({ ...prev, search: e.target.value, page: 1 }))
+              setFilters((prev) => ({ ...prev, search: fixScannerDash(e.target.value), page: 1 }))
             }
           />
 

@@ -39,7 +39,7 @@ import {
   summarizeLines,
 } from '../lib/invoiceMath';
 import { TotalsSummary } from '../components/TotalsSummary';
-import { toLowerCase, toUpperCase } from '../lib/textCase';
+import { fixScannerDash, toLowerCase, toUpperCase } from '../lib/textCase';
 import type {
   CustomerInput,
   CustomerPartyType,
@@ -472,7 +472,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                 <TextField
                   label="Buscar producto por referencia o descripción"
                   value={productQuery}
-                  onChange={(e) => setProductQuery(e.target.value)}
+                  onChange={(e) => setProductQuery(fixScannerDash(e.target.value))}
                   onKeyDown={keepFocusOnEnter}
                 />
               </div>

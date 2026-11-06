@@ -19,11 +19,12 @@ import {
 
 const CUSTOMERS_KEY = 'customers';
 
-export function useCustomers(query: CustomersQuery) {
+export function useCustomers(query: CustomersQuery, options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: [CUSTOMERS_KEY, query],
     queryFn: () => getCustomers(query),
     placeholderData: keepPreviousData,
+    enabled: options.enabled ?? true,
   });
 }
 
