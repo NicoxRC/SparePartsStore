@@ -42,10 +42,7 @@ export class CustomersService {
     dto: CreateCustomerDto,
     createdById: string,
   ): Promise<CustomerResponseDto> {
-    const existing = await this.findByIdentification(
-      dto.identificationType,
-      dto.identification,
-    );
+    const existing = await this.findByIdentification(dto.identification);
     if (existing) {
       throw new ConflictException(DUPLICATE_MESSAGE);
     }
@@ -151,18 +148,10 @@ export class CustomersService {
   ): Promise<CustomerResponseDto> {
     const customer = await this.findOne(id);
 
-    const nextIdentificationType =
-      dto.identificationType ?? customer.identificationType;
     const nextIdentification = dto.identification ?? customer.identification;
-    const identificationChanged =
-      nextIdentificationType !== customer.identificationType ||
-      nextIdentification !== customer.identification;
 
-    if (identificationChanged) {
-      const existing = await this.findByIdentification(
-        nextIdentificationType,
-        nextIdentification,
-      );
+    if (nextIdentification !== customer.identification) {
+      const existing = await this.findByIdentification(nextIdentification);
       if (existing && existing.id !== id) {
         throw new ConflictException(DUPLICATE_MESSAGE);
       }
@@ -284,12 +273,13 @@ export class CustomersService {
     };
   }
 
+  /**
+   * The document number alone is unique — the same number can't be stored
+   * twice under different document types (e.g. a CC and a NIT).
+   */
   private async findByIdentification(
-    identificationType: string,
     identification: string,
   ): Promise<Customer | null> {
-    return this.customersRepository.findOne({
-      where: { identificationType, identification },
-    });
+    return this.customersRepository.findOne({ where: { identification } });
   }
 }

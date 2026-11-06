@@ -125,11 +125,9 @@ describe('CustomersService', () => {
 
       const result = await service.create(baseDto, 'user-1');
 
+      // Uniqueness is on the number alone, regardless of document type.
       expect(repository.findOne).toHaveBeenCalledWith({
-        where: {
-          identificationType: 'NIT',
-          identification: '830033494',
-        },
+        where: { identification: '830033494' },
       });
       expect(repository.save).toHaveBeenCalled();
       expect(result.identification).toBe('830033494');
@@ -236,7 +234,7 @@ describe('CustomersService', () => {
       expect(result.identification).toBe(existingCustomer.identification);
       expect(result.companyName).toBe(existingCustomer.companyName);
       expect(result.email).toBe(existingCustomer.email);
-      // The identification pair was untouched, so no duplicate lookup runs.
+      // The identification number was untouched, so no duplicate lookup runs.
       expect(repository.findOne).toHaveBeenCalledTimes(1);
     });
 
@@ -251,6 +249,16 @@ describe('CustomersService', () => {
         ConflictException,
       );
       expect(repository.save).not.toHaveBeenCalled();
+    });
+
+    it('does not look up duplicates when only the document type changes', async () => {
+      repository.findOne.mockResolvedValue({ ...existingCustomer });
+
+      const dto: UpdateCustomerDto = { identificationType: 'CC' };
+      const result = await service.update('cust-1', dto, 'user-2');
+
+      expect(result.identificationType).toBe('CC');
+      expect(repository.findOne).toHaveBeenCalledTimes(1);
     });
   });
 
