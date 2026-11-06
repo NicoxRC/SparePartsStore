@@ -26,6 +26,7 @@ import { UserRole } from '../common/enums/user-role.enum';
 import { InvoiceResponseDto } from '../invoicing/invoices/dto/invoice-response.dto';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
+import { OpenQuotationsSummaryDto } from './dto/open-quotations-summary.dto';
 import { QueryQuotationsDto } from './dto/query-quotations.dto';
 import { QuotationResponseDto } from './dto/quotation-response.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
@@ -60,6 +61,16 @@ export class QuotationsController {
     @Query() query: QueryQuotationsDto,
   ): Promise<PaginatedResponseDto<QuotationResponseDto>> {
     return this.quotationsService.findAll(query);
+  }
+
+  @ApiOperation({
+    summary: 'Total and count of every open quotation (pending to collect)',
+  })
+  @ApiResponse({ status: 200, type: OpenQuotationsSummaryDto })
+  @Get('open-summary')
+  @RequirePermission('quotations.view')
+  getOpenSummary(): Promise<OpenQuotationsSummaryDto> {
+    return this.quotationsService.getOpenSummary();
   }
 
   @ApiOperation({ summary: 'Get one quotation with its items' })

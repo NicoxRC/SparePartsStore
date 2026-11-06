@@ -6,7 +6,7 @@ import { Pagination } from '../components/Pagination';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
 import { useInvoiceDrafts } from '../hooks/useInvoiceDrafts';
-import { useQuotations } from '../hooks/useQuotations';
+import { useOpenQuotationsSummary, useQuotations } from '../hooks/useQuotations';
 import { usePermissions } from '../hooks/usePermissions';
 import { getApiErrorMessage } from '../lib/errors';
 import {
@@ -50,6 +50,10 @@ function filterChipClass(isActive: boolean): string {
   }`;
 }
 
+function money(value: number) {
+  return `$${Math.round(value).toLocaleString('es-CO')}`;
+}
+
 function quotationNumberLabel(number: number): string {
   return `COT-${String(number).padStart(4, '0')}`;
 }
@@ -81,6 +85,7 @@ export function QuotationsListPage() {
     return () => clearTimeout(timeout);
   }, [search]);
 
+  const openSummaryQuery = useOpenQuotationsSummary();
   const quotationsQuery = useQuotations({
     page,
     limit: PAGE_SIZE,
@@ -105,6 +110,21 @@ export function QuotationsListPage() {
           </Button>
         )}
       </div>
+
+      {openSummaryQuery.data && (
+        <div className="flex flex-col gap-1 rounded border border-line bg-amber-tint p-4 text-amber sm:max-w-xs">
+          <span className="text-xs font-medium uppercase tracking-wide opacity-80">
+            Pendiente por cobrar
+          </span>
+          <span className="font-mono text-2xl font-bold">
+            {money(openSummaryQuery.data.total)}
+          </span>
+          <span className="text-xs opacity-80">
+            {openSummaryQuery.data.count}{' '}
+            {openSummaryQuery.data.count === 1 ? 'cotización abierta' : 'cotizaciones abiertas'}
+          </span>
+        </div>
+      )}
 
       <TextField
         label="Buscar por número, cliente o identificación"

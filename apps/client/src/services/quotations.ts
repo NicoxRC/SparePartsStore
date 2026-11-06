@@ -129,6 +129,17 @@ export async function getQuotations(
   return data;
 }
 
+export interface OpenQuotationsSummary {
+  /** Sum of every open quotation, any day — still to collect. */
+  total: number;
+  count: number;
+}
+
+export async function getOpenQuotationsSummary(): Promise<OpenQuotationsSummary> {
+  const { data } = await api.get<OpenQuotationsSummary>('/quotations/open-summary');
+  return data;
+}
+
 export async function getQuotation(id: string): Promise<QuotationResponse> {
   const { data } = await api.get<QuotationResponse>(`/quotations/${id}`);
   return data;
