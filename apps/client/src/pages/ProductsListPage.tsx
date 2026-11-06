@@ -14,6 +14,7 @@ import { usePermissions } from '../hooks/usePermissions';
 import { useDeleteProduct, useProducts } from '../hooks/useProducts';
 import { getApiErrorMessage } from '../lib/errors';
 import type { ProductResponse, ProductsQuery } from '../services/products';
+import { fixScannerDash } from '../lib/textCase';
 
 const PAGE_SIZE = 20;
 
@@ -143,7 +144,7 @@ export function ProductsListPage() {
                 label="Buscar"
                 placeholder="Referencia o descripción"
                 value={filters.search ?? ''}
-                onChange={(e) => updateFilter({ search: e.target.value })}
+                onChange={(e) => updateFilter({ search: fixScannerDash(e.target.value) })}
               />
             </div>
             <button

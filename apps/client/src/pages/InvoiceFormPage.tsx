@@ -54,7 +54,13 @@ import {
   type InvoiceFormInput,
   type InvoiceFormValues,
 } from '../lib/schemas/invoice';
-import { lowerCaseField, toLowerCase, toUpperCase, upperCaseField } from '../lib/textCase';
+import {
+  fixScannerDash,
+  lowerCaseField,
+  toLowerCase,
+  toUpperCase,
+  upperCaseField,
+} from '../lib/textCase';
 import type { CustomerInput, CustomerPartyType, CustomerResponse } from '../services/customers';
 import type { ProductResponse } from '../services/products';
 import type { ThirdPartyResponse } from '../services/thirdParties';
@@ -685,7 +691,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                     <TextField
                       label="Buscar producto por referencia o descripción"
                       value={productQuery}
-                      onChange={(e) => setProductQuery(e.target.value)}
+                      onChange={(e) => setProductQuery(fixScannerDash(e.target.value))}
                     />
                   </div>
                   <button
