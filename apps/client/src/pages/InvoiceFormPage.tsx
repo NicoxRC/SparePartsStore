@@ -17,6 +17,7 @@ import { CashRegisterSwitcher } from '../components/CashRegisterSwitcher';
 import { CloseCashRegisterDialog } from '../components/CloseCashRegisterDialog';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { CustomLineDialog } from '../components/CustomLineDialog';
+import { SavedCustomerNotice } from '../components/SavedCustomerNotice';
 import { SearchableSelect } from '../components/SearchableSelect';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
@@ -76,6 +77,12 @@ interface CustomerSectionProps {
   customerIdentification: string;
   customerIdentificationType: string;
   customerDepartment: string;
+  typedCustomer: {
+    companyName: string;
+    firstName: string;
+    familyName: string;
+    email: string;
+  };
   onDepartmentChange: (departmentCode: string) => void;
   onSelectCustomer: (customer: CustomerResponse) => void;
   onDianResult: (result: ThirdPartyResponse) => void;
@@ -90,6 +97,7 @@ function CustomerSection({
   customerIdentification,
   customerIdentificationType,
   customerDepartment,
+  typedCustomer,
   onDepartmentChange,
   onSelectCustomer,
   onDianResult,
@@ -135,6 +143,12 @@ function CustomerSection({
           />
         )}
       </div>
+
+      <SavedCustomerNotice
+        identification={customerIdentification}
+        typed={typedCustomer}
+        onUseSaved={onSelectCustomer}
+      />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <SelectField
@@ -328,6 +342,10 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
   const customerIdentification = useWatch({ control, name: 'customerIdentification' });
   const customerIdentificationType = useWatch({ control, name: 'customerIdentificationType' });
   const customerDepartment = useWatch({ control, name: 'customerDepartment' });
+  const customerCompanyName = useWatch({ control, name: 'customerCompanyName' });
+  const customerFirstName = useWatch({ control, name: 'customerFirstName' });
+  const customerFamilyName = useWatch({ control, name: 'customerFamilyName' });
+  const customerEmail = useWatch({ control, name: 'customerEmail' });
   const paymentMeans = useWatch({ control, name: 'paymentMeans' });
   const paymentMeansType = useWatch({ control, name: 'paymentMeansType' });
   // `useWatch` can briefly lag one render behind `itemFields` right after
@@ -915,6 +933,12 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
               customerIdentification={customerIdentification}
               customerIdentificationType={customerIdentificationType}
               customerDepartment={customerDepartment}
+              typedCustomer={{
+                companyName: customerCompanyName ?? '',
+                firstName: customerFirstName ?? '',
+                familyName: customerFamilyName ?? '',
+                email: customerEmail ?? '',
+              }}
               onDepartmentChange={handleDepartmentChange}
               onSelectCustomer={handleSelectCustomer}
               onDianResult={handleDianResult}
