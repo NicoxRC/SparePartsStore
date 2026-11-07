@@ -8,6 +8,7 @@ import {
   type AuthUser,
 } from '../services/auth';
 import { syncSelectedCashRegister } from '../lib/cashRegisterBox';
+import { clearIdleLogoutNotice, markActivity } from '../lib/idleSession';
 import { clearTokens, getAccessToken, setTokens } from '../lib/storage';
 import { getApiErrorMessage } from '../lib/errors';
 import { AuthContext, type AuthContextValue } from './auth-context';
@@ -45,6 +46,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     mutationFn: loginRequest,
     onSuccess: (data) => {
       setTokens(data.accessToken, data.refreshToken);
+      // Fresh idle clock, so a stale timestamp from an earlier session on
+      // this device doesn't log the new one straight out.
+      markActivity(true);
+      clearIdleLogoutNotice();
       syncSelectedCashRegister(data.user);
       setUser(data.user);
       setLoginError(null);
