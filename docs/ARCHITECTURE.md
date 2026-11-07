@@ -211,6 +211,13 @@ JWT access + refresh tokens in `localStorage` (keys `casarespuestos.accessToken`
 1. On `403 PasswordChangeRequired` → redirect to `/change-password`.
 2. On `401` (excluding the login/refresh calls themselves, and not already retried) → single-flight refresh-token exchange, queues concurrent requests, retries with the new token, or clears tokens and redirects to `/login` if the refresh itself fails.
 
+**Inactivity logout (employee and auditor only).** `IdleSessionGuard`, mounted inside `ProtectedRoute`, logs out an `employee` or `auditor` after 20 minutes with no interaction (pointer, key, wheel or touch). It shows a "¿Sigues ahí?" warning with "Seguir conectado" during the last minute. `admin` is exempt.
+
+- The last-activity time is stored in `localStorage` (`casarespuestos.lastActivityAt`, see `lib/idleSession.ts`). Because of that, the timeout still applies after a closed tab or a locked phone, and all open tabs share it.
+- Login resets the timestamp.
+- Invoice drafts are kept, so they are there again after logging back in.
+- The rule is client-side only. The API's token lifetimes are unchanged, which is enough for a shared store device.
+
 ### Styling
 
 Tailwind CSS utility classes directly in components. No CSS-in-JS, no separate per-component stylesheets.

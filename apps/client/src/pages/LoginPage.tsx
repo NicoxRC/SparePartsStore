@@ -6,6 +6,7 @@ import { Button } from '../components/Button';
 import { TextField } from '../components/TextField';
 import { useAuth } from '../hooks/useAuth';
 import { handleEnterAsTab } from '../lib/formNavigation';
+import { hasIdleLogoutNotice } from '../lib/idleSession';
 import { loginFormSchema, type LoginFormValues } from '../lib/schemas/auth';
 
 export function LoginPage() {
@@ -36,6 +37,11 @@ export function LoginPage() {
     <div className="flex flex-col gap-4">
       <h2 className="text-lg font-semibold text-ink">Iniciar sesión</h2>
 
+      {hasIdleLogoutNotice() && !loginError && (
+        <Alert variant="info">
+          Tu sesión se cerró por inactividad. Vuelve a iniciar sesión.
+        </Alert>
+      )}
       {loginError && <Alert variant="error">{loginError}</Alert>}
 
       <form

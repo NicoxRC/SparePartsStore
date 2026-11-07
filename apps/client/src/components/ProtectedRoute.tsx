@@ -1,5 +1,6 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { IdleSessionGuard } from './IdleSessionGuard';
 import { Spinner } from './Spinner';
 
 export function ProtectedRoute() {
@@ -26,5 +27,9 @@ export function ProtectedRoute() {
     return <Navigate to="/products" replace />;
   }
 
-  return <Outlet />;
+  return (
+    <IdleSessionGuard>
+      <Outlet />
+    </IdleSessionGuard>
+  );
 }
