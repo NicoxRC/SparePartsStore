@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
-import { escapeLike } from '../common/utils/escape-like.util';
+import { andWhereEveryWord } from '../common/utils/search.util';
 import { QuerySuppliersDto } from './dto/query-suppliers.dto';
 import { SupplierResponseDto } from './dto/supplier-response.dto';
 import { UpdateSupplierDto } from './dto/update-supplier.dto';
@@ -26,12 +26,7 @@ export class SuppliersService {
     const { page, limit, search } = query;
     const qb = this.suppliersRepository.createQueryBuilder('supplier');
 
-    if (search) {
-      qb.andWhere(
-        "(supplier.name ILIKE :search ESCAPE '\\' OR supplier.nit ILIKE :search ESCAPE '\\')",
-        { search: `%${escapeLike(search)}%` },
-      );
-    }
+    andWhereEveryWord(qb, ['supplier.name', 'supplier.nit'], search);
 
     qb.orderBy('supplier.name', 'ASC')
       .skip((page - 1) * limit)

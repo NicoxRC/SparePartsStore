@@ -18,7 +18,7 @@ import {
   STANDARD_TAX_RATE,
 } from '../../common/utils/invoice-math.util';
 import { assertLineKind } from '../../common/utils/custom-line.util';
-import { escapeLike } from '../../common/utils/escape-like.util';
+import { andWhereEveryWord } from '../../common/utils/search.util';
 import { withNumberingLock } from '../../common/utils/numbering-lock.util';
 import { getStoreToday } from '../../common/utils/store-date.util';
 import { CashRegisterService } from '../../cash-register/cash-register.service';
@@ -332,14 +332,34 @@ export class InvoicesService {
       .createQueryBuilder('invoice')
       .orderBy('invoice.createdAt', 'DESC');
 
-    if (query.search) {
-      qb.andWhere(
-        `(invoice.dataicoNumber ILIKE :search ESCAPE '\\' OR
-          CONCAT(invoice.prefix, invoice.number) ILIKE :search ESCAPE '\\' OR
-          invoice.customerCompanyName ILIKE :search ESCAPE '\\' OR
-          CONCAT_WS(' ', invoice.customerFirstName, invoice.customerFamilyName) ILIKE :search ESCAPE '\\' OR
-          invoice.customerIdentification ILIKE :search ESCAPE '\\')`,
-        { search: `%${escapeLike(query.search)}%` },
+    // Same rule as quotations: an invoice number (digits, optionally with
+    // its prefix, "FE12" / "FE-12" / "#12") is matched by its start, so "12"
+    // lists 12, 120, 121… with 12 first. Anything else is the customer's
+    // name, word by word. The identification is deliberately not searched:
+    // a number typed there matched cédulas/NITs and buried the invoice.
+    const numberSearch = /^#?([a-z]*)[-\s]?(\d+)$/i.exec(
+      query.search?.trim() ?? '',
+    );
+    if (numberSearch) {
+      const [, prefix, digits] = numberSearch;
+      qb.andWhere('CAST(invoice.number AS TEXT) LIKE :numberPrefix', {
+        numberPrefix: `${digits}%`,
+      });
+      if (prefix) {
+        qb.andWhere('UPPER(invoice.prefix) = :prefix', {
+          prefix: prefix.toUpperCase(),
+        });
+      }
+      qb.orderBy('invoice.number', 'ASC');
+    } else {
+      andWhereEveryWord(
+        qb,
+        [
+          'invoice.customerCompanyName',
+          'invoice.customerFirstName',
+          'invoice.customerFamilyName',
+        ],
+        query.search,
       );
     }
 

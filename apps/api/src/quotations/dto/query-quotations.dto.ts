@@ -27,7 +27,7 @@ export class QueryQuotationsDto {
 
   @ApiPropertyOptional({
     description:
-      'Matches quotation number or customer name/company/identification',
+      'Digits alone (optionally "#12") match the quotation number by prefix; anything else matches the customer name/company word by word, ignoring accents. The identification is not searched.',
   })
   @IsOptional()
   @IsString()

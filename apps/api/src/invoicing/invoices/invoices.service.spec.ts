@@ -767,26 +767,56 @@ describe('InvoicesService', () => {
       expect(listQueryBuilder.andWhere).not.toHaveBeenCalled();
     });
 
-    it('searches by invoice number and customer', async () => {
-      await service.findAll({ page: 1, limit: 20, search: 'ACME' });
+    it('searches the customer name word by word, never the identification', async () => {
+      await service.findAll({ page: 1, limit: 20, search: 'acme sas' });
 
       const [where, params] = listQueryBuilder.andWhere.mock.calls[0] as [
         string,
-        { search: string },
+        Record<string, string>,
       ];
-      expect(where).toContain('invoice.dataicoNumber ILIKE :search');
-      expect(where).toContain('CONCAT(invoice.prefix, invoice.number)');
-      expect(where).toContain('invoice.customerCompanyName ILIKE :search');
-      expect(where).toContain('invoice.customerIdentification ILIKE :search');
-      expect(params).toEqual({ search: '%ACME%' });
+      expect(where).toContain('invoice.customerCompanyName');
+      expect(where).toContain('invoice.customerFirstName');
+      expect(where).not.toContain('invoice.customerIdentification');
+      expect(params).toEqual({ search0: '%acme%' });
+      expect(listQueryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE :search1'),
+        { search1: '%sas%' },
+      );
+    });
+
+    it('treats digits as an invoice number prefix, lowest number first', async () => {
+      await service.findAll({ page: 1, limit: 20, search: ' 12 ' });
+
+      expect(listQueryBuilder.andWhere).toHaveBeenCalledTimes(1);
+      expect(listQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'CAST(invoice.number AS TEXT) LIKE :numberPrefix',
+        { numberPrefix: '12%' },
+      );
+      expect(listQueryBuilder.orderBy).toHaveBeenLastCalledWith(
+        'invoice.number',
+        'ASC',
+      );
+    });
+
+    it('also narrows by prefix when the number is typed with it', async () => {
+      await service.findAll({ page: 1, limit: 20, search: 'fe-12' });
+
+      expect(listQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'CAST(invoice.number AS TEXT) LIKE :numberPrefix',
+        { numberPrefix: '12%' },
+      );
+      expect(listQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'UPPER(invoice.prefix) = :prefix',
+        { prefix: 'FE' },
+      );
     });
 
     it('escapes LIKE wildcards in the search term', async () => {
       await service.findAll({ page: 1, limit: 20, search: '50%_off' });
 
       expect(listQueryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('ILIKE :search'),
-        { search: '%50\\%\\_off%' },
+        expect.stringContaining('ILIKE :search0'),
+        { search0: '%50\\%\\_off%' },
       );
     });
   });

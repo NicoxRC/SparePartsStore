@@ -10,7 +10,7 @@ import { EntityManager, In, IsNull, Repository } from 'typeorm';
 import { Brand } from '../brands/entities/brand.entity';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
-import { escapeLike } from '../common/utils/escape-like.util';
+import { andWhereEveryWord } from '../common/utils/search.util';
 import { getStoreToday } from '../common/utils/store-date.util';
 import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
@@ -297,12 +297,7 @@ export class PurchaseImportsService {
       qb.andWhere('imp.supplierId = :supplierId', { supplierId });
     }
 
-    if (search) {
-      qb.andWhere(
-        "(imp.invoiceNumber ILIKE :search ESCAPE '\\' OR supplier.name ILIKE :search ESCAPE '\\')",
-        { search: `%${escapeLike(search)}%` },
-      );
-    }
+    andWhereEveryWord(qb, ['imp.invoiceNumber', 'supplier.name'], search);
 
     // Drafts are grouped by supplier on the client, so they come sorted by it.
     if (status === 'draft') {

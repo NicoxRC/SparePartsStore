@@ -188,8 +188,8 @@ describe('SuppliersService', () => {
       await service.findAll({ page: 1, limit: 20, search: '100%' });
 
       expect(qb.andWhere).toHaveBeenCalledWith(
-        expect.stringMatching(/name ILIKE.*nit ILIKE/),
-        { search: '%100\\%%' },
+        expect.stringMatching(/supplier\.name.*ILIKE.*supplier\.nit.*ILIKE/),
+        { search0: '%100\\%%' },
       );
     });
 

@@ -546,7 +546,7 @@ describe('PurchaseImportsService', () => {
 
       expect(qb.andWhere).toHaveBeenCalledWith(
         expect.stringContaining('ILIKE'),
-        { search: '%50\\%\\_off%' },
+        { search0: '%50\\%\\_off%' },
       );
     });
 

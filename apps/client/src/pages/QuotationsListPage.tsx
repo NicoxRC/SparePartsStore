@@ -130,7 +130,7 @@ export function QuotationsListPage() {
       )}
 
       <TextField
-        label="Buscar por número, cliente o identificación"
+        label="Buscar por número o cliente"
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
