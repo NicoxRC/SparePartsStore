@@ -2,14 +2,14 @@ import type { UserRole } from '../services/auth';
 
 /**
  * Inactivity logout for shared store devices: an employee or auditor
- * session closes after 20 minutes with no interaction, with a warning
+ * session closes after 5 minutes with no interaction, with a warning
  * during the last minute. Admin is exempt.
  *
  * The last-activity time lives in localStorage (not memory) so it covers
  * a closed tab or a locked phone too, and is shared by every open tab:
  * using one keeps the others alive.
  */
-export const IDLE_TIMEOUT_MS = 20 * 60 * 1000;
+export const IDLE_TIMEOUT_MS = 5 * 60 * 1000;
 export const IDLE_WARNING_MS = 60 * 1000;
 
 const IDLE_ROLES: readonly UserRole[] = ['employee', 'auditor'];
