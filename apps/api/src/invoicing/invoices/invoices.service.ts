@@ -332,18 +332,36 @@ export class InvoicesService {
       .createQueryBuilder('invoice')
       .orderBy('invoice.createdAt', 'DESC');
 
-    andWhereEveryWord(
-      qb,
-      [
-        'invoice.dataicoNumber',
-        'CONCAT(invoice.prefix, invoice.number)',
-        'invoice.customerCompanyName',
-        'invoice.customerFirstName',
-        'invoice.customerFamilyName',
-        'invoice.customerIdentification',
-      ],
-      query.search,
+    // Same rule as quotations: an invoice number (digits, optionally with
+    // its prefix, "FE12" / "FE-12" / "#12") is matched by its start, so "12"
+    // lists 12, 120, 121… with 12 first. Anything else is the customer's
+    // name, word by word. The identification is deliberately not searched:
+    // a number typed there matched cédulas/NITs and buried the invoice.
+    const numberSearch = /^#?([a-z]*)[-\s]?(\d+)$/i.exec(
+      query.search?.trim() ?? '',
     );
+    if (numberSearch) {
+      const [, prefix, digits] = numberSearch;
+      qb.andWhere('CAST(invoice.number AS TEXT) LIKE :numberPrefix', {
+        numberPrefix: `${digits}%`,
+      });
+      if (prefix) {
+        qb.andWhere('UPPER(invoice.prefix) = :prefix', {
+          prefix: prefix.toUpperCase(),
+        });
+      }
+      qb.orderBy('invoice.number', 'ASC');
+    } else {
+      andWhereEveryWord(
+        qb,
+        [
+          'invoice.customerCompanyName',
+          'invoice.customerFirstName',
+          'invoice.customerFamilyName',
+        ],
+        query.search,
+      );
+    }
 
     const [invoices, total] = await qb
       .skip((page - 1) * limit)

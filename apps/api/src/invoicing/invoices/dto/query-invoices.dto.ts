@@ -19,7 +19,8 @@ export class QueryInvoicesDto {
   limit: number = 20;
 
   @ApiPropertyOptional({
-    description: 'Matches invoice number or customer name/identification',
+    description:
+      'An invoice number ("12", "FE12", "#12") matches the number by prefix; anything else matches the customer name/company word by word, ignoring accents. The identification is not searched.',
   })
   @IsOptional()
   @IsString()

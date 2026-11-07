@@ -139,7 +139,7 @@ export function InvoicesListPage() {
       </div>
 
       <TextField
-        label="Buscar por número de factura, cliente o identificación"
+        label="Buscar por número de factura o cliente"
         value={search}
         onChange={(e) => {
           setSearch(e.target.value);
