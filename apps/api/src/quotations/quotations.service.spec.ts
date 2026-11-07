@@ -239,8 +239,46 @@ describe('QuotationsService', () => {
       await service.findAll({ page: 1, limit: 20, search: '50%_off' });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('ILIKE :search'),
-        { search: '%50\\%\\_off%' },
+        expect.stringContaining('ILIKE :search0'),
+        { search0: '%50\\%\\_off%' },
+      );
+    });
+
+    it('searches the customer name word by word, never the identification', async () => {
+      await service.findAll({ page: 1, limit: 20, search: 'javi  cant' });
+
+      const searchCalls = (
+        queryBuilder.andWhere.mock.calls as [string, unknown][]
+      ).filter(([where]) => where.includes('ILIKE'));
+      expect(searchCalls).toEqual([
+        [
+          expect.stringContaining('quotation.customerFirstName'),
+          { search0: '%javi%' },
+        ],
+        [
+          expect.stringContaining('quotation.customerFamilyName'),
+          { search1: '%cant%' },
+        ],
+      ]);
+      for (const [where] of searchCalls) {
+        expect(where).not.toContain('customerIdentification');
+      }
+    });
+
+    it('treats digits as a quotation number prefix, lowest number first', async () => {
+      await service.findAll({ page: 1, limit: 20, search: ' #12 ' });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'CAST(quotation.number AS TEXT) LIKE :numberPrefix',
+        { numberPrefix: '12%' },
+      );
+      expect(queryBuilder.andWhere).not.toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE'),
+        expect.anything(),
+      );
+      expect(queryBuilder.orderBy).toHaveBeenLastCalledWith(
+        'quotation.number',
+        'ASC',
       );
     });
 
@@ -256,8 +294,8 @@ describe('QuotationsService', () => {
         'quotation.invoicedAt IS NOT NULL',
       );
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('ILIKE :search'),
-        { search: '%ACME%' },
+        expect.stringContaining('ILIKE :search0'),
+        { search0: '%ACME%' },
       );
     });
   });

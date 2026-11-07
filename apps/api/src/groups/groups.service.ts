@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { escapeLike } from '../common/utils/escape-like.util';
+import { andWhereEveryWord } from '../common/utils/search.util';
 import { CreateGroupDto } from './dto/create-group.dto';
 import { GroupResponseDto } from './dto/group-response.dto';
 import { QueryGroupsDto } from './dto/query-groups.dto';
@@ -37,11 +37,7 @@ export class GroupsService {
     const { page, limit, search } = query;
     const qb = this.groupsRepository.createQueryBuilder('group');
 
-    if (search) {
-      qb.andWhere("group.name ILIKE :search ESCAPE '\\'", {
-        search: `%${escapeLike(search)}%`,
-      });
-    }
+    andWhereEveryWord(qb, ['group.name'], search);
 
     qb.orderBy('group.createdAt', 'DESC')
       .skip((page - 1) * limit)

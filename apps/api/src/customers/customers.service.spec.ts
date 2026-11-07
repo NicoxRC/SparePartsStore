@@ -225,12 +225,12 @@ describe('CustomersService', () => {
       expect(qb.andWhere).toHaveBeenCalledTimes(2);
       expect(qb.andWhere).toHaveBeenNthCalledWith(
         1,
-        expect.stringContaining('customer.firstName ILIKE :search0'),
+        expect.stringContaining('customer.firstName'),
         { search0: '%javier%' },
       );
       expect(qb.andWhere).toHaveBeenNthCalledWith(
         2,
-        expect.stringContaining('customer.familyName ILIKE :search1'),
+        expect.stringContaining('customer.familyName'),
         { search1: '%cantuca%' },
       );
     });

@@ -110,6 +110,8 @@ try {
 
 Any `search` query param that gets used in an `ILIKE '%...%'` clause **must** go through the shared ILIKE-escaping helper in `common/utils/` first — raw user input into an `ILIKE` pattern is a latent injection-adjacent bug (a `%`/`_` in the search term changes matching semantics unexpectedly), already fixed once in this codebase (see `918b3fa` in git history) — don't reintroduce it in a new module.
 
+For a free-text list search, use `andWhereEveryWord()` from `common/utils/search.util.ts` instead of writing the `ILIKE` by hand. It escapes the input and makes the search predictive: the term is split into words, and every word must appear, partially, in at least one of the given columns, in any order, ignoring case, accents and dots. So "javi cant" finds `JAVIER JOSÉ / CANTUCA` and "sas" finds `S.A.S`. Ñ stays a letter of its own, the same rule as product normalization. Quotations are the one exception: a search made only of digits is matched against the quotation number as a prefix, and the identification is not searched.
+
 ### Environment variables — never accessed directly outside config
 
 `ConfigService` only, injected wherever needed:

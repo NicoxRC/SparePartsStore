@@ -13,7 +13,7 @@ import {
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { SaleType } from '../common/enums/sale-type.enum';
 import { isUniqueViolation } from '../common/utils/database-error.util';
-import { escapeLike } from '../common/utils/escape-like.util';
+import { andWhereEveryWord } from '../common/utils/search.util';
 import { Department } from '../departments/entities/department.entity';
 import { Group } from '../groups/entities/group.entity';
 import { Brand } from '../brands/entities/brand.entity';
@@ -186,12 +186,7 @@ export class ProductsService {
       .leftJoinAndSelect('product.supplier', 'supplier')
       .where('product.deletedAt IS NULL');
 
-    if (search) {
-      qb.andWhere(
-        "(product.reference ILIKE :search ESCAPE '\\' OR product.description ILIKE :search ESCAPE '\\')",
-        { search: `%${escapeLike(search)}%` },
-      );
-    }
+    andWhereEveryWord(qb, ['product.reference', 'product.description'], search);
 
     if (departmentId) {
       qb.andWhere('product.department_id = :departmentId', { departmentId });

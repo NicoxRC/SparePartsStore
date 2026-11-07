@@ -767,26 +767,30 @@ describe('InvoicesService', () => {
       expect(listQueryBuilder.andWhere).not.toHaveBeenCalled();
     });
 
-    it('searches by invoice number and customer', async () => {
-      await service.findAll({ page: 1, limit: 20, search: 'ACME' });
+    it('searches by invoice number and customer, word by word', async () => {
+      await service.findAll({ page: 1, limit: 20, search: 'acme sas' });
 
       const [where, params] = listQueryBuilder.andWhere.mock.calls[0] as [
         string,
-        { search: string },
+        Record<string, string>,
       ];
-      expect(where).toContain('invoice.dataicoNumber ILIKE :search');
+      expect(where).toContain('invoice.dataicoNumber');
       expect(where).toContain('CONCAT(invoice.prefix, invoice.number)');
-      expect(where).toContain('invoice.customerCompanyName ILIKE :search');
-      expect(where).toContain('invoice.customerIdentification ILIKE :search');
-      expect(params).toEqual({ search: '%ACME%' });
+      expect(where).toContain('invoice.customerCompanyName');
+      expect(where).toContain('invoice.customerIdentification');
+      expect(params).toEqual({ search0: '%acme%' });
+      expect(listQueryBuilder.andWhere).toHaveBeenCalledWith(
+        expect.stringContaining('ILIKE :search1'),
+        { search1: '%sas%' },
+      );
     });
 
     it('escapes LIKE wildcards in the search term', async () => {
       await service.findAll({ page: 1, limit: 20, search: '50%_off' });
 
       expect(listQueryBuilder.andWhere).toHaveBeenCalledWith(
-        expect.stringContaining('ILIKE :search'),
-        { search: '%50\\%\\_off%' },
+        expect.stringContaining('ILIKE :search0'),
+        { search0: '%50\\%\\_off%' },
       );
     });
   });

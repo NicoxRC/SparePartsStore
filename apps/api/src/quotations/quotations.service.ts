@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CashRegisterService } from '../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { escapeLike } from '../common/utils/escape-like.util';
+import { andWhereEveryWord } from '../common/utils/search.util';
 import { assertLineKind } from '../common/utils/custom-line.util';
 import {
   computeLineAmounts,
@@ -140,14 +140,26 @@ export class QuotationsService {
       qb.andWhere("quotation.customerIdentificationType <> 'NIT'");
     }
 
-    if (query.search) {
-      qb.andWhere(
-        `(CAST(quotation.number AS TEXT) ILIKE :search ESCAPE '\\' OR
-          quotation.customerCompanyName ILIKE :search ESCAPE '\\' OR
-          quotation.customerFirstName ILIKE :search ESCAPE '\\' OR
-          quotation.customerFamilyName ILIKE :search ESCAPE '\\' OR
-          quotation.customerIdentification ILIKE :search ESCAPE '\\')`,
-        { search: `%${escapeLike(query.search)}%` },
+    // Digits alone (optionally "#12") are a quotation number, matched by its
+    // start so "12" lists 12, 120, 121… with 12 first. Anything else is the
+    // customer's name, word by word. The identification is deliberately not
+    // searched: a number typed there matched cédulas/NITs and buried the
+    // quotation being looked for.
+    const numberSearch = /^#?(\d+)$/.exec(query.search?.trim() ?? '');
+    if (numberSearch) {
+      qb.andWhere('CAST(quotation.number AS TEXT) LIKE :numberPrefix', {
+        numberPrefix: `${numberSearch[1]}%`,
+      });
+      qb.orderBy('quotation.number', 'ASC');
+    } else {
+      andWhereEveryWord(
+        qb,
+        [
+          'quotation.customerCompanyName',
+          'quotation.customerFirstName',
+          'quotation.customerFamilyName',
+        ],
+        query.search,
       );
     }
 

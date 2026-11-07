@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { Button } from '../components/Button';
@@ -22,13 +22,20 @@ export function CustomersListPage() {
 
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [customerPendingDelete, setCustomerPendingDelete] =
     useState<CustomerResponse | null>(null);
+
+  // Waits for a pause in typing so each keystroke doesn't fire a request.
+  useEffect(() => {
+    const timeout = setTimeout(() => setDebouncedSearch(search), 250);
+    return () => clearTimeout(timeout);
+  }, [search]);
 
   const customersQuery = useCustomers({
     page,
     limit: PAGE_SIZE,
-    search: search || undefined,
+    search: debouncedSearch || undefined,
   });
   const deleteMutation = useDeleteCustomer();
 

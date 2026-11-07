@@ -7,7 +7,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { isUniqueViolation } from '../common/utils/database-error.util';
-import { escapeLike } from '../common/utils/escape-like.util';
+import { andWhereEveryWord } from '../common/utils/search.util';
 import { getStoreDayRangeUtc } from '../common/utils/store-date.util';
 import { Invoice } from '../invoicing/invoices/entities/invoice.entity';
 import { InvoiceResponseDto } from '../invoicing/invoices/dto/invoice-response.dto';
@@ -105,16 +105,17 @@ export class CustomersService {
     const { page, limit, search } = query;
     const qb = this.customersRepository.createQueryBuilder('customer');
 
-    // Word by word, so "javier cantuca" finds JAVIER JOSE / CANTUCA:
-    // every word has to appear in some field, in any order.
-    const words = (search ?? '').trim().split(/\s+/).filter(Boolean);
-    words.forEach((word, index) => {
-      const param = `search${index}`;
-      qb.andWhere(
-        `(customer.identification ILIKE :${param} ESCAPE '\\' OR customer.companyName ILIKE :${param} ESCAPE '\\' OR customer.firstName ILIKE :${param} ESCAPE '\\' OR customer.familyName ILIKE :${param} ESCAPE '\\')`,
-        { [param]: `%${escapeLike(word)}%` },
-      );
-    });
+    // Word by word, so "javi cant" finds JAVIER JOSÉ / CANTUCA.
+    andWhereEveryWord(
+      qb,
+      [
+        'customer.identification',
+        'customer.companyName',
+        'customer.firstName',
+        'customer.familyName',
+      ],
+      search,
+    );
 
     qb.orderBy('customer.createdAt', 'DESC')
       .skip((page - 1) * limit)

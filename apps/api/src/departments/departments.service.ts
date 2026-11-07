@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
-import { escapeLike } from '../common/utils/escape-like.util';
+import { andWhereEveryWord } from '../common/utils/search.util';
 import { CreateDepartmentDto } from './dto/create-department.dto';
 import { DepartmentResponseDto } from './dto/department-response.dto';
 import { QueryDepartmentsDto } from './dto/query-departments.dto';
@@ -37,11 +37,7 @@ export class DepartmentsService {
     const { page, limit, search } = query;
     const qb = this.departmentsRepository.createQueryBuilder('department');
 
-    if (search) {
-      qb.andWhere("department.name ILIKE :search ESCAPE '\\'", {
-        search: `%${escapeLike(search)}%`,
-      });
-    }
+    andWhereEveryWord(qb, ['department.name'], search);
 
     qb.orderBy('department.createdAt', 'DESC')
       .skip((page - 1) * limit)
