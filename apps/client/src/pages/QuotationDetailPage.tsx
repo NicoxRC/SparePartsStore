@@ -419,7 +419,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
               onClick={() => setIsCancelDialogOpen(true)}
               className="text-xs font-medium text-rust hover:underline"
             >
-              Cancelar cotización
+              Anular cotización
             </button>
           )}
         </div>
