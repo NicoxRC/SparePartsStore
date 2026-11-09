@@ -7,9 +7,16 @@ import { CustomerPurchaseHistory } from '../components/CustomerPurchaseHistory';
 import { SelectField } from '../components/SelectField';
 import { Spinner } from '../components/Spinner';
 import { TextField } from '../components/TextField';
+import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { useCreateCustomer, useCustomer, useUpdateCustomer } from '../hooks/useCustomers';
 import { usePermissions } from '../hooks/usePermissions';
-import { DANE_CITIES, DANE_DEPARTMENTS } from '../lib/dane';
+import { useThirdPartyLookup } from '../hooks/useThirdPartyLookup';
+import {
+  DANE_CITIES,
+  DANE_DEPARTMENTS,
+  DEFAULT_DANE_CITY_CODE,
+  DEFAULT_DANE_DEPARTMENT_CODE,
+} from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
 import { handleEnterAsTab } from '../lib/formNavigation';
 import {
@@ -17,7 +24,7 @@ import {
   type CustomerFormInput,
   type CustomerFormValues,
 } from '../lib/schemas/customer';
-import { lowerCaseField, upperCaseField } from '../lib/textCase';
+import { lowerCaseField, toLowerCase, toUpperCase, upperCaseField } from '../lib/textCase';
 import type { CustomerPartyType } from '../services/customers';
 
 type Tab = 'data' | 'history';
@@ -66,6 +73,7 @@ export function CustomerFormPage() {
     register,
     control,
     handleSubmit,
+    setValue,
     formState: { errors },
   } = useForm<CustomerFormInput, unknown, CustomerFormValues>({
     resolver: zodResolver(customerFormSchema),
@@ -93,11 +101,46 @@ export function CustomerFormPage() {
   });
 
   const identificationType = useWatch({ control, name: 'identificationType' });
+  const identification = useWatch({ control, name: 'identification' });
   const partyType = useWatch({ control, name: 'partyType' });
   const department = useWatch({ control, name: 'department' });
   const citiesForDepartment = DANE_CITIES.filter(
     (city) => city.departmentCode === department,
   );
+
+  // Only offered when creating: an existing customer's data is already ours.
+  const canLookupDian = !isEdit && canSave && has('third_parties.view');
+  const thirdPartyLookup = useThirdPartyLookup(
+    { identification: identification ?? '', identificationType: identificationType ?? '' },
+    false,
+  );
+
+  // Same mapping as the invoice form's DIAN lookup (InvoiceFormPage's
+  // handleDianResult): CC → persona natural / no responsable, NIT →
+  // persona jurídica / responsable, location defaults to the store's city.
+  const handleDianLookup = async () => {
+    if (!identification || !identificationType) return;
+    const { data: result } = await thirdPartyLookup.refetch();
+    if (!result) return;
+
+    setValue('identificationType', result.identificationType);
+    setValue('identification', result.identification);
+    if (result.email) setValue('email', toLowerCase(result.email));
+    setValue('department', DEFAULT_DANE_DEPARTMENT_CODE);
+    setValue('city', DEFAULT_DANE_CITY_CODE);
+
+    if (result.identificationType === 'CC') {
+      setValue('partyType', 'PERSONA_NATURAL');
+      setValue('taxLevelCode', 'SIMPLIFICADO');
+      if (result.firstName) setValue('firstName', toUpperCase(result.firstName));
+      const familyName = [result.familyName, result.secondLastName].filter(Boolean).join(' ');
+      if (familyName) setValue('familyName', toUpperCase(familyName));
+    } else if (result.identificationType === 'NIT') {
+      setValue('partyType', 'PERSONA_JURIDICA');
+      setValue('taxLevelCode', 'COMUN');
+      if (result.companyName) setValue('companyName', toUpperCase(result.companyName));
+    }
+  };
 
   const onSubmit = async (values: CustomerFormValues) => {
     await saveMutation.mutateAsync({
@@ -196,6 +239,30 @@ export function CustomerFormPage() {
             />
           )}
         </div>
+
+        {canLookupDian && (
+          <div className="flex flex-col gap-3">
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                className="sm:w-auto sm:px-4"
+                isLoading={thirdPartyLookup.isFetching}
+                disabled={!DATAICO_ENABLED || !identification || !identificationType}
+                title={DATAICO_ENABLED ? undefined : DATAICO_DISABLED_HINT}
+                onClick={() => void handleDianLookup()}
+              >
+                Buscar en DIAN
+              </Button>
+            </div>
+            {thirdPartyLookup.isError && (
+              <Alert variant="error">{getApiErrorMessage(thirdPartyLookup.error)}</Alert>
+            )}
+            {thirdPartyLookup.isSuccess && !thirdPartyLookup.data && (
+              <Alert variant="info">No se encontró un tercero con esa identificación en la DIAN.</Alert>
+            )}
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <SelectField
