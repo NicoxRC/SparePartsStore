@@ -51,7 +51,7 @@ export const PERMISSION_SCOPES = [
       { code: 'quotations.create', label: 'Crear' },
       { code: 'quotations.update', label: 'Editar ítems' },
       { code: 'quotations.invoice', label: 'Facturar' },
-      { code: 'quotations.cancel', label: 'Cancelar' },
+      { code: 'quotations.cancel', label: 'Anular' },
     ],
   },
   {

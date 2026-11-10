@@ -467,7 +467,7 @@ export class QuotationsService {
         {
           productId: item.product.id,
           quantity: item.quantity,
-          notes: this.movementNote(quotation.number, 'cancelada — devolución'),
+          notes: this.movementNote(quotation.number, 'anulada — devolución'),
         },
         userId,
       );
@@ -605,7 +605,7 @@ export class QuotationsService {
 
   private assertOpen(quotation: Quotation): void {
     if (quotation.cancelledAt) {
-      throw new BadRequestException('Esta cotización ya fue cancelada.');
+      throw new BadRequestException('Esta cotización ya fue anulada.');
     }
     if (quotation.invoicedAt) {
       throw new BadRequestException('Esta cotización ya fue facturada.');

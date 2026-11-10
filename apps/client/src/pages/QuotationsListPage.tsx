@@ -23,7 +23,7 @@ const STATUS_LABEL: Record<QuotationStatus, string> = {
   open: 'Abierta',
   invoiced: 'Facturada',
   completed: 'Completada',
-  cancelled: 'Cancelada',
+  cancelled: 'Anulada',
 };
 
 const STATUS_STYLE: Record<QuotationStatus, string> = {
@@ -37,7 +37,7 @@ const FILTERS: Array<{ label: string; value: QuotationStatus | undefined }> = [
   { label: 'Abiertas', value: 'open' },
   { label: 'Facturadas', value: 'invoiced' },
   { label: 'Completadas', value: 'completed' },
-  { label: 'Canceladas', value: 'cancelled' },
+  { label: 'Anuladas', value: 'cancelled' },
   { label: 'Todas', value: undefined },
 ];
 

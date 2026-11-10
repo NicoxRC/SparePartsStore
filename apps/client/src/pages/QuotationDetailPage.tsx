@@ -60,7 +60,7 @@ const STATUS_LABEL: Record<QuotationResponse['status'], string> = {
   open: 'Abierta',
   invoiced: 'Facturada',
   completed: 'Completada',
-  cancelled: 'Cancelada',
+  cancelled: 'Anulada',
 };
 
 const STATUS_STYLE: Record<QuotationResponse['status'], string> = {
@@ -434,7 +434,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
         <Alert variant="success">Completada sin factura.</Alert>
       )}
       {quotation.status === 'cancelled' && (
-        <Alert variant="info">Esta cotización fue cancelada; el stock ya fue devuelto.</Alert>
+        <Alert variant="info">Esta cotización fue anulada; el stock ya fue devuelto.</Alert>
       )}
 
       <section className="flex flex-col gap-3 rounded border border-line bg-paper p-4 sm:p-6">
