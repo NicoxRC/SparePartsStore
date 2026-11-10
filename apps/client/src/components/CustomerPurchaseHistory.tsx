@@ -16,7 +16,7 @@ const QUOTATION_STATUS_LABEL: Record<QuotationResponse['status'], string> = {
   open: 'Abierta',
   invoiced: 'Facturada',
   completed: 'Completada',
-  cancelled: 'Cancelada',
+  cancelled: 'Anulada',
 };
 
 const QUOTATION_STATUS_STYLE: Record<QuotationResponse['status'], string> = {
