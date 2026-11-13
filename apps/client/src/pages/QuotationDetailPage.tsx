@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
 import { CompleteQuotationDialog } from '../components/CompleteQuotationDialog';
+import { EditQuotationCustomerDialog } from '../components/EditQuotationCustomerDialog';
 import { PrintTicket } from '../components/print/PrintTicket';
 import { QuotationTicket } from '../components/print/QuotationTicket';
 import { CustomLineDialog } from '../components/CustomLineDialog';
@@ -226,6 +227,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
 
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
+  const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false);
 
   const hasActiveProductSearch =
     productQuery.trim().length > 0 || Boolean(filterDepartmentId) || Boolean(filterGroupId);
@@ -438,7 +440,18 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
       )}
 
       <section className="flex flex-col gap-3 rounded border border-line bg-paper p-4 sm:p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Cliente</h2>
+          {isOpen && canUpdate && (
+            <button
+              type="button"
+              onClick={() => setIsEditCustomerOpen(true)}
+              className="text-xs font-medium text-steel hover:text-ink hover:underline"
+            >
+              Editar cliente
+            </button>
+          )}
+        </div>
         <dl className="grid grid-cols-1 gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
           <div>
             <dt className="text-xs uppercase tracking-wide text-fog">Identificación</dt>
@@ -945,6 +958,17 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           quotationId={quotation.id}
           onClose={() => setIsCompleteDialogOpen(false)}
           onCompleted={() => setIsCompleteDialogOpen(false)}
+        />
+      )}
+
+      {isEditCustomerOpen && (
+        <EditQuotationCustomerDialog
+          quotation={quotation}
+          onClose={() => setIsEditCustomerOpen(false)}
+          onSaved={() => {
+            setIsEditCustomerOpen(false);
+            setSaveToast('Cliente actualizado');
+          }}
         />
       )}
 

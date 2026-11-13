@@ -90,6 +90,9 @@ export interface CreateQuotationInput {
   notes?: string;
 }
 
+/** Every customer field of a quotation — sent whole, a field left out is cleared. */
+export type UpdateQuotationCustomerInput = Omit<CreateQuotationInput, 'items' | 'notes'>;
+
 export interface UpdateQuotationItemsInput {
   items: CreateQuotationItemInput[];
 }
@@ -158,6 +161,17 @@ export async function updateQuotationItems(
 ): Promise<QuotationResponse> {
   const { data } = await api.patch<QuotationResponse>(
     `/quotations/${id}/items`,
+    input,
+  );
+  return data;
+}
+
+export async function updateQuotationCustomer(
+  id: string,
+  input: UpdateQuotationCustomerInput,
+): Promise<QuotationResponse> {
+  const { data } = await api.patch<QuotationResponse>(
+    `/quotations/${id}/customer`,
     input,
   );
   return data;
