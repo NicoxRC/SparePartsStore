@@ -33,7 +33,7 @@ export const invoiceItemFormSchema = z.object({
 // `.superRefine()` loses precise nested-field types (e.g. `items` collapses
 // to `unknown[]`), which `tsc -b`'s stricter project-reference build catches
 // even though it isn't visible in a plain `tsc --noEmit` run.
-const invoiceFormObjectSchema = z.object({
+export const invoiceFormObjectSchema = z.object({
   // No issueDate: always today (the store's cash-register day), never
   // asked. paymentDate is only meaningful/asked when paying on credit —
   // enforced below with .superRefine, since it's otherwise optional.

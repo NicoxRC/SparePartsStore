@@ -29,6 +29,7 @@ import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
 import { OpenQuotationsSummaryDto } from './dto/open-quotations-summary.dto';
 import { QueryQuotationsDto } from './dto/query-quotations.dto';
 import { QuotationResponseDto } from './dto/quotation-response.dto';
+import { UpdateQuotationCustomerDto } from './dto/update-quotation-customer.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
 import { QuotationsService } from './quotations.service';
 
@@ -93,6 +94,21 @@ export class QuotationsController {
     @CurrentUser() user: AuthenticatedUser,
   ): Promise<QuotationResponseDto> {
     return this.quotationsService.updateItems(id, dto, user.id);
+  }
+
+  @ApiOperation({
+    summary:
+      "Correct a quotation's customer data — only while open; never touches the address book",
+  })
+  @ApiResponse({ status: 200, type: QuotationResponseDto })
+  @Patch(':id/customer')
+  @RequirePermission('quotations.update')
+  updateCustomer(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateQuotationCustomerDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<QuotationResponseDto> {
+    return this.quotationsService.updateCustomer(id, dto, user.id);
   }
 
   @ApiOperation({ summary: 'Convert a quotation into a real invoice' })

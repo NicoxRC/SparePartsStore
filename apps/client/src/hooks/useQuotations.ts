@@ -12,10 +12,12 @@ import {
   getQuotation,
   getQuotations,
   invoiceQuotation,
+  updateQuotationCustomer,
   updateQuotationItems,
   type CreateQuotationInput,
   type InvoiceQuotationInput,
   type QuotationsQuery,
+  type UpdateQuotationCustomerInput,
   type UpdateQuotationItemsInput,
 } from '../services/quotations';
 
@@ -64,6 +66,18 @@ export function useUpdateQuotationItems() {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
       void queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+}
+
+/** Only the quotation's own customer data — no stock, no address book. */
+export function useUpdateQuotationCustomer() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, input }: { id: string; input: UpdateQuotationCustomerInput }) =>
+      updateQuotationCustomer(id, input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['quotations'] });
     },
   });
 }

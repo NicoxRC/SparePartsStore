@@ -26,6 +26,7 @@ import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
 import { QueryQuotationsDto } from './dto/query-quotations.dto';
 import { OpenQuotationsSummaryDto } from './dto/open-quotations-summary.dto';
 import { QuotationResponseDto } from './dto/quotation-response.dto';
+import { UpdateQuotationCustomerDto } from './dto/update-quotation-customer.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
 import { QuotationItem } from './entities/quotation-item.entity';
 import { Quotation } from './entities/quotation.entity';
@@ -348,6 +349,30 @@ export class QuotationsService {
   }
 
   /**
+   * Corrects the customer data saved on an open quotation (a typo, the
+   * wrong customer picked). Only the quotation's own snapshot changes —
+   * never the address book. `updated_at` is written back unchanged on
+   * purpose: the payment-term counter counts from the last change to the
+   * items, and fixing a name doesn't restart it.
+   */
+  async updateCustomer(
+    id: string,
+    dto: UpdateQuotationCustomerDto,
+    userId: string,
+  ): Promise<QuotationResponseDto> {
+    const quotation = await this.loadWithItems(id);
+    this.assertOpen(quotation);
+
+    await this.quotationsRepository.update(quotation.id, {
+      ...this.customerColumns(dto),
+      updatedBy: { id: userId },
+      updatedAt: quotation.updatedAt,
+    });
+
+    return this.findOne(quotation.id);
+  }
+
+  /**
    * Converts a quotation into a real invoice using its locked-in prices
    * (see QuotationItem's docstring) — stock was already decremented when
    * the quotation was created/edited, so InvoicesService.create() is told
@@ -559,7 +584,7 @@ export class QuotationsService {
     );
   }
 
-  private customerColumns(dto: CreateQuotationDto) {
+  private customerColumns(dto: UpdateQuotationCustomerDto) {
     return {
       customerIdentificationType: dto.customerIdentificationType,
       customerIdentification: dto.customerIdentification,

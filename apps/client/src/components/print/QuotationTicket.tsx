@@ -32,6 +32,31 @@ function TotalRow({ label, value, bold = false }: { label: string; value: string
 }
 
 /**
+ * "ANULADA" stamped diagonally down the whole slip, so a voided quotation
+ * can't pass for a valid one once printed. The ticket's height depends on
+ * its lines, so the word is repeated and whatever runs past the end is
+ * clipped. Gray text, not a background: browsers drop backgrounds when
+ * printing, and a thermal printer renders the gray as a light dither.
+ */
+function VoidWatermark() {
+  return (
+    <div
+      aria-hidden
+      className="pointer-events-none absolute inset-0 flex flex-col items-center gap-24 overflow-hidden pt-16"
+    >
+      {Array.from({ length: 12 }, (_, index) => (
+        <span
+          key={index}
+          className="shrink-0 -rotate-[35deg] text-[52px] font-black tracking-[0.15em] text-black/25"
+        >
+          ANULADA
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/**
  * Printable cotización, laid out like the store's existing quotation slip:
  * header, customer block, the lines (description and total on one row, and
  * under it the code, quantity × price, IVA and any discount — kept to two
@@ -71,7 +96,8 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
   }`;
 
   return (
-    <div className="mx-auto w-[290px] p-2 text-black">
+    <div className="relative mx-auto w-[290px] p-2 text-black">
+      {quotation.status === 'cancelled' && <VoidWatermark />}
       <p className="text-right text-[11px]">{ticketTime()}</p>
 
       <p className="border-2 border-black py-1 text-center text-[14px] font-bold">{header.title}</p>
