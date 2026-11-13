@@ -7,6 +7,7 @@ import { Product } from '../products/entities/product.entity';
 import { ProductsService } from '../products/products.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
+import { UpdateQuotationCustomerDto } from './dto/update-quotation-customer.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
 import { QuotationItem } from './entities/quotation-item.entity';
 import { Quotation } from './entities/quotation.entity';
@@ -861,6 +862,60 @@ describe('QuotationsService', () => {
         }),
       );
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    });
+  });
+
+  describe('updateCustomer', () => {
+    const customerDto: UpdateQuotationCustomerDto = {
+      customerIdentificationType: 'CC',
+      customerIdentification: '1020304050',
+      customerPartyType: 'PERSONA_NATURAL',
+      customerTaxLevelCode: 'SIMPLIFICADO',
+      customerFirstName: 'JUAN',
+      customerFamilyName: 'PEREZ',
+      customerCountryCode: 'CO',
+      customerDepartment: '11',
+      customerCity: '001',
+      customerAddressLine: 'CL 9 # 8-7',
+      customerEmail: 'juan@correo.com',
+      customerPhone: '3001234567',
+    };
+
+    it('replaces the customer snapshot without moving stock or restarting the payment term', async () => {
+      await service.updateCustomer('q-1', customerDto, 'user-1');
+
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+      expect(quotationsRepository.update).toHaveBeenCalledWith('q-1', {
+        customerIdentificationType: 'CC',
+        customerIdentification: '1020304050',
+        customerIdentificationDv: null,
+        customerPartyType: 'PERSONA_NATURAL',
+        customerTaxLevelCode: 'SIMPLIFICADO',
+        customerRegimen: null,
+        // Was ACME S.A.S — a field left out is cleared, not kept.
+        customerCompanyName: null,
+        customerFirstName: 'JUAN',
+        customerFamilyName: 'PEREZ',
+        customerCountryCode: 'CO',
+        customerDepartment: '11',
+        customerCity: '001',
+        customerAddressLine: 'CL 9 # 8-7',
+        customerEmail: 'juan@correo.com',
+        customerPhone: '3001234567',
+        updatedBy: { id: 'user-1' },
+        updatedAt: new Date('2026-09-20T10:00:00.000Z'),
+      });
+    });
+
+    it('rejects editing a quotation that is no longer open', async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({ cancelledAt: new Date() }),
+      );
+
+      await expect(
+        service.updateCustomer('q-1', customerDto, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+      expect(quotationsRepository.update).not.toHaveBeenCalled();
     });
   });
 
