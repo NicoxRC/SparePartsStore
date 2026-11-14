@@ -63,7 +63,7 @@ export class QuotationResponseDto {
   @ApiProperty() createdAt: string;
   @ApiProperty({
     description:
-      'Last time the quotation changed — its items are the only thing editable while open, so on an open quotation this is when something was last added or removed (the store counts the payment term from here).',
+      'Last time the quotation changed — its items are the only thing editable while open, so on an open quotation this is when something was last added or removed (informative only — the payment term counts from createdAt).',
   })
   lastChangedAt: string;
   @ApiProperty({
