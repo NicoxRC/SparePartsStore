@@ -116,6 +116,7 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
         <CustomerRow label="Cliente:" value={customerLabel(quotation)} />
         <CustomerRow label="Cédula/Nit:" value={idNumber} />
         <CustomerRow label="Teléfono:" value={quotation.customerPhone ?? ''} />
+        <CustomerRow label="Dirección:" value={quotation.customerAddressLine} />
       </div>
 
       <div className="mt-3 border-2 border-black">
