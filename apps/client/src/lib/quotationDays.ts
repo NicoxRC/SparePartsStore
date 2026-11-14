@@ -1,8 +1,8 @@
 /**
- * Day counters on an open quotation. The store usually gives the customer
- * 30 days to pay, counted from the last time something was added or removed
- * (the customer often comes back for more parts), so two counters are shown:
- * since it was made, and since its last change.
+ * Day counters on an open quotation. The store gives the customer 30 days
+ * to pay, counted from the day the quotation was made — adding or removing
+ * parts later doesn't restart it. Two counters are shown: since it was made
+ * (the one that matters) and since its last change (informative).
  */
 export const PAYMENT_TERM_DAYS = 30;
 

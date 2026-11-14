@@ -128,6 +128,18 @@ function initialDiscountPercentageFrom(items: QuotationItemResponse[]): number {
   return totalGross > 0 ? (totalDiscount / totalGross) * 100 : 0;
 }
 
+/** "14 nov 2026, 10:32" in the store's time zone. */
+function formatQuotationDate(iso: string): string {
+  return new Date(iso).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export function QuotationDetailPage() {
   const { id } = useParams<{ id: string }>();
   const quotationQuery = useQuotation(id);
@@ -393,6 +405,15 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
             {quotationNumberLabel(quotation.number)}
           </h1>
           <p className="text-sm text-fog">{customerLabelFor(quotation)}</p>
+          <p className="mt-1 text-xs text-steel">
+            <span className="font-medium text-ink">Fecha: {formatQuotationDate(quotation.createdAt)}</span>
+            {quotation.lastChangedAt !== quotation.createdAt && (
+              <span className="text-fog">
+                {' · Última modificación: '}
+                {formatQuotationDate(quotation.lastChangedAt)}
+              </span>
+            )}
+          </p>
           {isOpen && (
             <div className="mt-1">
               <QuotationDayCounters
