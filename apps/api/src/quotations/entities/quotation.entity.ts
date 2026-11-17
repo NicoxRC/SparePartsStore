@@ -21,7 +21,7 @@ const decimalTransformer = {
  * by InvoicesService — see QuotationsService.
  *
  * No stored status enum — derived from `invoicedAt`/`completedAt`/
- * `cancelledAt`, same
+ * `cancelledAt`/`mergedAt`, same
  * reasoning as `cash_registers.closed_at` (see docs/DATABASE.md): a
  * timestamp that's either null or set already tells the whole story.
  */
@@ -134,6 +134,15 @@ export class Quotation extends BaseEntity {
 
   @Column({ name: 'cancelled_at', type: 'timestamptz', nullable: true })
   cancelledAt: Date | null;
+
+  // "Unida": folded into another open quotation of the same customer
+  // (`mergedInto`, the oldest one) — its items now live there, stock untouched.
+  @Column({ name: 'merged_at', type: 'timestamptz', nullable: true })
+  mergedAt: Date | null;
+
+  @ManyToOne(() => Quotation, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'merged_into_id' })
+  mergedInto: Quotation | null;
 
   @OneToMany(() => QuotationItem, (item) => item.quotation)
   items: QuotationItem[];

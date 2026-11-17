@@ -349,6 +349,9 @@ describe('CashRegisterService', () => {
       expect(quotationQueryBuilder.andWhere).toHaveBeenCalledWith(
         'quotation.cancelledAt IS NULL',
       );
+      expect(quotationQueryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.mergedAt IS NULL',
+      );
     });
   });
 

@@ -21,6 +21,18 @@ describe('QuotationsService', () => {
     update: jest.Mock;
     findOne: jest.Mock;
     createQueryBuilder: jest.Mock;
+    manager: { transaction: jest.Mock };
+  };
+  let transactionManager: {
+    update: jest.Mock;
+    save: jest.Mock;
+    createQueryBuilder: jest.Mock;
+  };
+  let itemsUpdateBuilder: {
+    update: jest.Mock;
+    set: jest.Mock;
+    where: jest.Mock;
+    execute: jest.Mock;
   };
   let quotationItemsRepository: {
     create: jest.Mock<QuotationItem, [Partial<QuotationItem>]>;
@@ -104,6 +116,8 @@ describe('QuotationsService', () => {
       completedAt: null,
       invoice: null,
       cancelledAt: null,
+      mergedAt: null,
+      mergedInto: null,
       createdAt: new Date('2026-09-15T10:00:00.000Z'),
       updatedAt: new Date('2026-09-20T10:00:00.000Z'),
       items: [
@@ -147,6 +161,22 @@ describe('QuotationsService', () => {
       update: jest.fn().mockResolvedValue(undefined),
       findOne: jest.fn().mockResolvedValue(openQuotation()),
       createQueryBuilder: jest.fn(() => queryBuilder),
+      manager: {
+        transaction: jest.fn((work: (m: unknown) => Promise<unknown>) =>
+          work(transactionManager),
+        ),
+      },
+    };
+    itemsUpdateBuilder = {
+      update: jest.fn().mockReturnThis(),
+      set: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      execute: jest.fn().mockResolvedValue(undefined),
+    };
+    transactionManager = {
+      update: jest.fn().mockResolvedValue(undefined),
+      save: jest.fn().mockResolvedValue(undefined),
+      createQueryBuilder: jest.fn(() => itemsUpdateBuilder),
     };
     quotationItemsRepository = {
       create: jest.fn<QuotationItem, [Partial<QuotationItem>]>(
@@ -203,6 +233,9 @@ describe('QuotationsService', () => {
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
         'quotation.cancelledAt IS NULL',
       );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.mergedAt IS NULL',
+      );
     });
 
     it('returns zeros when there are no open quotations', async () => {
@@ -232,7 +265,7 @@ describe('QuotationsService', () => {
       await service.findAll({ page: 1, limit: 20, status: 'open' });
 
       expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'quotation.invoicedAt IS NULL AND quotation.completedAt IS NULL AND quotation.cancelledAt IS NULL',
+        'quotation.invoicedAt IS NULL AND quotation.completedAt IS NULL AND quotation.cancelledAt IS NULL AND quotation.mergedAt IS NULL',
       );
     });
 
@@ -981,6 +1014,181 @@ describe('QuotationsService', () => {
         expect.objectContaining({ cancelledAt: expect.any(Date) }),
       );
       /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+    });
+  });
+
+  describe('merge', () => {
+    const olderQuotation = () =>
+      openQuotation({
+        id: 'q-1',
+        number: 1,
+        notes: 'Taller norte',
+        items: [
+          {
+            id: 'item-1',
+            product: productA,
+            description: null,
+            quantity: 2,
+            taxRate: 19,
+            discount: null,
+            unitPrice: 50000,
+          } as QuotationItem,
+        ],
+      });
+    const newerQuotation = () =>
+      openQuotation({
+        id: 'q-2',
+        number: 7,
+        notes: null,
+        totalAmount: 30000,
+        items: [
+          {
+            id: 'item-2',
+            product: productB,
+            description: null,
+            quantity: 1,
+            taxRate: 19,
+            discount: 5000,
+            unitPrice: 35000,
+          } as QuotationItem,
+        ],
+      });
+
+    function loadInOrder(...quotations: Quotation[]) {
+      for (const quotation of quotations) {
+        queryBuilder.getOne.mockResolvedValueOnce(quotation);
+      }
+    }
+
+    it('folds the newer quotations into the oldest one, without stock or invoices', async () => {
+      // Given newest first, so the survivor is chosen by number, not order.
+      loadInOrder(newerQuotation(), olderQuotation());
+
+      await service.merge({ quotationIds: ['q-2', 'q-1'] }, 'user-1');
+
+      expect(itemsUpdateBuilder.set).toHaveBeenCalledWith({
+        quotation: { id: 'q-1' },
+      });
+      expect(itemsUpdateBuilder.where).toHaveBeenCalledWith(
+        'quotation_id IN (:...sourceIds)',
+        { sourceIds: ['q-2'] },
+      );
+      // 2 × 50.000 + (35.000 − 5.000) — each line keeps its price and discount.
+      expect(transactionManager.update).toHaveBeenCalledWith(Quotation, 'q-1', {
+        totalAmount: 130000,
+        notes: 'Taller norte',
+        updatedBy: { id: 'user-1' },
+      });
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(transactionManager.save).toHaveBeenCalledWith(Quotation, [
+        expect.objectContaining({
+          id: 'q-2',
+          mergedAt: expect.any(Date),
+          mergedInto: { id: 'q-1' },
+        }),
+      ]);
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+      expect(invoicesService.create).not.toHaveBeenCalled();
+    });
+
+    it('joins the notes of every quotation', async () => {
+      loadInOrder(
+        olderQuotation(),
+        openQuotation({ ...newerQuotation(), notes: 'Placa ABC123' }),
+      );
+
+      await service.merge({ quotationIds: ['q-1', 'q-2'] }, 'user-1');
+
+      expect(transactionManager.update).toHaveBeenCalledWith(
+        Quotation,
+        'q-1',
+        expect.objectContaining({ notes: 'Taller norte\nPlaca ABC123' }),
+      );
+    });
+
+    it('rejects fewer than two distinct quotations', async () => {
+      await expect(
+        service.merge({ quotationIds: ['q-1', 'q-1'] }, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+      expect(quotationsRepository.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it('rejects quotations of different customers', async () => {
+      loadInOrder(
+        olderQuotation(),
+        openQuotation({
+          ...newerQuotation(),
+          customerIdentification: '1085000000',
+        }),
+      );
+
+      await expect(
+        service.merge({ quotationIds: ['q-1', 'q-2'] }, 'user-1'),
+      ).rejects.toThrow('Solo se pueden unir cotizaciones del mismo cliente.');
+      expect(quotationsRepository.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it('rejects a quotation that is no longer open', async () => {
+      loadInOrder(
+        olderQuotation(),
+        openQuotation({ ...newerQuotation(), invoicedAt: new Date() }),
+      );
+
+      await expect(
+        service.merge({ quotationIds: ['q-1', 'q-2'] }, 'user-1'),
+      ).rejects.toThrow(BadRequestException);
+      expect(quotationsRepository.manager.transaction).not.toHaveBeenCalled();
+    });
+
+    it('rejects a quotation that was already merged', async () => {
+      loadInOrder(
+        olderQuotation(),
+        openQuotation({ ...newerQuotation(), mergedAt: new Date() }),
+      );
+
+      await expect(
+        service.merge({ quotationIds: ['q-1', 'q-2'] }, 'user-1'),
+      ).rejects.toThrow('La cotización COT-0007 ya fue unida a otra.');
+    });
+  });
+
+  describe('merged quotations elsewhere', () => {
+    it('cannot be invoiced once merged', async () => {
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({ mergedAt: new Date() }),
+      );
+
+      await expect(
+        service.invoice(
+          'q-1',
+          {
+            paymentMeans: 'CASH',
+            paymentMeansType: 'DEBITO',
+            useSameCustomer: true,
+          },
+          'user-1',
+          1,
+        ),
+      ).rejects.toThrow(BadRequestException);
+      expect(invoicesService.create).not.toHaveBeenCalled();
+    });
+
+    it('lists a customer by exact identification and filters merged ones', async () => {
+      await service.findAll({
+        page: 1,
+        limit: 20,
+        status: 'merged',
+        customerIdentification: ' 830033494 ',
+      });
+
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.mergedAt IS NOT NULL',
+      );
+      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
+        'quotation.customerIdentification = :identification',
+        { identification: '830033494' },
+      );
     });
   });
 });

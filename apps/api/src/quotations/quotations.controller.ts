@@ -26,6 +26,7 @@ import { UserRole } from '../common/enums/user-role.enum';
 import { InvoiceResponseDto } from '../invoicing/invoices/dto/invoice-response.dto';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
+import { MergeQuotationsDto } from './dto/merge-quotations.dto';
 import { OpenQuotationsSummaryDto } from './dto/open-quotations-summary.dto';
 import { QueryQuotationsDto } from './dto/query-quotations.dto';
 import { QuotationResponseDto } from './dto/quotation-response.dto';
@@ -72,6 +73,28 @@ export class QuotationsController {
   @RequirePermission('quotations.view')
   getOpenSummary(): Promise<OpenQuotationsSummaryDto> {
     return this.quotationsService.getOpenSummary();
+  }
+
+  @ApiOperation({
+    summary:
+      'Merge several open quotations of the same customer into the oldest one — no invoice, no stock movement',
+  })
+  @ApiResponse({
+    status: 201,
+    type: QuotationResponseDto,
+    description: 'The quotation that now holds every line',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Fewer than two, not all open, or different customers',
+  })
+  @Post('merge')
+  @RequirePermission('quotations.merge')
+  merge(
+    @Body() dto: MergeQuotationsDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<QuotationResponseDto> {
+    return this.quotationsService.merge(dto, user.id);
   }
 
   @ApiOperation({ summary: 'Get one quotation with its items' })

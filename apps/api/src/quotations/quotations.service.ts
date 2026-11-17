@@ -23,6 +23,7 @@ import { ProductsService } from '../products/products.service';
 import { CreateQuotationItemDto } from './dto/create-quotation-item.dto';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
+import { MergeQuotationsDto } from './dto/merge-quotations.dto';
 import { QueryQuotationsDto } from './dto/query-quotations.dto';
 import { OpenQuotationsSummaryDto } from './dto/open-quotations-summary.dto';
 import { QuotationResponseDto } from './dto/quotation-response.dto';
@@ -119,11 +120,12 @@ export class QuotationsService {
     const qb = this.quotationsRepository
       .createQueryBuilder('quotation')
       .leftJoinAndSelect('quotation.invoice', 'invoice')
+      .leftJoinAndSelect('quotation.mergedInto', 'mergedInto')
       .orderBy('quotation.createdAt', 'DESC');
 
     if (query.status === 'open') {
       qb.andWhere(
-        'quotation.invoicedAt IS NULL AND quotation.completedAt IS NULL AND quotation.cancelledAt IS NULL',
+        'quotation.invoicedAt IS NULL AND quotation.completedAt IS NULL AND quotation.cancelledAt IS NULL AND quotation.mergedAt IS NULL',
       );
     } else if (query.status === 'invoiced') {
       qb.andWhere('quotation.invoicedAt IS NOT NULL');
@@ -131,6 +133,14 @@ export class QuotationsService {
       qb.andWhere('quotation.completedAt IS NOT NULL');
     } else if (query.status === 'cancelled') {
       qb.andWhere('quotation.cancelledAt IS NOT NULL');
+    } else if (query.status === 'merged') {
+      qb.andWhere('quotation.mergedAt IS NOT NULL');
+    }
+
+    if (query.customerIdentification) {
+      qb.andWhere('quotation.customerIdentification = :identification', {
+        identification: query.customerIdentification.trim(),
+      });
     }
 
     // No column of its own: a quotation to a NIT is an empresa's, one to a
@@ -180,7 +190,7 @@ export class QuotationsService {
     };
   }
 
-  /** Every open quotation (not invoiced, completed or cancelled), any day — what's still owed on credit. */
+  /** Every open quotation (not invoiced, completed, cancelled or merged), any day — what's still owed on credit. */
   async getOpenSummary(): Promise<OpenQuotationsSummaryDto> {
     const result = await this.quotationsRepository
       .createQueryBuilder('quotation')
@@ -189,6 +199,7 @@ export class QuotationsService {
       .where('quotation.invoicedAt IS NULL')
       .andWhere('quotation.completedAt IS NULL')
       .andWhere('quotation.cancelledAt IS NULL')
+      .andWhere('quotation.mergedAt IS NULL')
       .getRawOne<{ sum: string; count: string }>();
     return {
       total: Number(result?.sum ?? 0),
@@ -480,6 +491,90 @@ export class QuotationsService {
     return this.findOne(quotation.id);
   }
 
+  /**
+   * Joins several open quotations of the same customer into one, so they
+   * can be invoiced (or kept open) together. The oldest one survives: the
+   * 30-day payment term counts from the original date, so folding an old
+   * debt into a newer quotation must not extend it. Every line moves over
+   * as is — its locked price and discount included — and the others close
+   * as "unida", pointing at the survivor. Nothing is invoiced and no stock
+   * moves: the merchandise already left with each quotation.
+   */
+  async merge(
+    dto: MergeQuotationsDto,
+    userId: string,
+  ): Promise<QuotationResponseDto> {
+    const ids = [...new Set(dto.quotationIds)];
+    if (ids.length < 2) {
+      throw new BadRequestException(
+        'Selecciona al menos dos cotizaciones para unir.',
+      );
+    }
+
+    const quotations = await Promise.all(
+      ids.map((id) => this.loadWithItems(id)),
+    );
+    for (const quotation of quotations) {
+      this.assertOpen(quotation);
+    }
+    const identification = quotations[0].customerIdentification;
+    if (quotations.some((q) => q.customerIdentification !== identification)) {
+      throw new BadRequestException(
+        'Solo se pueden unir cotizaciones del mismo cliente.',
+      );
+    }
+
+    const [target, ...sources] = [...quotations].sort(
+      (a, b) => a.number - b.number,
+    );
+    const sourceIds = sources.map((q) => q.id);
+    const totalAmount = this.sumTotal(
+      quotations.flatMap((q) =>
+        q.items.map((item) => ({
+          product: item.product,
+          description: item.description,
+          quantity: item.quantity,
+          taxRate: Number(item.taxRate),
+          discount: item.discount ?? undefined,
+          unitPrice: item.unitPrice,
+        })),
+      ),
+    );
+    const notes =
+      quotations
+        .map((q) => q.notes?.trim())
+        .filter(Boolean)
+        .join('\n') || null;
+    const mergedAt = new Date();
+
+    await this.quotationsRepository.manager.transaction(async (manager) => {
+      await manager
+        .createQueryBuilder()
+        .update(QuotationItem)
+        .set({ quotation: { id: target.id } })
+        .where('quotation_id IN (:...sourceIds)', { sourceIds })
+        .execute();
+      await manager.update(Quotation, target.id, {
+        totalAmount,
+        notes,
+        updatedBy: { id: userId },
+      });
+      // .save() (not .update()) for the self-relation — same reason as in
+      // invoice() above.
+      await manager.save(
+        Quotation,
+        sources.map((source) => ({
+          id: source.id,
+          mergedAt,
+          mergedInto: { id: target.id } as Quotation,
+          updatedBy: { id: userId } as Quotation['updatedBy'],
+        })),
+      );
+    });
+
+    return this.findOne(target.id);
+  }
+
   /** Returns every line's stock to inventory and closes the quotation. */
   async cancel(id: string, userId: string): Promise<QuotationResponseDto> {
     const quotation = await this.loadWithItems(id);
@@ -619,6 +714,7 @@ export class QuotationsService {
       .leftJoinAndSelect('product.brand', 'brand')
       .leftJoinAndSelect('quotation.createdBy', 'createdBy')
       .leftJoinAndSelect('quotation.invoice', 'invoice')
+      .leftJoinAndSelect('quotation.mergedInto', 'mergedInto')
       .where('quotation.id = :id', { id })
       .andWhere('quotation.deletedAt IS NULL')
       .getOne();
@@ -637,6 +733,11 @@ export class QuotationsService {
     }
     if (quotation.completedAt) {
       throw new BadRequestException('Esta cotización ya fue completada.');
+    }
+    if (quotation.mergedAt) {
+      throw new BadRequestException(
+        `La cotización COT-${String(quotation.number).padStart(4, '0')} ya fue unida a otra.`,
+      );
     }
   }
 
