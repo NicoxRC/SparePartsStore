@@ -1,6 +1,6 @@
 import { BrandTag } from '../components/BrandTag';
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { QuotationDayCounters } from '../components/QuotationDayCounters';
 import { Button } from '../components/Button';
@@ -8,6 +8,7 @@ import { CustomerPicker } from '../components/CustomerPicker';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
 import { CompleteQuotationDialog } from '../components/CompleteQuotationDialog';
 import { EditQuotationCustomerDialog } from '../components/EditQuotationCustomerDialog';
+import { MergeQuotationsDialog } from '../components/MergeQuotationsDialog';
 import { PrintTicket } from '../components/print/PrintTicket';
 import { QuotationTicket } from '../components/print/QuotationTicket';
 import { CustomLineDialog } from '../components/CustomLineDialog';
@@ -62,6 +63,7 @@ const STATUS_LABEL: Record<QuotationResponse['status'], string> = {
   invoiced: 'Facturada',
   completed: 'Completada',
   cancelled: 'Anulada',
+  merged: 'Unida',
 };
 
 const STATUS_STYLE: Record<QuotationResponse['status'], string> = {
@@ -69,6 +71,7 @@ const STATUS_STYLE: Record<QuotationResponse['status'], string> = {
   invoiced: 'bg-ok-tint text-ok',
   completed: 'bg-ok-tint text-ok',
   cancelled: 'bg-rust-tint text-rust-2',
+  merged: 'bg-mist text-steel',
 };
 
 function quotationNumberLabel(number: number): string {
@@ -163,6 +166,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   const canUpdate = has('quotations.update');
   const canInvoice = has('quotations.invoice');
   const canCancel = has('quotations.cancel');
+  const canMerge = has('quotations.merge');
   const isOpen = quotation.status === 'open';
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -240,6 +244,20 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   const [isCancelDialogOpen, setIsCancelDialogOpen] = useState(false);
   const [isCompleteDialogOpen, setIsCompleteDialogOpen] = useState(false);
   const [isEditCustomerOpen, setIsEditCustomerOpen] = useState(false);
+  const [isMergeDialogOpen, setIsMergeDialogOpen] = useState(false);
+
+  // The view is keyed by id, so when the lines land on this same quotation
+  // its local items have to be reloaded by hand.
+  const handleMerged = (merged: QuotationResponse) => {
+    setIsMergeDialogOpen(false);
+    if (merged.id !== quotation.id) {
+      navigate(`/cotizaciones/${merged.id}`);
+      return;
+    }
+    setItems(editableItemsFrom(merged.items ?? []));
+    setDiscountPercentage(initialDiscountPercentageFrom(merged.items ?? []));
+    setSaveToast('Cotizaciones unidas');
+  };
 
   const hasActiveProductSearch =
     productQuery.trim().length > 0 || Boolean(filterDepartmentId) || Boolean(filterGroupId);
@@ -436,6 +454,15 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           >
             Imprimir
           </button>
+          {isOpen && canMerge && (
+            <button
+              type="button"
+              onClick={() => setIsMergeDialogOpen(true)}
+              className="text-xs font-medium text-steel hover:text-ink hover:underline"
+            >
+              Unir con otras
+            </button>
+          )}
           {isOpen && canCancel && (
             <button
               type="button"
@@ -455,6 +482,22 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
       )}
       {quotation.status === 'completed' && (
         <Alert variant="success">Completada sin factura.</Alert>
+      )}
+      {quotation.status === 'merged' && (
+        <Alert variant="info">
+          Esta cotización se unió a{' '}
+          {quotation.mergedIntoId && quotation.mergedIntoNumber !== null ? (
+            <Link
+              to={`/cotizaciones/${quotation.mergedIntoId}`}
+              className="font-medium underline"
+            >
+              {quotationNumberLabel(quotation.mergedIntoNumber)}
+            </Link>
+          ) : (
+            'otra cotización'
+          )}
+          ; sus productos están allá.
+        </Alert>
       )}
       {quotation.status === 'cancelled' && (
         <Alert variant="info">Esta cotización fue anulada; el stock ya fue devuelto.</Alert>
@@ -971,6 +1014,14 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           quotationId={quotation.id}
           onClose={() => setIsCancelDialogOpen(false)}
           onCancelled={() => setIsCancelDialogOpen(false)}
+        />
+      )}
+
+      {isMergeDialogOpen && (
+        <MergeQuotationsDialog
+          quotation={quotation}
+          onClose={() => setIsMergeDialogOpen(false)}
+          onMerged={handleMerged}
         />
       )}
 

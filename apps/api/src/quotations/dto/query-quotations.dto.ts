@@ -19,11 +19,11 @@ export class QueryQuotationsDto {
   limit: number = 20;
 
   @ApiPropertyOptional({
-    enum: ['open', 'invoiced', 'completed', 'cancelled'],
+    enum: ['open', 'invoiced', 'completed', 'cancelled', 'merged'],
   })
   @IsOptional()
-  @IsIn(['open', 'invoiced', 'completed', 'cancelled'])
-  status?: 'open' | 'invoiced' | 'completed' | 'cancelled';
+  @IsIn(['open', 'invoiced', 'completed', 'cancelled', 'merged'])
+  status?: 'open' | 'invoiced' | 'completed' | 'cancelled' | 'merged';
 
   @ApiPropertyOptional({
     description:
@@ -41,4 +41,12 @@ export class QueryQuotationsDto {
   @IsOptional()
   @IsIn(['empresa', 'empleado'])
   customerType?: 'empresa' | 'empleado';
+
+  @ApiPropertyOptional({
+    description:
+      "Exact customer identification — used to list a customer's other quotations (e.g. to merge them).",
+  })
+  @IsOptional()
+  @IsString()
+  customerIdentification?: string;
 }

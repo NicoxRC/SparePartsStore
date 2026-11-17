@@ -427,6 +427,8 @@ export class CashRegisterService {
       .andWhere('quotation.invoicedAt IS NULL')
       .andWhere('quotation.completedAt IS NULL')
       .andWhere('quotation.cancelledAt IS NULL')
+      // A merged quotation's amount now lives in the one it went into.
+      .andWhere('quotation.mergedAt IS NULL')
       .getRawOne<{ sum: string }>();
     return Number(result?.sum ?? 0);
   }

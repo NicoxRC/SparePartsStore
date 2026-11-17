@@ -40,8 +40,10 @@ export class QuotationItemResponseDto {
 export class QuotationResponseDto {
   @ApiProperty() id: string;
   @ApiProperty() number: number;
-  @ApiProperty({ enum: ['open', 'invoiced', 'completed', 'cancelled'] })
-  status: 'open' | 'invoiced' | 'completed' | 'cancelled';
+  @ApiProperty({
+    enum: ['open', 'invoiced', 'completed', 'cancelled', 'merged'],
+  })
+  status: 'open' | 'invoiced' | 'completed' | 'cancelled' | 'merged';
   @ApiProperty() customerIdentificationType: string;
   @ApiProperty() customerIdentification: string;
   @ApiProperty({ nullable: true }) customerIdentificationDv: string | null;
@@ -60,6 +62,15 @@ export class QuotationResponseDto {
   @ApiProperty({ nullable: true }) notes: string | null;
   @ApiProperty() totalAmount: number;
   @ApiProperty({ nullable: true }) invoiceId: string | null;
+  @ApiProperty({
+    nullable: true,
+    type: String,
+    description:
+      'The quotation this one was merged into, when status is merged.',
+  })
+  mergedIntoId: string | null;
+  @ApiProperty({ nullable: true, type: Number })
+  mergedIntoNumber: number | null;
   @ApiProperty() createdAt: string;
   @ApiProperty({
     description:
@@ -84,11 +95,13 @@ export class QuotationResponseDto {
     dto.number = quotation.number;
     dto.status = quotation.cancelledAt
       ? 'cancelled'
-      : quotation.invoicedAt
-        ? 'invoiced'
-        : quotation.completedAt
-          ? 'completed'
-          : 'open';
+      : quotation.mergedAt
+        ? 'merged'
+        : quotation.invoicedAt
+          ? 'invoiced'
+          : quotation.completedAt
+            ? 'completed'
+            : 'open';
     dto.customerIdentificationType = quotation.customerIdentificationType;
     dto.customerIdentification = quotation.customerIdentification;
     dto.customerIdentificationDv = quotation.customerIdentificationDv;
@@ -107,6 +120,8 @@ export class QuotationResponseDto {
     dto.notes = quotation.notes;
     dto.totalAmount = quotation.totalAmount;
     dto.invoiceId = quotation.invoice?.id ?? null;
+    dto.mergedIntoId = quotation.mergedInto?.id ?? null;
+    dto.mergedIntoNumber = quotation.mergedInto?.number ?? null;
     dto.createdAt = quotation.createdAt.toISOString();
     dto.lastChangedAt = quotation.updatedAt.toISOString();
     dto.createdByName = quotation.createdBy

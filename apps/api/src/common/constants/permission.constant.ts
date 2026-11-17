@@ -39,6 +39,7 @@ export const PERMISSIONS = [
   'quotations.update',
   'quotations.invoice',
   'quotations.cancel',
+  'quotations.merge',
 
   'invoices.view',
   'invoices.create',
@@ -113,6 +114,7 @@ const IMPLIES: Partial<Record<Permission, Permission[]>> = {
   'quotations.update': ['quotations.view', 'products.view'],
   'quotations.invoice': ['quotations.view'],
   'quotations.cancel': ['quotations.view'],
+  'quotations.merge': ['quotations.view'],
   'invoices.create': [
     'invoices.view',
     'products.view',

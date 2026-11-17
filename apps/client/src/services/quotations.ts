@@ -2,7 +2,7 @@ import { api } from '../lib/api';
 import type { InvoiceResponse } from './invoices';
 import type { PaginatedResponse } from './products';
 
-export type QuotationStatus = 'open' | 'invoiced' | 'completed' | 'cancelled';
+export type QuotationStatus = 'open' | 'invoiced' | 'completed' | 'cancelled' | 'merged';
 
 /** Derived server-side from the identification type: NIT → empresa, cédula → empleado. */
 export type QuotationCustomerType = 'empresa' | 'empleado';
@@ -43,6 +43,9 @@ export interface QuotationResponse {
   notes: string | null;
   totalAmount: number;
   invoiceId: string | null;
+  /** The quotation this one was merged into (status `merged`). */
+  mergedIntoId: string | null;
+  mergedIntoNumber: number | null;
   createdAt: string;
   /** When its items last changed (while open) — informative; the payment term counts from `createdAt`. */
   lastChangedAt: string;
@@ -57,6 +60,8 @@ export interface QuotationsQuery {
   status?: QuotationStatus;
   customerType?: QuotationCustomerType;
   search?: string;
+  /** Exact match — a customer's own quotations. */
+  customerIdentification?: string;
 }
 
 /** A catalog product (`productId`) or a one-off line (`description` + `customUnitPrice`) — never both. */
@@ -185,6 +190,12 @@ export async function invoiceQuotation(
     `/quotations/${id}/invoice`,
     input,
   );
+  return data;
+}
+
+/** Folds the given open quotations (same customer) into the oldest one — returns that one. */
+export async function mergeQuotations(quotationIds: string[]): Promise<QuotationResponse> {
+  const { data } = await api.post<QuotationResponse>('/quotations/merge', { quotationIds });
   return data;
 }
 
