@@ -17,6 +17,7 @@ const QUOTATION_STATUS_LABEL: Record<QuotationResponse['status'], string> = {
   invoiced: 'Facturada',
   completed: 'Completada',
   cancelled: 'Anulada',
+  merged: 'Unida',
 };
 
 const QUOTATION_STATUS_STYLE: Record<QuotationResponse['status'], string> = {
@@ -24,6 +25,7 @@ const QUOTATION_STATUS_STYLE: Record<QuotationResponse['status'], string> = {
   invoiced: 'bg-ok-tint text-ok',
   completed: 'bg-ok-tint text-ok',
   cancelled: 'bg-rust-tint text-rust-2',
+  merged: 'bg-mist text-steel',
 };
 
 /** `issueDate` is a plain YYYY-MM-DD string — built from parts, not

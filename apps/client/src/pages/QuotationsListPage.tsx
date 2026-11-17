@@ -24,6 +24,7 @@ const STATUS_LABEL: Record<QuotationStatus, string> = {
   invoiced: 'Facturada',
   completed: 'Completada',
   cancelled: 'Anulada',
+  merged: 'Unida',
 };
 
 const STATUS_STYLE: Record<QuotationStatus, string> = {
@@ -31,6 +32,7 @@ const STATUS_STYLE: Record<QuotationStatus, string> = {
   invoiced: 'bg-ok-tint text-ok',
   completed: 'bg-ok-tint text-ok',
   cancelled: 'bg-rust-tint text-rust-2',
+  merged: 'bg-mist text-steel',
 };
 
 const FILTERS: Array<{ label: string; value: QuotationStatus | undefined }> = [
@@ -38,6 +40,7 @@ const FILTERS: Array<{ label: string; value: QuotationStatus | undefined }> = [
   { label: 'Facturadas', value: 'invoiced' },
   { label: 'Completadas', value: 'completed' },
   { label: 'Anuladas', value: 'cancelled' },
+  { label: 'Unidas', value: 'merged' },
   { label: 'Todas', value: undefined },
 ];
 

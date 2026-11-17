@@ -12,6 +12,7 @@ import {
   getQuotation,
   getQuotations,
   invoiceQuotation,
+  mergeQuotations,
   updateQuotationCustomer,
   updateQuotationItems,
   type CreateQuotationInput,
@@ -104,6 +105,20 @@ export function useCompleteQuotation() {
     onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
+      void queryClient.invalidateQueries({ queryKey: ['cash-register'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+/** No stock moves, but the "adeudado" of the cajas the merged ones were
+ * made in moves to the oldest one's. */
+export function useMergeQuotations() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (quotationIds: string[]) => mergeQuotations(quotationIds),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['cash-register'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
