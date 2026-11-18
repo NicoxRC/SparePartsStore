@@ -101,12 +101,15 @@ export function AuthenticatedLayout() {
   return (
     <div className="flex min-h-screen flex-col bg-canvas lg:flex-row">
       {/* Desktop sidebar */}
-      <aside className="relative hidden w-60 shrink-0 flex-col bg-spine lg:flex">
-        <div className="flex h-16 items-center border-b border-white/10 px-6">
+      {/* Pinned to the viewport so it stays visible while the page scrolls.
+          Logo and account block stay put; on a short screen only the item
+          list scrolls, on its own, so every entry is still reachable. */}
+      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col bg-spine lg:flex">
+        <div className="flex h-16 shrink-0 items-center border-b border-white/10 px-6">
           <img src={logo} alt="La Casa de los Repuestos" className="h-8 w-auto" />
         </div>
 
-        <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overscroll-contain px-3 py-4 [scrollbar-color:rgb(255_255_255/0.2)_transparent] [scrollbar-width:thin]">
           {navItems.map(({ to, label, Icon, disabled }) =>
             disabled ? (
               <span
@@ -137,7 +140,7 @@ export function AuthenticatedLayout() {
           )}
         </nav>
 
-        <div className="border-t border-white/10 p-4">
+        <div className="shrink-0 border-t border-white/10 p-4">
           {user && (
             <p className="mb-2 text-sm text-white/90">
               <span className="font-medium">
