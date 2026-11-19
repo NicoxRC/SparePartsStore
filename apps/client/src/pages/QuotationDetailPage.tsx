@@ -203,6 +203,8 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   });
   const [overrideSearchQuery, setOverrideSearchQuery] = useState('');
   const invoiceMutation = useInvoiceQuotation();
+  // Covers the whole click, customer save included — see handleInvoice().
+  const [isInvoicing, setIsInvoicing] = useState(false);
   const createCustomerMutation = useCreateCustomer();
 
   // Same "find a customer" widget as Venta, filling the override customer.
@@ -368,7 +370,19 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
     setSaveToast('Cambios guardados');
   };
 
+  // Locked from the first tap: the customer save runs before the invoice
+  // request, and a second tap meanwhile would send a second invoice.
   const handleInvoice = async () => {
+    if (isInvoicing) return;
+    setIsInvoicing(true);
+    try {
+      await sendInvoice();
+    } finally {
+      setIsInvoicing(false);
+    }
+  };
+
+  const sendInvoice = async () => {
     // Same rule as Venta: a new "otros datos" customer is saved to the
     // address book, best effort — a failure (or an already-saved
     // identification, which the API rejects) never blocks the invoice.
@@ -990,7 +1004,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                 <Button
                   type="button"
                   className="sm:w-auto sm:px-6"
-                  isLoading={invoiceMutation.isPending}
+                  isLoading={isInvoicing}
                   onClick={() => void handleInvoice()}
                 >
                   Enviar factura

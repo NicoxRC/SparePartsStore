@@ -283,6 +283,10 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
   const createQuotationMutation = useCreateQuotation();
   const { updateDraft, closeDraft } = useInvoiceDrafts();
   const [step, setStepState] = useState<InvoiceStep>(draft.step);
+  // Covers the whole "Cotizar" click — the customer save runs before the
+  // quotation request, and the button must already be locked during it,
+  // or a second tap on a slow connection creates the quotation twice.
+  const [isQuoting, setIsQuoting] = useState(false);
   const [productQuery, setProductQuery] = useState('');
   const [scannerOpen, setScannerOpen] = useState(false);
   // Stable callbacks: the scanner restarts the camera whenever these change.
@@ -317,7 +321,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
     watch,
     trigger,
     getValues,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<InvoiceFormInput, unknown, InvoiceFormValues>({
     resolver: zodResolver(invoiceFormSchema),
     defaultValues: draft.values,
@@ -575,6 +579,16 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
   };
 
   const handleCotizar = async () => {
+    if (isQuoting) return;
+    setIsQuoting(true);
+    try {
+      await createQuotationFromForm();
+    } finally {
+      setIsQuoting(false);
+    }
+  };
+
+  const createQuotationFromForm = async () => {
     const valid = await trigger([
       'customerIdentificationType',
       'customerIdentification',
@@ -967,7 +981,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
                   type="button"
                   variant="secondary"
                   className="sm:w-auto sm:px-6"
-                  isLoading={createQuotationMutation.isPending}
+                  isLoading={isQuoting}
                   onClick={() => void handleCotizar()}
                 >
                   Cotizar
@@ -1092,7 +1106,7 @@ export function InvoiceDraftForm({ draft, mode = 'sale', onInvoiced }: InvoiceDr
               >
                 Atrás
               </Button>
-              <Button type="submit" className="sm:w-auto sm:px-6" isLoading={createMutation.isPending}>
+              <Button type="submit" className="sm:w-auto sm:px-6" isLoading={isSubmitting}>
                 Enviar factura
               </Button>
             </div>
