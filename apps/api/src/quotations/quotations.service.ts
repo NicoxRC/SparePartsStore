@@ -4,9 +4,10 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { CashRegisterService } from '../cash-register/cash-register.service';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
+import { withNumberingLock } from '../common/utils/numbering-lock.util';
 import { andWhereEveryWord } from '../common/utils/search.util';
 import { assertLineKind } from '../common/utils/custom-line.util';
 import {
@@ -67,6 +68,26 @@ export class QuotationsService {
       await this.cashRegisterService.assertOpenToday(cashRegisterNumber);
 
     const resolved = await this.resolveNewLines(dto.items);
+
+    // Same as invoices: the number is read as MAX + 1, so two quotations
+    // created at once (two tills, or a double tap on a slow connection)
+    // would both get it. The lock makes the second one wait for the first
+    // to be saved and then take the next number.
+    const savedId = await withNumberingLock(
+      this.quotationsRepository.manager,
+      'quotations',
+      () => this.createLocked(dto, resolved, userId, cashRegister.id),
+    );
+
+    return this.findOne(savedId);
+  }
+
+  private async createLocked(
+    dto: CreateQuotationDto,
+    resolved: ResolvedLine[],
+    userId: string,
+    cashRegisterId: string,
+  ): Promise<string> {
     const number = await this.resolveNextNumber();
 
     // Decrement stock first — if this fails partway, no quotation row gets
@@ -92,7 +113,7 @@ export class QuotationsService {
       ...this.customerColumns(dto),
       notes: dto.notes ?? null,
       totalAmount,
-      cashRegister: { id: cashRegister.id } as Quotation['cashRegister'],
+      cashRegister: { id: cashRegisterId } as Quotation['cashRegister'],
       createdBy: { id: userId } as Quotation['createdBy'],
       updatedBy: { id: userId } as Quotation['updatedBy'],
     });
@@ -111,7 +132,7 @@ export class QuotationsService {
     );
     await this.quotationItemsRepository.save(items);
 
-    return this.findOne(saved.id);
+    return saved.id;
   }
 
   async findAll(
@@ -226,7 +247,17 @@ export class QuotationsService {
    * (the price typed inline on QuotationDetailPage) wins — it changes only
    * this quotation, never `product.salePrice`.
    */
-  async updateItems(
+  updateItems(
+    id: string,
+    dto: UpdateQuotationItemsDto,
+    userId: string,
+  ): Promise<QuotationResponseDto> {
+    return this.withQuotationLock([id], () =>
+      this.updateItemsLocked(id, dto, userId),
+    );
+  }
+
+  private async updateItemsLocked(
     id: string,
     dto: UpdateQuotationItemsDto,
     userId: string,
@@ -391,7 +422,21 @@ export class QuotationsService {
    * docstring for why re-running the check would be wrong, not just
    * redundant).
    */
-  async invoice(
+  invoice(
+    id: string,
+    dto: InvoiceQuotationDto,
+    userId: string,
+    cashRegisterNumber: number,
+  ): Promise<InvoiceResponseDto[]> {
+    // Held until the quotation is marked invoiced, so a second "Enviar
+    // factura" waits and then finds it already invoiced instead of sending
+    // another invoice to Dataico.
+    return this.withQuotationLock([id], () =>
+      this.invoiceLocked(id, dto, userId, cashRegisterNumber),
+    );
+  }
+
+  private async invoiceLocked(
     id: string,
     dto: InvoiceQuotationDto,
     userId: string,
@@ -479,7 +524,14 @@ export class QuotationsService {
    * counted in the cash register's "recaudado": the store chose to keep
    * this as a plain close (no payment means, no till).
    */
-  async complete(id: string, userId: string): Promise<QuotationResponseDto> {
+  complete(id: string, userId: string): Promise<QuotationResponseDto> {
+    return this.withQuotationLock([id], () => this.completeLocked(id, userId));
+  }
+
+  private async completeLocked(
+    id: string,
+    userId: string,
+  ): Promise<QuotationResponseDto> {
     const quotation = await this.loadWithItems(id);
     this.assertOpen(quotation);
 
@@ -511,6 +563,17 @@ export class QuotationsService {
       );
     }
 
+    const targetId = await this.withQuotationLock(ids, (manager) =>
+      this.mergeLocked(ids, userId, manager),
+    );
+    return this.findOne(targetId);
+  }
+
+  private async mergeLocked(
+    ids: string[],
+    userId: string,
+    manager: EntityManager,
+  ): Promise<string> {
     const quotations = await Promise.all(
       ids.map((id) => this.loadWithItems(id)),
     );
@@ -547,36 +610,44 @@ export class QuotationsService {
         .join('\n') || null;
     const mergedAt = new Date();
 
-    await this.quotationsRepository.manager.transaction(async (manager) => {
-      await manager
-        .createQueryBuilder()
-        .update(QuotationItem)
-        .set({ quotation: { id: target.id } })
-        .where('quotation_id IN (:...sourceIds)', { sourceIds })
-        .execute();
-      await manager.update(Quotation, target.id, {
-        totalAmount,
-        notes,
-        updatedBy: { id: userId },
-      });
-      // .save() (not .update()) for the self-relation — same reason as in
-      // invoice() above.
-      await manager.save(
-        Quotation,
-        sources.map((source) => ({
-          id: source.id,
-          mergedAt,
-          mergedInto: { id: target.id } as Quotation,
-          updatedBy: { id: userId } as Quotation['updatedBy'],
-        })),
-      );
+    // The lock's own transaction: all of the merge is written, or none.
+    await manager
+      .createQueryBuilder()
+      .update(QuotationItem)
+      .set({ quotation: { id: target.id } })
+      .where('quotation_id IN (:...sourceIds)', { sourceIds })
+      .execute();
+    await manager.update(Quotation, target.id, {
+      totalAmount,
+      notes,
+      updatedBy: { id: userId },
     });
+    // .save() (not .update()) for the self-relation — same reason as in
+    // invoice() above.
+    await manager.save(
+      Quotation,
+      sources.map((source) => ({
+        id: source.id,
+        mergedAt,
+        mergedInto: { id: target.id } as Quotation,
+        updatedBy: { id: userId } as Quotation['updatedBy'],
+      })),
+    );
 
-    return this.findOne(target.id);
+    return target.id;
   }
 
   /** Returns every line's stock to inventory and closes the quotation. */
-  async cancel(id: string, userId: string): Promise<QuotationResponseDto> {
+  cancel(id: string, userId: string): Promise<QuotationResponseDto> {
+    // A second "Anular" waits, then finds it cancelled — the stock is
+    // returned only once.
+    return this.withQuotationLock([id], () => this.cancelLocked(id, userId));
+  }
+
+  private async cancelLocked(
+    id: string,
+    userId: string,
+  ): Promise<QuotationResponseDto> {
     const quotation = await this.loadWithItems(id);
     this.assertOpen(quotation);
 
@@ -599,6 +670,29 @@ export class QuotationsService {
     });
 
     return this.findOne(quotation.id);
+  }
+
+  /**
+   * Runs `work` holding a Postgres advisory lock per quotation, so two
+   * requests on the same quotation (a double tap, two tills) run one after
+   * the other: the second one re-reads it and fails `assertOpen()` instead
+   * of invoicing, cancelling or moving stock a second time. Every caller
+   * loads the quotation inside `work`, never before. Keys are sorted so
+   * two merges over overlapping quotations can't deadlock. Released when
+   * the wrapping transaction ends — see withNumberingLock().
+   */
+  private withQuotationLock<T>(
+    ids: string[],
+    work: (manager: EntityManager) => Promise<T>,
+  ): Promise<T> {
+    return this.quotationsRepository.manager.transaction(async (manager) => {
+      for (const id of [...ids].sort()) {
+        await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
+          `quotation:${id}`,
+        ]);
+      }
+      return work(manager);
+    });
   }
 
   private async resolveNewLines(
@@ -741,6 +835,7 @@ export class QuotationsService {
     }
   }
 
+  /** Callers hold the 'quotations' numbering lock until the row is saved. */
   private async resolveNextNumber(): Promise<number> {
     const result = await this.quotationsRepository
       .createQueryBuilder('quotation')

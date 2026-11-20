@@ -24,6 +24,7 @@ describe('QuotationsService', () => {
     manager: { transaction: jest.Mock };
   };
   let transactionManager: {
+    query: jest.Mock;
     update: jest.Mock;
     save: jest.Mock;
     createQueryBuilder: jest.Mock;
@@ -174,6 +175,7 @@ describe('QuotationsService', () => {
       execute: jest.fn().mockResolvedValue(undefined),
     };
     transactionManager = {
+      query: jest.fn().mockResolvedValue(undefined),
       update: jest.fn().mockResolvedValue(undefined),
       save: jest.fn().mockResolvedValue(undefined),
       createQueryBuilder: jest.fn(() => itemsUpdateBuilder),
@@ -422,6 +424,21 @@ describe('QuotationsService', () => {
       const savedItems = quotationItemsRepository.save.mock.calls[0][0];
       expect(savedItems[0].unitPrice).toBe(45000);
       expect(productA.salePrice).toBe(50000);
+    });
+
+    it('reads the next number and saves the quotation while holding the quotations numbering lock', async () => {
+      queryBuilder.getRawOne.mockImplementationOnce(() => {
+        expect(transactionManager.query).toHaveBeenCalledWith(
+          'SELECT pg_advisory_xact_lock(hashtext($1))',
+          ['quotations'],
+        );
+        return Promise.resolve({ max: '41' });
+      });
+
+      await service.create(baseDto, 'user-1', 1);
+
+      expect(quotationsRepository.manager.transaction).toHaveBeenCalledTimes(1);
+      expect(quotationsRepository.create.mock.calls[0][0].number).toBe(42);
     });
   });
 
@@ -799,6 +816,23 @@ describe('QuotationsService', () => {
       useSameCustomer: true,
     };
 
+    it('loads the quotation and invoices it while holding its own lock, so a second request finds it already invoiced', async () => {
+      queryBuilder.getOne.mockImplementationOnce(() => {
+        expect(transactionManager.query).toHaveBeenCalledWith(
+          'SELECT pg_advisory_xact_lock(hashtext($1))',
+          ['quotation:q-1'],
+        );
+        return Promise.resolve(openQuotation());
+      });
+
+      await service.invoice('q-1', invoiceDto, 'user-1', 1);
+
+      expect(invoicesService.create).toHaveBeenCalledTimes(1);
+      expect(quotationsRepository.save).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'q-1', invoice: { id: 'inv-1' } }),
+      );
+    });
+
     it('rejects invoicing a quotation that is no longer open', async () => {
       queryBuilder.getOne.mockResolvedValue(
         openQuotation({ invoicedAt: new Date() }),
@@ -979,6 +1013,20 @@ describe('QuotationsService', () => {
   });
 
   describe('cancel', () => {
+    it('loads the quotation while holding its own lock, so a double cancel returns the stock only once', async () => {
+      queryBuilder.getOne.mockImplementationOnce(() => {
+        expect(transactionManager.query).toHaveBeenCalledWith(
+          'SELECT pg_advisory_xact_lock(hashtext($1))',
+          ['quotation:q-1'],
+        );
+        return Promise.resolve(openQuotation());
+      });
+
+      await service.cancel('q-1', 'user-1');
+
+      expect(inventoryService.createMovement).toHaveBeenCalledTimes(1);
+    });
+
     it('rejects cancelling a completed quotation', async () => {
       queryBuilder.getOne.mockResolvedValue(
         openQuotation({ completedAt: new Date() }),
@@ -1111,7 +1159,8 @@ describe('QuotationsService', () => {
       await expect(
         service.merge({ quotationIds: ['q-1', 'q-1'] }, 'user-1'),
       ).rejects.toThrow(BadRequestException);
-      expect(quotationsRepository.manager.transaction).not.toHaveBeenCalled();
+      expect(transactionManager.update).not.toHaveBeenCalled();
+      expect(transactionManager.save).not.toHaveBeenCalled();
     });
 
     it('rejects quotations of different customers', async () => {
@@ -1126,7 +1175,8 @@ describe('QuotationsService', () => {
       await expect(
         service.merge({ quotationIds: ['q-1', 'q-2'] }, 'user-1'),
       ).rejects.toThrow('Solo se pueden unir cotizaciones del mismo cliente.');
-      expect(quotationsRepository.manager.transaction).not.toHaveBeenCalled();
+      expect(transactionManager.update).not.toHaveBeenCalled();
+      expect(transactionManager.save).not.toHaveBeenCalled();
     });
 
     it('rejects a quotation that is no longer open', async () => {
@@ -1138,7 +1188,8 @@ describe('QuotationsService', () => {
       await expect(
         service.merge({ quotationIds: ['q-1', 'q-2'] }, 'user-1'),
       ).rejects.toThrow(BadRequestException);
-      expect(quotationsRepository.manager.transaction).not.toHaveBeenCalled();
+      expect(transactionManager.update).not.toHaveBeenCalled();
+      expect(transactionManager.save).not.toHaveBeenCalled();
     });
 
     it('rejects a quotation that was already merged', async () => {
