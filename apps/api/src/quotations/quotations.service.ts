@@ -31,7 +31,15 @@ import { QuotationResponseDto } from './dto/quotation-response.dto';
 import { UpdateQuotationCustomerDto } from './dto/update-quotation-customer.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
 import { QuotationItem } from './entities/quotation-item.entity';
+import { QuotationPayment } from './entities/quotation-payment.entity';
 import { Quotation } from './entities/quotation.entity';
+import { withQuotationLock } from './quotation-lock.util';
+import {
+  formatCop,
+  openQuotationCondition,
+  sumPaidByQuotation,
+  toCents,
+} from './quotation-payments.util';
 
 interface ResolvedLine {
   /** null for a one-off line typed on the quotation (not a catalog product). */
@@ -52,6 +60,8 @@ export class QuotationsService {
     private readonly quotationsRepository: Repository<Quotation>,
     @InjectRepository(QuotationItem)
     private readonly quotationItemsRepository: Repository<QuotationItem>,
+    @InjectRepository(QuotationPayment)
+    private readonly paymentsRepository: Repository<QuotationPayment>,
     private readonly productsService: ProductsService,
     private readonly inventoryService: InventoryService,
     private readonly cashRegisterService: CashRegisterService,
@@ -145,9 +155,7 @@ export class QuotationsService {
       .orderBy('quotation.createdAt', 'DESC');
 
     if (query.status === 'open') {
-      qb.andWhere(
-        'quotation.invoicedAt IS NULL AND quotation.completedAt IS NULL AND quotation.cancelledAt IS NULL AND quotation.mergedAt IS NULL',
-      );
+      qb.andWhere(openQuotationCondition('quotation'));
     } else if (query.status === 'invoiced') {
       qb.andWhere('quotation.invoicedAt IS NOT NULL');
     } else if (query.status === 'completed') {
@@ -200,8 +208,14 @@ export class QuotationsService {
       .take(query.limit)
       .getManyAndCount();
 
+    const paid = await sumPaidByQuotation(
+      this.paymentsRepository,
+      quotations.map((q) => q.id),
+    );
     return {
-      data: quotations.map((q) => QuotationResponseDto.fromEntity(q)),
+      data: quotations.map((q) =>
+        QuotationResponseDto.fromEntity(q, false, paid.get(q.id) ?? 0),
+      ),
       meta: {
         total,
         page: query.page,
@@ -211,26 +225,41 @@ export class QuotationsService {
     };
   }
 
-  /** Every open quotation (not invoiced, completed, cancelled or merged), any day — what's still owed on credit. */
+  /**
+   * Every open quotation (not invoiced, completed, cancelled or merged), any
+   * day — what's still owed on credit, net of the abonos already paid
+   * toward them.
+   */
   async getOpenSummary(): Promise<OpenQuotationsSummaryDto> {
     const result = await this.quotationsRepository
       .createQueryBuilder('quotation')
       .select('COALESCE(SUM(quotation.totalAmount), 0)', 'sum')
       .addSelect('COUNT(*)', 'count')
-      .where('quotation.invoicedAt IS NULL')
-      .andWhere('quotation.completedAt IS NULL')
-      .andWhere('quotation.cancelledAt IS NULL')
-      .andWhere('quotation.mergedAt IS NULL')
+      .where(openQuotationCondition('quotation'))
       .getRawOne<{ sum: string; count: string }>();
+    const paidResult = await this.paymentsRepository
+      .createQueryBuilder('payment')
+      .innerJoin('payment.quotation', 'quotation')
+      .select('COALESCE(SUM(payment.amount), 0)', 'paid')
+      .where('payment.voidedAt IS NULL')
+      .andWhere(openQuotationCondition('quotation'))
+      .getRawOne<{ paid: string }>();
     return {
-      total: Number(result?.sum ?? 0),
+      total: Number(result?.sum ?? 0) - Number(paidResult?.paid ?? 0),
       count: Number(result?.count ?? 0),
     };
   }
 
   async findOne(id: string): Promise<QuotationResponseDto> {
     const quotation = await this.loadWithItems(id);
-    return QuotationResponseDto.fromEntity(quotation, true);
+    const paid = await sumPaidByQuotation(this.paymentsRepository, [
+      quotation.id,
+    ]);
+    return QuotationResponseDto.fromEntity(
+      quotation,
+      true,
+      paid.get(quotation.id) ?? 0,
+    );
   }
 
   /**
@@ -252,7 +281,7 @@ export class QuotationsService {
     dto: UpdateQuotationItemsDto,
     userId: string,
   ): Promise<QuotationResponseDto> {
-    return this.withQuotationLock([id], () =>
+    return withQuotationLock(this.quotationsRepository.manager, [id], () =>
       this.updateItemsLocked(id, dto, userId),
     );
   }
@@ -327,17 +356,6 @@ export class QuotationsService {
       }
     }
 
-    for (const { productId, delta } of deltas) {
-      await this.inventoryService.createMovement(
-        {
-          productId,
-          quantity: -delta,
-          notes: this.movementNote(quotation.number, 'ajuste'),
-        },
-        userId,
-      );
-    }
-
     const quotedPriceByProduct = new Map<string, number>();
     for (const item of quotation.items) {
       if (item.product && !quotedPriceByProduct.has(item.product.id)) {
@@ -365,6 +383,33 @@ export class QuotationsService {
       return this.findOne(quotation.id);
     }
 
+    // Checked before any stock moves: the customer can't owe less than the
+    // abonos they already paid. Returning parts down to exactly what was
+    // paid settles the debt, so the quotation completes like a last abono.
+    const totalAmount = this.sumTotal(finalLines);
+    const paid = await sumPaidByQuotation(this.paymentsRepository, [
+      quotation.id,
+    ]);
+    const paidAmount = paid.get(quotation.id) ?? 0;
+    if (toCents(totalAmount) < toCents(paidAmount)) {
+      throw new BadRequestException(
+        `El nuevo total (${formatCop(totalAmount)}) queda por debajo de lo ya abonado (${formatCop(paidAmount)}). Un admin debe anular abonos primero.`,
+      );
+    }
+    const settled =
+      paidAmount > 0 && toCents(totalAmount) === toCents(paidAmount);
+
+    for (const { productId, delta } of deltas) {
+      await this.inventoryService.createMovement(
+        {
+          productId,
+          quantity: -delta,
+          notes: this.movementNote(quotation.number, 'ajuste'),
+        },
+        userId,
+      );
+    }
+
     await this.quotationItemsRepository.delete({
       quotation: { id: quotation.id },
     });
@@ -381,9 +426,9 @@ export class QuotationsService {
     );
     await this.quotationItemsRepository.save(newItems);
 
-    const totalAmount = this.sumTotal(finalLines);
     await this.quotationsRepository.update(quotation.id, {
       totalAmount,
+      ...(settled ? { completedAt: new Date() } : {}),
       updatedBy: { id: userId },
     });
 
@@ -431,7 +476,7 @@ export class QuotationsService {
     // Held until the quotation is marked invoiced, so a second "Enviar
     // factura" waits and then finds it already invoiced instead of sending
     // another invoice to Dataico.
-    return this.withQuotationLock([id], () =>
+    return withQuotationLock(this.quotationsRepository.manager, [id], () =>
       this.invoiceLocked(id, dto, userId, cashRegisterNumber),
     );
   }
@@ -525,7 +570,9 @@ export class QuotationsService {
    * this as a plain close (no payment means, no till).
    */
   complete(id: string, userId: string): Promise<QuotationResponseDto> {
-    return this.withQuotationLock([id], () => this.completeLocked(id, userId));
+    return withQuotationLock(this.quotationsRepository.manager, [id], () =>
+      this.completeLocked(id, userId),
+    );
   }
 
   private async completeLocked(
@@ -563,8 +610,10 @@ export class QuotationsService {
       );
     }
 
-    const targetId = await this.withQuotationLock(ids, (manager) =>
-      this.mergeLocked(ids, userId, manager),
+    const targetId = await withQuotationLock(
+      this.quotationsRepository.manager,
+      ids,
+      (manager) => this.mergeLocked(ids, userId, manager),
     );
     return this.findOne(targetId);
   }
@@ -617,6 +666,14 @@ export class QuotationsService {
       .set({ quotation: { id: target.id } })
       .where('quotation_id IN (:...sourceIds)', { sourceIds })
       .execute();
+    // Abonos follow their lines: what was paid toward a merged quotation is
+    // now paid toward the survivor.
+    await manager
+      .createQueryBuilder()
+      .update(QuotationPayment)
+      .set({ quotation: { id: target.id } })
+      .where('quotation_id IN (:...sourceIds)', { sourceIds })
+      .execute();
     await manager.update(Quotation, target.id, {
       totalAmount,
       notes,
@@ -641,7 +698,9 @@ export class QuotationsService {
   cancel(id: string, userId: string): Promise<QuotationResponseDto> {
     // A second "Anular" waits, then finds it cancelled — the stock is
     // returned only once.
-    return this.withQuotationLock([id], () => this.cancelLocked(id, userId));
+    return withQuotationLock(this.quotationsRepository.manager, [id], () =>
+      this.cancelLocked(id, userId),
+    );
   }
 
   private async cancelLocked(
@@ -650,6 +709,18 @@ export class QuotationsService {
   ): Promise<QuotationResponseDto> {
     const quotation = await this.loadWithItems(id);
     this.assertOpen(quotation);
+
+    // Cancelling returns the stock as if nothing was sold, which can't be
+    // right while the customer has money paid toward it — an admin voids
+    // (and the store refunds) the abonos first.
+    const paid = await sumPaidByQuotation(this.paymentsRepository, [
+      quotation.id,
+    ]);
+    if ((paid.get(quotation.id) ?? 0) > 0) {
+      throw new BadRequestException(
+        'Esta cotización tiene abonos. Un admin debe anularlos en Cartera antes de anularla.',
+      );
+    }
 
     for (const item of quotation.items) {
       // Nothing left the store for a one-off line, so nothing comes back.
@@ -670,29 +741,6 @@ export class QuotationsService {
     });
 
     return this.findOne(quotation.id);
-  }
-
-  /**
-   * Runs `work` holding a Postgres advisory lock per quotation, so two
-   * requests on the same quotation (a double tap, two tills) run one after
-   * the other: the second one re-reads it and fails `assertOpen()` instead
-   * of invoicing, cancelling or moving stock a second time. Every caller
-   * loads the quotation inside `work`, never before. Keys are sorted so
-   * two merges over overlapping quotations can't deadlock. Released when
-   * the wrapping transaction ends — see withNumberingLock().
-   */
-  private withQuotationLock<T>(
-    ids: string[],
-    work: (manager: EntityManager) => Promise<T>,
-  ): Promise<T> {
-    return this.quotationsRepository.manager.transaction(async (manager) => {
-      for (const id of [...ids].sort()) {
-        await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [
-          `quotation:${id}`,
-        ]);
-      }
-      return work(manager);
-    });
   }
 
   private async resolveNewLines(
