@@ -228,9 +228,17 @@ export function QuotationsListPage() {
                       )}
                     </div>
                   </div>
-                  <p className="shrink-0 font-mono text-base font-semibold text-ink">
-                    ${quotation.totalAmount.toLocaleString('es-CO')}
-                  </p>
+                  <div className="shrink-0 sm:text-right">
+                    <p className="font-mono text-base font-semibold text-ink">
+                      ${quotation.totalAmount.toLocaleString('es-CO')}
+                    </p>
+                    {quotation.paidAmount > 0 && (
+                      <p className="text-xs text-fog">
+                        abonado{' '}
+                        <span className="font-mono text-ok">{money(quotation.paidAmount)}</span>
+                      </p>
+                    )}
+                  </div>
                 </Link>
                 );
               })}

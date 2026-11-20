@@ -56,6 +56,15 @@ export const PERMISSION_SCOPES = [
     ],
   },
   {
+    // Voiding an abono is admin-only — deliberately not in this catalog.
+    scope: 'portfolio',
+    label: 'Cartera',
+    actions: [
+      { code: 'portfolio.view', label: 'Ver' },
+      { code: 'portfolio.payments.create', label: 'Registrar abonos' },
+    ],
+  },
+  {
     scope: 'purchase_imports',
     label: 'Compras (factura de proveedor)',
     actions: [

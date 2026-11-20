@@ -5,6 +5,8 @@ import { TICKET_FONT } from '../../lib/ticketFormat';
 interface PrintTicketProps {
   onClose: () => void;
   children: React.ReactNode;
+  /** `letter` prints on a letter-size sheet (reports) instead of the 80mm receipt roll. */
+  format?: 'ticket' | 'letter';
 }
 
 /**
@@ -16,7 +18,7 @@ interface PrintTicketProps {
  * a real receipt printer configured as the default print device the same
  * way it works with "print to PDF" — the browser doesn't distinguish.
  */
-export function PrintTicket({ onClose, children }: PrintTicketProps) {
+export function PrintTicket({ onClose, children, format = 'ticket' }: PrintTicketProps) {
   useEffect(() => {
     const handleAfterPrint = () => onClose();
     window.addEventListener('afterprint', handleAfterPrint);
@@ -32,7 +34,10 @@ export function PrintTicket({ onClose, children }: PrintTicketProps) {
   }, []);
 
   return createPortal(
-    <div className="print-ticket text-black" style={{ fontFamily: TICKET_FONT }}>
+    <div
+      className={`print-ticket text-black ${format === 'letter' ? 'print-letter' : ''}`}
+      style={{ fontFamily: TICKET_FONT }}
+    >
       {children}
     </div>,
     document.body,

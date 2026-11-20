@@ -11,6 +11,7 @@ import { AuthenticatedLayout } from './layouts/AuthenticatedLayout';
 import { CatalogsPage } from './pages/CatalogsPage';
 import { ChangePasswordPage } from './pages/ChangePasswordPage';
 import { CustomerFormPage } from './pages/CustomerFormPage';
+import { CustomerPortfolioPage } from './pages/CustomerPortfolioPage';
 import { CustomersListPage } from './pages/CustomersListPage';
 import { CreditNoteFormPage } from './pages/CreditNoteFormPage';
 import { CreditNotesListPage } from './pages/CreditNotesListPage';
@@ -24,6 +25,7 @@ import { InvoiceFormPage } from './pages/InvoiceFormPage';
 import { InvoicesListPage } from './pages/InvoicesListPage';
 import { PayrollFormPage } from './pages/PayrollFormPage';
 import { PayrollListPage } from './pages/PayrollListPage';
+import { PortfolioPage } from './pages/PortfolioPage';
 import { PurchaseImportDetailPage } from './pages/PurchaseImportDetailPage';
 import { PurchaseImportsListPage } from './pages/PurchaseImportsListPage';
 import { ProductFormPage } from './pages/ProductFormPage';
@@ -111,6 +113,10 @@ function App() {
                     <Route element={<PermissionRoute permission="quotations.create" />}>
                       <Route path="/cotizaciones/nueva" element={<QuotationFormPage />} />
                     </Route>
+                  </Route>
+                  <Route element={<PermissionRoute permission="portfolio.view" />}>
+                    <Route path="/cartera" element={<PortfolioPage />} />
+                    <Route path="/cartera/:identification" element={<CustomerPortfolioPage />} />
                   </Route>
                   <Route element={<PermissionRoute permission="purchase_imports.view" />}>
                     <Route path="/compras" element={<PurchaseImportsListPage />} />

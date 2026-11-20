@@ -72,6 +72,8 @@ apps/api/src/
 │
 ├── quotations/                          # "cotizaciones" — store credit handed over before payment (not Dataico — no HTTP calls of its own). Decrements inventory on create/edit like a real sale; converts into a real Invoice via InvoicesModule (imported here) with an internal-only skip-stock-effects flag — see DATABASE.md ("quotations") and GLOSSARY.md ("Cotización")
 │
+├── portfolio/                           # "cartera" — open quotations' balances and their abonos (not Dataico, no cash-register effect). Imports only the Quotation/QuotationPayment entities, not QuotationsModule; abono writes take the same per-quotation advisory lock (quotations/quotation-lock.util.ts) — see DATABASE.md ("quotation_payments") and GLOSSARY.md ("Cartera")
+│
 ├── dashboard/                           # admin panel summary (not Dataico, no persistence of its own) — reads Invoice/Product repositories directly and CashRegisterModule's service for a single read-only GET /dashboard/summary. See GLOSSARY.md ("Panel administrativo")
 │
 ├── common/

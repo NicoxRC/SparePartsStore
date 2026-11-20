@@ -113,6 +113,17 @@ export function IconIdCard(props: IconProps) {
   );
 }
 
+/** An account ledger — the cartera. */
+export function IconLedger(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5.5 3.5h11a2 2 0 0 1 2 2v15h-11a2 2 0 0 1-2-2v-15Z" />
+      <path d="M5.5 18.5a2 2 0 0 1 2-2h11" />
+      <path d="M9 7.5h6M9 10.5h6M9 13.5h3" />
+    </svg>
+  );
+}
+
 export function IconInbox(props: IconProps) {
   return (
     <svg {...base} {...props}>
