@@ -52,6 +52,8 @@ export function useCreateQuotation() {
     mutationFn: (input: CreateQuotationInput) => createQuotation(input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      // Every open quotation is a line of the cartera.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       // Creating a quotation decrements stock — keep the product list fresh.
       void queryClient.invalidateQueries({ queryKey: ['products'] });
     },
@@ -65,6 +67,8 @@ export function useUpdateQuotationItems() {
       updateQuotationItems(id, input),
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      // Every open quotation is a line of the cartera.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
       void queryClient.invalidateQueries({ queryKey: ['products'] });
     },
@@ -79,6 +83,8 @@ export function useUpdateQuotationCustomer() {
       updateQuotationCustomer(id, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      // Every open quotation is a line of the cartera.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
     },
   });
 }
@@ -90,6 +96,8 @@ export function useInvoiceQuotation() {
       invoiceQuotation(id, input),
     onSuccess: (_data, { id }) => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      // Every open quotation is a line of the cartera.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
       void queryClient.invalidateQueries({ queryKey: ['invoices'] });
     },
@@ -104,6 +112,8 @@ export function useCompleteQuotation() {
     mutationFn: (id: string) => completeQuotation(id),
     onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      // Every open quotation is a line of the cartera.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
       void queryClient.invalidateQueries({ queryKey: ['cash-register'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -119,6 +129,8 @@ export function useMergeQuotations() {
     mutationFn: (quotationIds: string[]) => mergeQuotations(quotationIds),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      // Every open quotation is a line of the cartera.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       void queryClient.invalidateQueries({ queryKey: ['cash-register'] });
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     },
@@ -131,6 +143,8 @@ export function useCancelQuotation() {
     mutationFn: (id: string) => cancelQuotation(id),
     onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      // Every open quotation is a line of the cartera.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
       void queryClient.invalidateQueries({ queryKey: ['products'] });
     },

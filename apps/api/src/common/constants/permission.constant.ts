@@ -41,6 +41,10 @@ export const PERMISSIONS = [
   'quotations.cancel',
   'quotations.merge',
 
+  // Cartera — voiding an abono is admin-only, deliberately not grantable.
+  'portfolio.view',
+  'portfolio.payments.create',
+
   'invoices.view',
   'invoices.create',
   'invoices.resend',
@@ -115,6 +119,7 @@ const IMPLIES: Partial<Record<Permission, Permission[]>> = {
   'quotations.invoice': ['quotations.view'],
   'quotations.cancel': ['quotations.view'],
   'quotations.merge': ['quotations.view'],
+  'portfolio.payments.create': ['portfolio.view'],
   'invoices.create': [
     'invoices.view',
     'products.view',

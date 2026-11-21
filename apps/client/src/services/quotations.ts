@@ -42,6 +42,8 @@ export interface QuotationResponse {
   customerPhone: string | null;
   notes: string | null;
   totalAmount: number;
+  /** Paid so far through abonos (cartera) that weren't voided. */
+  paidAmount: number;
   invoiceId: string | null;
   /** The quotation this one was merged into (status `merged`). */
   mergedIntoId: string | null;

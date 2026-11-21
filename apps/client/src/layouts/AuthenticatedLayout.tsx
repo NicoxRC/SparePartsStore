@@ -9,6 +9,7 @@ import {
   IconIdCard,
   IconInbox,
   IconLayers,
+  IconLedger,
   IconReceipt,
   IconStamp,
   IconTag,
@@ -52,6 +53,9 @@ export function AuthenticatedLayout() {
       : []),
     ...(!isAuditor && has('quotations.view')
       ? [{ to: '/cotizaciones', label: 'Cotizaciones', Icon: IconIdCard }]
+      : []),
+    ...(!isAuditor && has('portfolio.view')
+      ? [{ to: '/cartera', label: 'Cartera', Icon: IconLedger }]
       : []),
     ...(!isAuditor && has('invoices.view')
       ? [

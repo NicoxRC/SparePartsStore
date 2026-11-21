@@ -33,6 +33,7 @@ import {
   DEFAULT_DANE_DEPARTMENT_CODE,
 } from '../lib/dane';
 import { getApiErrorMessage } from '../lib/errors';
+import { money } from '../lib/portfolio';
 import { handleEnterAsTab, keepFocusOnEnter } from '../lib/formNavigation';
 import {
   computeGrossSubtotal,
@@ -453,6 +454,30 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
                 lastChangedAt={quotation.lastChangedAt}
               />
             </div>
+          )}
+          {quotation.paidAmount > 0 && (
+            <p className="mt-1 text-xs text-steel">
+              Abonado <span className="font-mono text-ok">{money(quotation.paidAmount)}</span>
+              {isOpen && (
+                <>
+                  {' · Saldo '}
+                  <span className="font-mono font-semibold text-ink">
+                    {money(quotation.totalAmount - quotation.paidAmount)}
+                  </span>
+                </>
+              )}
+              {has('portfolio.view') && (
+                <>
+                  {' · '}
+                  <Link
+                    to={`/cartera/${encodeURIComponent(quotation.customerIdentification)}`}
+                    className="font-medium underline underline-offset-4 hover:text-ink"
+                  >
+                    Ver en cartera
+                  </Link>
+                </>
+              )}
+            </p>
           )}
         </div>
         <div className="flex items-center gap-3">

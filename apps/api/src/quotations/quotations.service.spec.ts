@@ -10,6 +10,7 @@ import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
 import { UpdateQuotationCustomerDto } from './dto/update-quotation-customer.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
 import { QuotationItem } from './entities/quotation-item.entity';
+import { QuotationPayment } from './entities/quotation-payment.entity';
 import { Quotation } from './entities/quotation.entity';
 import { QuotationsService } from './quotations.service';
 
@@ -54,6 +55,17 @@ describe('QuotationsService', () => {
     getManyAndCount: jest.Mock;
     getOne: jest.Mock;
   };
+  let paymentsBuilder: {
+    select: jest.Mock;
+    addSelect: jest.Mock;
+    innerJoin: jest.Mock;
+    where: jest.Mock;
+    andWhere: jest.Mock;
+    groupBy: jest.Mock;
+    getRawMany: jest.Mock;
+    getRawOne: jest.Mock;
+  };
+  let paymentsRepository: { createQueryBuilder: jest.Mock };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
   let cashRegisterService: { assertOpenToday: jest.Mock };
@@ -206,9 +218,25 @@ describe('QuotationsService', () => {
         .mockResolvedValue([{ id: 'inv-1', totalAmount: 100000 }]),
     };
 
+    paymentsBuilder = {
+      select: jest.fn().mockReturnThis(),
+      addSelect: jest.fn().mockReturnThis(),
+      innerJoin: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      groupBy: jest.fn().mockReturnThis(),
+      // No abonos by default.
+      getRawMany: jest.fn().mockResolvedValue([]),
+      getRawOne: jest.fn().mockResolvedValue({ paid: '0' }),
+    };
+    paymentsRepository = {
+      createQueryBuilder: jest.fn(() => paymentsBuilder),
+    };
+
     service = new QuotationsService(
       quotationsRepository as unknown as Repository<Quotation>,
       quotationItemsRepository as unknown as Repository<QuotationItem>,
+      paymentsRepository as unknown as Repository<QuotationPayment>,
       productsService as unknown as ProductsService,
       inventoryService as unknown as InventoryService,
       cashRegisterService as unknown as CashRegisterService,
@@ -227,16 +255,7 @@ describe('QuotationsService', () => {
 
       expect(summary).toEqual({ total: 250000, count: 3 });
       expect(queryBuilder.where).toHaveBeenCalledWith(
-        'quotation.invoicedAt IS NULL',
-      );
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'quotation.completedAt IS NULL',
-      );
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'quotation.cancelledAt IS NULL',
-      );
-      expect(queryBuilder.andWhere).toHaveBeenCalledWith(
-        'quotation.mergedAt IS NULL',
+        'quotation.invoicedAt IS NULL AND quotation.completedAt IS NULL AND quotation.cancelledAt IS NULL AND quotation.mergedAt IS NULL',
       );
     });
 
@@ -244,6 +263,38 @@ describe('QuotationsService', () => {
       queryBuilder.getRawOne.mockResolvedValueOnce(undefined);
 
       expect(await service.getOpenSummary()).toEqual({ total: 0, count: 0 });
+    });
+
+    it('subtracts the abonos already paid toward open quotations', async () => {
+      queryBuilder.getRawOne.mockResolvedValueOnce({
+        sum: '250000',
+        count: '3',
+      });
+      paymentsBuilder.getRawOne.mockResolvedValueOnce({ paid: '70000' });
+
+      expect(await service.getOpenSummary()).toEqual({
+        total: 180000,
+        count: 3,
+      });
+      expect(paymentsBuilder.where).toHaveBeenCalledWith(
+        'payment.voidedAt IS NULL',
+      );
+    });
+  });
+
+  describe('paid amount on responses', () => {
+    it('reports what was paid toward the quotation through abonos', async () => {
+      paymentsBuilder.getRawMany.mockResolvedValueOnce([
+        { quotationId: 'q-1', paid: '40000' },
+      ]);
+
+      const quotation = await service.findOne('q-1');
+
+      expect(quotation.paidAmount).toBe(40000);
+    });
+
+    it('reports 0 when there is no abono', async () => {
+      expect((await service.findOne('q-1')).paidAmount).toBe(0);
     });
   });
 
@@ -588,6 +639,68 @@ describe('QuotationsService', () => {
       expect(quotationItemsRepository.delete).not.toHaveBeenCalled();
       expect(quotationsRepository.update).not.toHaveBeenCalled();
       expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
+    it('rejects an edit that leaves the total below what was already paid, before moving stock', async () => {
+      // Open quotation: 2 × $50.000 = $100.000, $80.000 already paid.
+      paymentsBuilder.getRawMany.mockResolvedValueOnce([
+        { quotationId: 'q-1', paid: '80000' },
+      ]);
+
+      await expect(
+        service.updateItems(
+          'q-1',
+          { items: [{ productId: 'prod-a', quantity: 1 }] },
+          'user-1',
+        ),
+      ).rejects.toThrow('por debajo de lo ya abonado');
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+      expect(quotationItemsRepository.delete).not.toHaveBeenCalled();
+    });
+
+    it('completes the quotation when the edit brings the total down to exactly what was paid', async () => {
+      paymentsBuilder.getRawMany.mockResolvedValueOnce([
+        { quotationId: 'q-1', paid: '50000' },
+      ]);
+
+      await service.updateItems(
+        'q-1',
+        { items: [{ productId: 'prod-a', quantity: 1 }] },
+        'user-1',
+      );
+
+      /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+      expect(quotationsRepository.update).toHaveBeenCalledWith(
+        'q-1',
+        expect.objectContaining({
+          totalAmount: 50000,
+          completedAt: expect.any(Date),
+        }),
+      );
+      /* eslint-enable @typescript-eslint/no-unsafe-assignment */
+      expect(inventoryService.createMovement).toHaveBeenCalledWith(
+        expect.objectContaining({ productId: 'prod-a', quantity: 1 }),
+        'user-1',
+      );
+    });
+
+    it('keeps the quotation open when the edit leaves a balance over the abonos', async () => {
+      paymentsBuilder.getRawMany.mockResolvedValueOnce([
+        { quotationId: 'q-1', paid: '10000' },
+      ]);
+
+      await service.updateItems(
+        'q-1',
+        { items: [{ productId: 'prod-a', quantity: 1 }] },
+        'user-1',
+      );
+
+      const [, changes] = quotationsRepository.update.mock.calls[0] as [
+        string,
+        Partial<Quotation>,
+      ];
+      expect(changes.totalAmount).toBe(50000);
+      expect(changes).not.toHaveProperty('completedAt');
     });
 
     it('saves when only the discount changed', async () => {
@@ -1027,6 +1140,18 @@ describe('QuotationsService', () => {
       expect(inventoryService.createMovement).toHaveBeenCalledTimes(1);
     });
 
+    it('rejects cancelling while the quotation has abonos, returning no stock', async () => {
+      paymentsBuilder.getRawMany.mockResolvedValueOnce([
+        { quotationId: 'q-1', paid: '20000' },
+      ]);
+
+      await expect(service.cancel('q-1', 'user-1')).rejects.toThrow(
+        'tiene abonos',
+      );
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+      expect(quotationsRepository.update).not.toHaveBeenCalled();
+    });
+
     it('rejects cancelling a completed quotation', async () => {
       queryBuilder.getOne.mockResolvedValue(
         openQuotation({ completedAt: new Date() }),
@@ -1121,6 +1246,10 @@ describe('QuotationsService', () => {
         'quotation_id IN (:...sourceIds)',
         { sourceIds: ['q-2'] },
       );
+      // Lines and abonos both move to the survivor.
+      expect(itemsUpdateBuilder.update).toHaveBeenCalledWith(QuotationItem);
+      expect(itemsUpdateBuilder.update).toHaveBeenCalledWith(QuotationPayment);
+      expect(itemsUpdateBuilder.execute).toHaveBeenCalledTimes(2);
       // 2 × 50.000 + (35.000 − 5.000) — each line keeps its price and discount.
       expect(transactionManager.update).toHaveBeenCalledWith(Quotation, 'q-1', {
         totalAmount: 130000,

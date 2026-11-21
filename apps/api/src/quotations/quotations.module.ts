@@ -5,13 +5,14 @@ import { InventoryModule } from '../inventory/inventory.module';
 import { InvoicesModule } from '../invoicing/invoices/invoices.module';
 import { ProductsModule } from '../products/products.module';
 import { QuotationItem } from './entities/quotation-item.entity';
+import { QuotationPayment } from './entities/quotation-payment.entity';
 import { Quotation } from './entities/quotation.entity';
 import { QuotationsController } from './quotations.controller';
 import { QuotationsService } from './quotations.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Quotation, QuotationItem]),
+    TypeOrmModule.forFeature([Quotation, QuotationItem, QuotationPayment]),
     ProductsModule,
     InventoryModule,
     CashRegisterModule,

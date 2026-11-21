@@ -61,6 +61,11 @@ export class QuotationResponseDto {
   @ApiProperty({ nullable: true }) customerPhone: string | null;
   @ApiProperty({ nullable: true }) notes: string | null;
   @ApiProperty() totalAmount: number;
+  @ApiProperty({
+    description:
+      'Sum of the abonos that were not voided — what the customer has already paid toward totalAmount (see the cartera).',
+  })
+  paidAmount: number;
   @ApiProperty({ nullable: true }) invoiceId: string | null;
   @ApiProperty({
     nullable: true,
@@ -89,6 +94,7 @@ export class QuotationResponseDto {
   static fromEntity(
     quotation: Quotation,
     includeItems = false,
+    paidAmount = 0,
   ): QuotationResponseDto {
     const dto = new QuotationResponseDto();
     dto.id = quotation.id;
@@ -119,6 +125,7 @@ export class QuotationResponseDto {
     dto.customerPhone = quotation.customerPhone;
     dto.notes = quotation.notes;
     dto.totalAmount = quotation.totalAmount;
+    dto.paidAmount = paidAmount;
     dto.invoiceId = quotation.invoice?.id ?? null;
     dto.mergedIntoId = quotation.mergedInto?.id ?? null;
     dto.mergedIntoNumber = quotation.mergedInto?.number ?? null;

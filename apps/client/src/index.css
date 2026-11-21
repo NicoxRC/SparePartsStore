@@ -186,4 +186,15 @@ body {
     size: 80mm auto;
     margin: 4mm;
   }
+
+  /* Reports (cartera) print on a letter sheet instead — a named page, so
+     the 80mm receipt default above stays untouched for every ticket. */
+  .print-letter {
+    page: letter-report;
+  }
+
+  @page letter-report {
+    size: letter;
+    margin: 14mm 12mm;
+  }
 }
