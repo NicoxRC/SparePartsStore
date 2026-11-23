@@ -1,10 +1,25 @@
-import type { PaymentMeans } from '../services/portfolio';
+import type { NewPaymentMeans, PaymentMeans } from '../services/portfolio';
 
 export const PAYMENT_MEANS_LABEL: Record<PaymentMeans, string> = {
   CASH: 'Efectivo',
   CARD: 'Tarjeta',
   BANK_TRANSFER: 'Transferencia',
 };
+
+/** What a new abono can be paid with (decided with the store). */
+export const NEW_PAYMENT_MEANS: NewPaymentMeans[] = ['CASH', 'BANK_TRANSFER'];
+
+/** "15 oct 2026, 3:40 p. m." in the store's time zone — for notes and abonos. */
+export function storeDateTimeLabel(iso: string): string {
+  return new Date(iso).toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
 
 /** "$150.000" — whole pesos, the way every screen shows money. */
 export function money(value: number): string {

@@ -1,7 +1,9 @@
 import { api } from '../lib/api';
-import type { QuotationCustomerType } from './quotations';
+import type { QuotationCustomerType, QuotationNote } from './quotations';
 
+/** CARD only shows up on older abonos — new ones are cash or transfer. */
 export type PaymentMeans = 'CASH' | 'CARD' | 'BANK_TRANSFER';
+export type NewPaymentMeans = Exclude<PaymentMeans, 'CARD'>;
 
 /** Which quotations count, by the store day they were made ('YYYY-MM-DD', both optional). */
 export interface PortfolioRange {
@@ -64,6 +66,8 @@ export interface PortfolioQuotation {
   balance: number;
   /** Oldest first, voided ones included. */
   payments: QuotationPayment[];
+  /** Written in Cotizaciones, newest first — read-only here. */
+  quotationNotes: QuotationNote[];
 }
 
 export interface CustomerPortfolio {
@@ -75,7 +79,7 @@ export interface CustomerPortfolio {
 
 export interface CreatePaymentInput {
   amount: number;
-  paymentMeans: PaymentMeans;
+  paymentMeans: NewPaymentMeans;
   notes?: string;
 }
 

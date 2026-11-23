@@ -1,6 +1,7 @@
 import { api } from '../lib/api';
 import type { InvoiceResponse } from './invoices';
 import type { PaginatedResponse } from './products';
+import type { QuotationPayment } from './portfolio';
 
 export type QuotationStatus = 'open' | 'invoiced' | 'completed' | 'cancelled' | 'merged';
 
@@ -54,6 +55,18 @@ export interface QuotationResponse {
   /** Who made the quotation — the "vendedor" on the printout. */
   createdByName: string | null;
   items?: QuotationItemResponse[];
+  /** Detail only: its abonos, oldest first, voided ones included (registered in Cartera). */
+  payments?: QuotationPayment[];
+  /** Detail only: the notes history, newest first. Not the same as `notes`. */
+  quotationNotes?: QuotationNote[];
+}
+
+/** One entry of a quotation's notes history. */
+export interface QuotationNote {
+  id: string;
+  text: string;
+  createdAt: string;
+  createdByName: string | null;
 }
 
 export interface QuotationsQuery {
@@ -209,4 +222,13 @@ export async function completeQuotation(id: string): Promise<QuotationResponse> 
 export async function cancelQuotation(id: string): Promise<QuotationResponse> {
   const { data } = await api.post<QuotationResponse>(`/quotations/${id}/cancel`);
   return data;
+}
+
+export async function addQuotationNote(id: string, text: string): Promise<QuotationNote> {
+  const { data } = await api.post<QuotationNote>(`/quotations/${id}/notes`, { text });
+  return data;
+}
+
+export async function removeQuotationNote(noteId: string): Promise<void> {
+  await api.delete(`/quotations/notes/${noteId}`);
 }

@@ -3,6 +3,8 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Alert } from '../components/Alert';
 import { QuotationDayCounters } from '../components/QuotationDayCounters';
+import { QuotationNotesSection } from '../components/QuotationNotes';
+import { PaymentHistory } from '../components/portfolio/PaymentHistory';
 import { Button } from '../components/Button';
 import { CustomerPicker } from '../components/CustomerPicker';
 import { CancelQuotationDialog } from '../components/CancelQuotationDialog';
@@ -19,6 +21,7 @@ import { TextField } from '../components/TextField';
 import { Toast } from '../components/Toast';
 import { DATAICO_DISABLED_HINT, DATAICO_ENABLED } from '../config/dataico';
 import { useCreateCustomer } from '../hooks/useCustomers';
+import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useProducts } from '../hooks/useProducts';
 import {
@@ -164,11 +167,13 @@ export function QuotationDetailPage() {
 function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   const navigate = useNavigate();
   const { has } = usePermissions();
+  const { user } = useAuth();
   const canUpdate = has('quotations.update');
   const canInvoice = has('quotations.invoice');
   const canCancel = has('quotations.cancel');
   const canMerge = has('quotations.merge');
   const isOpen = quotation.status === 'open';
+  const payments = quotation.payments ?? [];
   const [isPrinting, setIsPrinting] = useState(false);
 
   const [items, setItems] = useState<EditableItem[]>(() =>
@@ -577,6 +582,53 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
           </div>
         </dl>
       </section>
+
+      {(payments.length > 0 || (isOpen && has('portfolio.payments.create'))) && (
+        <section className="flex flex-col gap-3 rounded border border-line bg-paper p-4 sm:p-6">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Abonos</h2>
+            <p className="text-sm text-steel">
+              Abonado <span className="font-mono text-ok">{money(quotation.paidAmount)}</span>
+              {isOpen && (
+                <>
+                  {' · Saldo '}
+                  <span className="font-mono font-semibold text-ink">
+                    {money(quotation.totalAmount - quotation.paidAmount)}
+                  </span>
+                </>
+              )}
+            </p>
+          </div>
+          {payments.length > 0 ? (
+            <PaymentHistory payments={payments} />
+          ) : (
+            <p className="text-sm text-fog">Sin abonos todavía.</p>
+          )}
+          {isOpen && (
+            <p className="text-xs text-fog">
+              Los abonos se registran en{' '}
+              {has('portfolio.view') ? (
+                <Link
+                  to={`/cartera/${encodeURIComponent(quotation.customerIdentification)}`}
+                  className="font-medium text-steel underline underline-offset-4 hover:text-ink"
+                >
+                  Cartera
+                </Link>
+              ) : (
+                'Cartera'
+              )}
+              .
+            </p>
+          )}
+        </section>
+      )}
+
+      <QuotationNotesSection
+        quotationId={quotation.id}
+        notes={quotation.quotationNotes ?? []}
+        canWrite={quotation.status !== 'merged'}
+        canRemove={user?.role === 'admin'}
+      />
 
       <section className="flex flex-col gap-4 rounded border border-line bg-paper p-4 sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-fog">Productos</h2>
