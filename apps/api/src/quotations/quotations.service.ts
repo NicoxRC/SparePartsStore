@@ -660,6 +660,48 @@ export class QuotationsService {
   }
 
   /**
+   * Undoes a "Completar" pressed by mistake (admin only — enforced by the
+   * controller): the quotation opens again and counts as owed. Only for one
+   * completed by hand; one completed by its own abonos reopens by voiding
+   * the abono in Cartera instead, or it would be open with nothing owed.
+   */
+  reopen(id: string, userId: string): Promise<QuotationResponseDto> {
+    return withQuotationLock(this.quotationsRepository.manager, [id], () =>
+      this.reopenLocked(id, userId),
+    );
+  }
+
+  private async reopenLocked(
+    id: string,
+    userId: string,
+  ): Promise<QuotationResponseDto> {
+    const quotation = await this.loadWithItems(id);
+    if (!quotation.completedAt) {
+      throw new BadRequestException('Esta cotización no está completada.');
+    }
+
+    const paid =
+      (await sumPaidByQuotation(this.paymentsRepository, [quotation.id])).get(
+        quotation.id,
+      ) ?? 0;
+    if (toCents(paid) >= toCents(quotation.totalAmount)) {
+      throw new BadRequestException(
+        'Esta cotización se completó con sus abonos. Para reabrirla, un admin debe anular el último abono en Cartera.',
+      );
+    }
+
+    // updated_at written back unchanged: reopening isn't a change to the
+    // items, so the "último cambio" counter must not restart.
+    await this.quotationsRepository.update(quotation.id, {
+      completedAt: null,
+      updatedBy: { id: userId },
+      updatedAt: quotation.updatedAt,
+    });
+
+    return this.findOne(quotation.id);
+  }
+
+  /**
    * Joins several open quotations of the same customer into one, so they
    * can be invoiced (or kept open) together. The oldest one survives: the
    * 30-day payment term counts from the original date, so folding an old

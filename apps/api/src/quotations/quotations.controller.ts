@@ -200,6 +200,25 @@ export class QuotationsController {
     return this.quotationsService.complete(id, user.id);
   }
 
+  @ApiOperation({
+    summary:
+      'Reopen a quotation completed by mistake (admin only) — it counts as owed again; not for one completed by its own abonos',
+  })
+  @ApiResponse({ status: 200, type: QuotationResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Not completed, or completed by its own abonos',
+  })
+  @Post(':id/reopen')
+  @HttpCode(200)
+  @Roles(UserRole.ADMIN)
+  reopen(
+    @Param('id', ParseUUIDPipe) id: string,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<QuotationResponseDto> {
+    return this.quotationsService.reopen(id, user.id);
+  }
+
   @ApiOperation({ summary: 'Cancel a quotation — returns its stock' })
   @ApiResponse({ status: 200, type: QuotationResponseDto })
   @Post(':id/cancel')
