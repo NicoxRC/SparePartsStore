@@ -15,6 +15,7 @@ import {
   invoiceQuotation,
   mergeQuotations,
   removeQuotationNote,
+  reopenQuotation,
   updateQuotationCustomer,
   updateQuotationItems,
   type CreateQuotationInput,
@@ -115,6 +116,21 @@ export function useCompleteQuotation() {
     onSuccess: (_data, id) => {
       void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       // Every open quotation is a line of the cartera.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
+      void queryClient.invalidateQueries({ queryKey: ['cash-register'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
+    },
+  });
+}
+
+/** The reverse of Completar — it counts as owed again, so the same totals change. */
+export function useReopenQuotation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => reopenQuotation(id),
+    onSuccess: (_data, id) => {
+      void queryClient.invalidateQueries({ queryKey: ['quotations'] });
       void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
       void queryClient.invalidateQueries({ queryKey: ['cash-register'] });

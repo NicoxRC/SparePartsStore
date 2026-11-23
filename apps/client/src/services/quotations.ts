@@ -219,6 +219,12 @@ export async function completeQuotation(id: string): Promise<QuotationResponse> 
   return data;
 }
 
+/** Undoes a "Completar" made by mistake (admin only) — it's open and owed again. */
+export async function reopenQuotation(id: string): Promise<QuotationResponse> {
+  const { data } = await api.post<QuotationResponse>(`/quotations/${id}/reopen`);
+  return data;
+}
+
 export async function cancelQuotation(id: string): Promise<QuotationResponse> {
   const { data } = await api.post<QuotationResponse>(`/quotations/${id}/cancel`);
   return data;

@@ -28,7 +28,7 @@ export function CompleteQuotationDialog({
         <h2 className="text-lg font-semibold text-ink">¿Completar sin factura?</h2>
         <p className="mt-2 text-sm text-steel">
           La cotización se cierra como pagada, sin generar factura. Los productos no vuelven al
-          inventario y no se suma al recaudado de la caja. Esta acción no se puede deshacer.
+          inventario y no se suma al recaudado de la caja. Si fue un error, un admin puede reabrirla.
         </p>
 
         {completeMutation.isError && (
