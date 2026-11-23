@@ -1,7 +1,9 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -24,11 +26,13 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { PaginatedResponseDto } from '../common/dto/paginated-response.dto';
 import { UserRole } from '../common/enums/user-role.enum';
 import { InvoiceResponseDto } from '../invoicing/invoices/dto/invoice-response.dto';
+import { CreateQuotationNoteDto } from './dto/create-quotation-note.dto';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
 import { MergeQuotationsDto } from './dto/merge-quotations.dto';
 import { OpenQuotationsSummaryDto } from './dto/open-quotations-summary.dto';
 import { QueryQuotationsDto } from './dto/query-quotations.dto';
+import { QuotationNoteResponseDto } from './dto/quotation-activity.dto';
 import { QuotationResponseDto } from './dto/quotation-response.dto';
 import { UpdateQuotationCustomerDto } from './dto/update-quotation-customer.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
@@ -97,7 +101,37 @@ export class QuotationsController {
     return this.quotationsService.merge(dto, user.id);
   }
 
-  @ApiOperation({ summary: 'Get one quotation with its items' })
+  @ApiOperation({
+    summary:
+      "Add a note to a quotation's history — anyone who can see quotations (not the auditor)",
+  })
+  @ApiResponse({ status: 201, type: QuotationNoteResponseDto })
+  @ApiResponse({
+    status: 400,
+    description: 'Empty, or the quotation was merged',
+  })
+  @Post(':id/notes')
+  @RequirePermission('quotations.view')
+  addNote(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: CreateQuotationNoteDto,
+    @CurrentUser() user: AuthenticatedUser,
+  ): Promise<QuotationNoteResponseDto> {
+    return this.quotationsService.addNote(id, dto, user.id);
+  }
+
+  @ApiOperation({ summary: 'Remove a note from the history — admin only' })
+  @ApiResponse({ status: 204 })
+  @Delete('notes/:noteId')
+  @Roles(UserRole.ADMIN)
+  @HttpCode(204)
+  removeNote(@Param('noteId', ParseUUIDPipe) noteId: string): Promise<void> {
+    return this.quotationsService.removeNote(noteId);
+  }
+
+  @ApiOperation({
+    summary: 'Get one quotation with its items, abonos and notes history',
+  })
   @ApiResponse({ status: 200, type: QuotationResponseDto })
   @Get(':id')
   @RequirePermission('quotations.view')

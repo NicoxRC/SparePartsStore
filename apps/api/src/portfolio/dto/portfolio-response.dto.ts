@@ -1,4 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
+import {
+  QuotationNoteResponseDto,
+  QuotationPaymentResponseDto,
+} from '../../quotations/dto/quotation-activity.dto';
+
+export { QuotationPaymentResponseDto };
 
 export class PortfolioTotalsDto {
   @ApiProperty({ description: 'Sum of the open quotations’ totals.' })
@@ -48,18 +54,6 @@ export class PortfolioSummaryResponseDto {
   customers: PortfolioCustomerSummaryDto[];
 }
 
-export class QuotationPaymentResponseDto {
-  @ApiProperty() id: string;
-  @ApiProperty() amount: number;
-  @ApiProperty({ enum: ['CASH', 'CARD', 'BANK_TRANSFER'] })
-  paymentMeans: string;
-  @ApiProperty({ nullable: true, type: String }) notes: string | null;
-  @ApiProperty() createdAt: string;
-  @ApiProperty({ nullable: true, type: String }) createdByName: string | null;
-  @ApiProperty({ nullable: true, type: String }) voidedAt: string | null;
-  @ApiProperty({ nullable: true, type: String }) voidedByName: string | null;
-}
-
 export class PortfolioQuotationDto {
   @ApiProperty() id: string;
   @ApiProperty() number: number;
@@ -76,6 +70,12 @@ export class PortfolioQuotationDto {
     description: 'Every abono, oldest first — voided ones included, marked.',
   })
   payments: QuotationPaymentResponseDto[];
+  @ApiProperty({
+    type: [QuotationNoteResponseDto],
+    description:
+      'The quotation’s notes history, newest first (written in Cotizaciones; read-only here).',
+  })
+  quotationNotes: QuotationNoteResponseDto[];
 }
 
 export class CustomerPortfolioResponseDto {

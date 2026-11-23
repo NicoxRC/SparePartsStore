@@ -1,6 +1,10 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { QuotationItem } from '../entities/quotation-item.entity';
 import { Quotation } from '../entities/quotation.entity';
+import {
+  QuotationNoteResponseDto,
+  QuotationPaymentResponseDto,
+} from './quotation-activity.dto';
 
 export class QuotationItemResponseDto {
   @ApiProperty() id: string;
@@ -59,7 +63,11 @@ export class QuotationResponseDto {
   @ApiProperty() customerAddressLine: string;
   @ApiProperty() customerEmail: string;
   @ApiProperty({ nullable: true }) customerPhone: string | null;
-  @ApiProperty({ nullable: true }) notes: string | null;
+  @ApiProperty({
+    nullable: true,
+    description: 'The observation typed when the quotation was made.',
+  })
+  notes: string | null;
   @ApiProperty() totalAmount: number;
   @ApiProperty({
     description:
@@ -90,6 +98,20 @@ export class QuotationResponseDto {
   createdByName: string | null;
   @ApiProperty({ type: [QuotationItemResponseDto], required: false })
   items?: QuotationItemResponseDto[];
+  @ApiProperty({
+    type: [QuotationPaymentResponseDto],
+    required: false,
+    description:
+      'Its abonos, oldest first, voided ones included — only on the detail. Registered in the cartera.',
+  })
+  payments?: QuotationPaymentResponseDto[];
+  @ApiProperty({
+    type: [QuotationNoteResponseDto],
+    required: false,
+    description:
+      'Notes history written by staff, newest first — only on the detail. Not the same as `notes`.',
+  })
+  quotationNotes?: QuotationNoteResponseDto[];
 
   static fromEntity(
     quotation: Quotation,
