@@ -10,13 +10,14 @@ import { VoidPaymentDialog } from '../components/portfolio/VoidPaymentDialog';
 import { CustomerPortfolioReport } from '../components/print/PortfolioReport';
 import { PrintTicket } from '../components/print/PrintTicket';
 import { Spinner } from '../components/Spinner';
+import { TextField } from '../components/TextField';
 import { Toast } from '../components/Toast';
 import { useAuth } from '../hooks/useAuth';
 import { usePermissions } from '../hooks/usePermissions';
 import { useCustomerPortfolio } from '../hooks/usePortfolio';
 import { usePortfolioRange } from '../hooks/usePortfolioRange';
 import { getApiErrorMessage } from '../lib/errors';
-import { money, quotationNumberLabel } from '../lib/portfolio';
+import { matchesQuotationNumber, money, quotationNumberLabel } from '../lib/portfolio';
 import type { PortfolioQuotation, QuotationPayment } from '../services/portfolio';
 
 /** Cartera individual — one customer's open quotations, abono by abono. */
@@ -32,6 +33,11 @@ export function CustomerPortfolioPage() {
   const [voidingPayment, setVoidingPayment] = useState<QuotationPayment | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [isPrinting, setIsPrinting] = useState(false);
+  const [numberSearch, setNumberSearch] = useState('');
+  const shownQuotations =
+    portfolio?.quotations.filter((quotation) =>
+      matchesQuotationNumber(quotation.number, numberSearch),
+    ) ?? [];
 
   return (
     <div className="flex flex-col gap-4">
@@ -82,13 +88,27 @@ export function CustomerPortfolioPage() {
 
           <PortfolioTotalsLedger totals={portfolio.totals} />
 
+          {portfolio.quotations.length > 0 && (
+            <TextField
+              label="Buscar cotización por número"
+              placeholder="Ej: 12 o COT-0012"
+              inputMode="numeric"
+              value={numberSearch}
+              onChange={(e) => setNumberSearch(e.target.value)}
+            />
+          )}
+
           {portfolio.quotations.length === 0 ? (
             <Alert variant="info">
               Este cliente no debe nada{from || to ? ' en estas fechas' : ''}.
             </Alert>
+          ) : shownQuotations.length === 0 ? (
+            <Alert variant="info">
+              Ninguna cotización pendiente de este cliente tiene ese número.
+            </Alert>
           ) : (
             <ul className="divide-y divide-line border border-line bg-paper">
-              {portfolio.quotations.map((quotation) => (
+              {shownQuotations.map((quotation) => (
                 <PortfolioQuotationEntry
                   key={quotation.id}
                   quotation={quotation}

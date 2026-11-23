@@ -30,6 +30,18 @@ export function quotationNumberLabel(number: number): string {
   return `COT-${String(number).padStart(4, '0')}`;
 }
 
+/**
+ * Whether a quotation number matches what was typed: "12", "0012", "#12" and
+ * "COT-0012" all find COT-0012 — and, while typing, every number that starts
+ * with 12 (same as the quotations list). Blank matches everything; text with
+ * no digits matches nothing.
+ */
+export function matchesQuotationNumber(number: number, search: string): boolean {
+  if (!search.trim()) return true;
+  const digits = search.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  return digits !== '' && String(number).startsWith(digits);
+}
+
 /** "2026-01-01" → "1 ene 2026" (a bare date: no time zone to shift). */
 export function rangeDateLabel(date: string): string {
   const [year, month, day] = date.split('-').map(Number);

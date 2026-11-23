@@ -804,7 +804,7 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
               />
             </div>
           )}
-          <TotalsSummary {...summary} undiscountedTotal={total} />
+          <TotalsSummary {...summary} undiscountedTotal={total} paidAmount={quotation.paidAmount} />
         </div>
 
         {isOpen && canUpdate && (
@@ -853,6 +853,12 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
             <>
               {invoiceMutation.isError && (
                 <Alert variant="error">{getApiErrorMessage(invoiceMutation.error)}</Alert>
+              )}
+              {quotation.paidAmount > 0 && (
+                <Alert variant="info">
+                  La factura sale por el valor total ({money(quotation.totalAmount)}). Los abonos
+                  ({money(quotation.paidAmount)}) no se descuentan de la factura.
+                </Alert>
               )}
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

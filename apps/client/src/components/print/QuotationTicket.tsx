@@ -152,6 +152,12 @@ export function QuotationTicket({ quotation }: { quotation: QuotationResponse })
         <TotalRow label="Impoconsumo" value="0" />
         <TotalRow label="Descuento:" value={ticketInt(discount)} />
         <TotalRow label="Valor total:" value={`$${ticketInt(total)}`} bold />
+        {quotation.paidAmount > 0 && (
+          <>
+            <TotalRow label="Abonos:" value={`-$${ticketInt(quotation.paidAmount)}`} />
+            <TotalRow label="Saldo:" value={`$${ticketInt(total - quotation.paidAmount)}`} bold />
+          </>
+        )}
       </div>
 
       <div className="mt-2 grid grid-cols-[30%_1fr] gap-1 text-[11px] leading-tight">
