@@ -27,6 +27,7 @@ import { useProducts } from '../hooks/useProducts';
 import {
   useInvoiceQuotation,
   useQuotation,
+  useReopenQuotation,
   useUpdateQuotationItems,
 } from '../hooks/useQuotations';
 import {
@@ -173,6 +174,10 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
   const canCancel = has('quotations.cancel');
   const canMerge = has('quotations.merge');
   const isOpen = quotation.status === 'open';
+  const isAdmin = user?.role === 'admin';
+  // Completed by its own abonos: reopening it means voiding an abono instead.
+  const isCompletedByAbonos = quotation.paidAmount >= quotation.totalAmount;
+  const reopenMutation = useReopenQuotation();
   const payments = quotation.payments ?? [];
   const [isPrinting, setIsPrinting] = useState(false);
 
@@ -525,7 +530,30 @@ function QuotationDetailView({ quotation }: { quotation: QuotationResponse }) {
         </Alert>
       )}
       {quotation.status === 'completed' && (
-        <Alert variant="success">Completada sin factura.</Alert>
+        <Alert variant="success">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>Completada sin factura.</span>
+            {isAdmin && !isCompletedByAbonos && (
+              <Button
+                type="button"
+                variant="secondary"
+                className="sm:w-auto sm:px-4"
+                isLoading={reopenMutation.isPending}
+                onClick={() => reopenMutation.mutate(quotation.id)}
+              >
+                Reabrir
+              </Button>
+            )}
+          </div>
+          {isAdmin && isCompletedByAbonos && (
+            <p className="mt-1 text-xs">
+              Se completó con sus abonos: para reabrirla, anula el último abono en Cartera.
+            </p>
+          )}
+        </Alert>
+      )}
+      {reopenMutation.isError && (
+        <Alert variant="error">{getApiErrorMessage(reopenMutation.error)}</Alert>
       )}
       {quotation.status === 'merged' && (
         <Alert variant="info">

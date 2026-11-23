@@ -1311,6 +1311,66 @@ describe('QuotationsService', () => {
     });
   });
 
+  describe('reopen', () => {
+    const completedAt = new Date('2026-11-20T15:00:00.000Z');
+
+    it('reopens a quotation completed by hand, keeping updated_at', async () => {
+      const updatedAt = new Date('2026-09-20T10:00:00.000Z');
+      queryBuilder.getOne.mockResolvedValue(
+        openQuotation({ completedAt, updatedAt }),
+      );
+
+      await service.reopen('q-1', 'user-1');
+
+      expect(quotationsRepository.update).toHaveBeenCalledWith('q-1', {
+        completedAt: null,
+        updatedBy: { id: 'user-1' },
+        updatedAt,
+      });
+      expect(inventoryService.createMovement).not.toHaveBeenCalled();
+    });
+
+    it('reopens one completed by hand with a balance still left after abonos', async () => {
+      queryBuilder.getOne.mockResolvedValue(openQuotation({ completedAt }));
+      paymentsBuilder.getRawMany.mockResolvedValueOnce([
+        { quotationId: 'q-1', paid: '40000' },
+      ]);
+
+      await service.reopen('q-1', 'user-1');
+
+      expect(quotationsRepository.update).toHaveBeenCalledWith(
+        'q-1',
+        expect.objectContaining({ completedAt: null }),
+      );
+    });
+
+    it('rejects a quotation completed by its own abonos', async () => {
+      queryBuilder.getOne.mockResolvedValue(openQuotation({ completedAt }));
+      paymentsBuilder.getRawMany.mockResolvedValueOnce([
+        { quotationId: 'q-1', paid: '100000' },
+      ]);
+
+      await expect(service.reopen('q-1', 'user-1')).rejects.toThrow(
+        'se completó con sus abonos',
+      );
+      expect(quotationsRepository.update).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['open', {}],
+      ['invoiced', { invoicedAt: new Date() }],
+      ['cancelled', { cancelledAt: new Date() }],
+      ['merged', { mergedAt: new Date() }],
+    ])('rejects a quotation that is %s', async (_status, overrides) => {
+      queryBuilder.getOne.mockResolvedValue(openQuotation(overrides));
+
+      await expect(service.reopen('q-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(quotationsRepository.update).not.toHaveBeenCalled();
+    });
+  });
+
   describe('cancel', () => {
     it('loads the quotation while holding its own lock, so a double cancel returns the stock only once', async () => {
       queryBuilder.getOne.mockImplementationOnce(() => {
