@@ -10,7 +10,7 @@ export function quotationPaymentSchema(balance: number) {
       .refine((amount) => Math.round(amount * 100) <= Math.round(balance * 100), {
         message: 'El abono no puede superar el saldo pendiente.',
       }),
-    paymentMeans: z.enum(['CASH', 'CARD', 'BANK_TRANSFER']),
+    paymentMeans: z.enum(['CASH', 'BANK_TRANSFER']),
     notes: z.string().trim().max(500, 'Máximo 500 caracteres.'),
   });
 }

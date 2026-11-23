@@ -5,9 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository, SelectQueryBuilder } from 'typeorm';
+import { Repository, SelectQueryBuilder } from 'typeorm';
 import { andWhereEveryWord } from '../common/utils/search.util';
 import { getStoreDayRangeUtc } from '../common/utils/store-date.util';
+import { QuotationNoteResponseDto } from '../quotations/dto/quotation-activity.dto';
+import { QuotationNote } from '../quotations/entities/quotation-note.entity';
 import { QuotationPayment } from '../quotations/entities/quotation-payment.entity';
 import { Quotation } from '../quotations/entities/quotation.entity';
 import { withQuotationLock } from '../quotations/quotation-lock.util';
@@ -17,6 +19,8 @@ import {
   openQuotationCondition,
   sumPaidByQuotation,
   toCents,
+  loadNotesByQuotation,
+  loadPaymentsByQuotation,
 } from '../quotations/quotation-payments.util';
 import { User } from '../users/entities/user.entity';
 import { CreateQuotationPaymentDto } from './dto/create-quotation-payment.dto';
@@ -52,6 +56,8 @@ export class PortfolioService {
     private readonly quotationsRepository: Repository<Quotation>,
     @InjectRepository(QuotationPayment)
     private readonly paymentsRepository: Repository<QuotationPayment>,
+    @InjectRepository(QuotationNote)
+    private readonly notesRepository: Repository<QuotationNote>,
   ) {}
 
   /** Cartera general: one row per customer with an open quotation in range. */
@@ -136,23 +142,17 @@ export class PortfolioService {
       throw new NotFoundException('Este cliente no tiene cotizaciones.');
     }
 
-    const payments = quotations.length
-      ? await this.paymentsRepository.find({
-          where: { quotation: { id: In(quotations.map((q) => q.id)) } },
-          relations: { quotation: true, createdBy: true, voidedBy: true },
-          order: { createdAt: 'ASC' },
-        })
-      : [];
-    const paymentsByQuotation = new Map<string, QuotationPayment[]>();
+    const ids = quotations.map((q) => q.id);
+    const [paymentsByQuotation, notesByQuotation] = await Promise.all([
+      loadPaymentsByQuotation(this.paymentsRepository, ids),
+      loadNotesByQuotation(this.notesRepository, ids),
+    ]);
     const paid = new Map<string, number>();
-    for (const payment of payments) {
-      const id = payment.quotation.id;
-      paymentsByQuotation.set(id, [
-        ...(paymentsByQuotation.get(id) ?? []),
-        payment,
-      ]);
-      if (!payment.voidedAt) {
-        paid.set(id, (paid.get(id) ?? 0) + payment.amount);
+    for (const [id, payments] of paymentsByQuotation) {
+      for (const payment of payments) {
+        if (!payment.voidedAt) {
+          paid.set(id, (paid.get(id) ?? 0) + payment.amount);
+        }
       }
     }
 
@@ -171,7 +171,10 @@ export class PortfolioService {
           paidAmount,
           balance: this.subtract(quotation.totalAmount, paidAmount),
           payments: (paymentsByQuotation.get(quotation.id) ?? []).map(
-            (payment) => this.paymentDto(payment),
+            (payment) => QuotationPaymentResponseDto.fromEntity(payment),
+          ),
+          quotationNotes: (notesByQuotation.get(quotation.id) ?? []).map(
+            (note) => QuotationNoteResponseDto.fromEntity(note),
           ),
         };
       }),
@@ -398,21 +401,6 @@ export class PortfolioService {
       identification: quotation.customerIdentification,
       name: quotation.customerCompanyName || personName,
       phone: quotation.customerPhone,
-    };
-  }
-
-  private paymentDto(payment: QuotationPayment): QuotationPaymentResponseDto {
-    const nameOf = (user: User | null) =>
-      user ? `${user.firstName} ${user.lastName}`.trim() : null;
-    return {
-      id: payment.id,
-      amount: payment.amount,
-      paymentMeans: payment.paymentMeans,
-      notes: payment.notes,
-      createdAt: payment.createdAt.toISOString(),
-      createdByName: nameOf(payment.createdBy),
-      voidedAt: payment.voidedAt?.toISOString() ?? null,
-      voidedByName: nameOf(payment.voidedBy),
     };
   }
 }

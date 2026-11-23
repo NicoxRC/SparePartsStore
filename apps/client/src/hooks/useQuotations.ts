@@ -5,6 +5,7 @@ import {
   useQueryClient,
 } from '@tanstack/react-query';
 import {
+  addQuotationNote,
   cancelQuotation,
   completeQuotation,
   createQuotation,
@@ -13,6 +14,7 @@ import {
   getQuotations,
   invoiceQuotation,
   mergeQuotations,
+  removeQuotationNote,
   updateQuotationCustomer,
   updateQuotationItems,
   type CreateQuotationInput,
@@ -147,6 +149,31 @@ export function useCancelQuotation() {
       void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
       void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
       void queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+}
+
+export function useAddQuotationNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, text }: { id: string; text: string }) => addQuotationNote(id, text),
+    onSuccess: (_data, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: ['quotations', id] });
+      // The cartera shows each quotation's notes.
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+    },
+  });
+}
+
+/** Admin only. */
+export function useRemoveQuotationNote() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ noteId }: { noteId: string; quotationId: string }) =>
+      removeQuotationNote(noteId),
+    onSuccess: (_data, { quotationId }) => {
+      void queryClient.invalidateQueries({ queryKey: ['quotations', quotationId] });
+      void queryClient.invalidateQueries({ queryKey: ['portfolio'] });
     },
   });
 }

@@ -8,7 +8,12 @@ import { CurrencyField } from '../CurrencyField';
 import { SelectField } from '../SelectField';
 import { useCreateQuotationPayment } from '../../hooks/usePortfolio';
 import { getApiErrorMessage } from '../../lib/errors';
-import { money, PAYMENT_MEANS_LABEL, quotationNumberLabel } from '../../lib/portfolio';
+import {
+  money,
+  NEW_PAYMENT_MEANS,
+  PAYMENT_MEANS_LABEL,
+  quotationNumberLabel,
+} from '../../lib/portfolio';
 import {
   quotationPaymentSchema,
   type QuotationPaymentValues,
@@ -94,9 +99,9 @@ export function RegisterPaymentDialog({
           </div>
 
           <SelectField label="Medio de pago" {...register('paymentMeans')}>
-            {Object.entries(PAYMENT_MEANS_LABEL).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
+            {NEW_PAYMENT_MEANS.map((means) => (
+              <option key={means} value={means}>
+                {PAYMENT_MEANS_LABEL[means]}
               </option>
             ))}
           </SelectField>

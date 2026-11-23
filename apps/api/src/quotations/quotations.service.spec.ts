@@ -10,6 +10,7 @@ import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
 import { UpdateQuotationCustomerDto } from './dto/update-quotation-customer.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
 import { QuotationItem } from './entities/quotation-item.entity';
+import { QuotationNote } from './entities/quotation-note.entity';
 import { QuotationPayment } from './entities/quotation-payment.entity';
 import { Quotation } from './entities/quotation.entity';
 import { QuotationsService } from './quotations.service';
@@ -28,6 +29,7 @@ describe('QuotationsService', () => {
     query: jest.Mock;
     update: jest.Mock;
     save: jest.Mock;
+    findOne: jest.Mock;
     createQueryBuilder: jest.Mock;
   };
   let itemsUpdateBuilder: {
@@ -65,7 +67,13 @@ describe('QuotationsService', () => {
     getRawMany: jest.Mock;
     getRawOne: jest.Mock;
   };
-  let paymentsRepository: { createQueryBuilder: jest.Mock };
+  let paymentsRepository: { createQueryBuilder: jest.Mock; find: jest.Mock };
+  let notesRepository: {
+    find: jest.Mock;
+    findOne: jest.Mock;
+    findOneOrFail: jest.Mock;
+    softDelete: jest.Mock;
+  };
   let productsService: { findOne: jest.Mock };
   let inventoryService: { createMovement: jest.Mock };
   let cashRegisterService: { assertOpenToday: jest.Mock };
@@ -190,6 +198,7 @@ describe('QuotationsService', () => {
       query: jest.fn().mockResolvedValue(undefined),
       update: jest.fn().mockResolvedValue(undefined),
       save: jest.fn().mockResolvedValue(undefined),
+      findOne: jest.fn().mockResolvedValue(openQuotation()),
       createQueryBuilder: jest.fn(() => itemsUpdateBuilder),
     };
     quotationItemsRepository = {
@@ -231,12 +240,21 @@ describe('QuotationsService', () => {
     };
     paymentsRepository = {
       createQueryBuilder: jest.fn(() => paymentsBuilder),
+      // findOne()'s abono list — none by default.
+      find: jest.fn().mockResolvedValue([]),
+    };
+    notesRepository = {
+      find: jest.fn().mockResolvedValue([]),
+      findOne: jest.fn().mockResolvedValue({ id: 'note-1' }),
+      findOneOrFail: jest.fn(),
+      softDelete: jest.fn().mockResolvedValue(undefined),
     };
 
     service = new QuotationsService(
       quotationsRepository as unknown as Repository<Quotation>,
       quotationItemsRepository as unknown as Repository<QuotationItem>,
       paymentsRepository as unknown as Repository<QuotationPayment>,
+      notesRepository as unknown as Repository<QuotationNote>,
       productsService as unknown as ProductsService,
       inventoryService as unknown as InventoryService,
       cashRegisterService as unknown as CashRegisterService,
@@ -282,19 +300,187 @@ describe('QuotationsService', () => {
     });
   });
 
-  describe('paid amount on responses', () => {
-    it('reports what was paid toward the quotation through abonos', async () => {
-      paymentsBuilder.getRawMany.mockResolvedValueOnce([
-        { quotationId: 'q-1', paid: '40000' },
+  describe('findOne — abonos and notes', () => {
+    const cashier = { firstName: 'Ana', lastName: 'Cajera' };
+
+    it('lists every abono with its means and counts only the ones not voided', async () => {
+      paymentsRepository.find.mockResolvedValueOnce([
+        {
+          id: 'pay-1',
+          quotation: { id: 'q-1' },
+          amount: 40000,
+          paymentMeans: 'CASH',
+          notes: null,
+          createdAt: new Date('2026-09-16T15:00:00.000Z'),
+          createdBy: cashier,
+          voidedAt: null,
+          voidedBy: null,
+        },
+        {
+          id: 'pay-2',
+          quotation: { id: 'q-1' },
+          amount: 10000,
+          paymentMeans: 'BANK_TRANSFER',
+          notes: 'Nequi',
+          createdAt: new Date('2026-09-17T15:00:00.000Z'),
+          createdBy: cashier,
+          voidedAt: new Date('2026-09-18T15:00:00.000Z'),
+          voidedBy: null,
+        },
       ]);
 
       const quotation = await service.findOne('q-1');
 
       expect(quotation.paidAmount).toBe(40000);
+      expect(quotation.payments).toEqual([
+        expect.objectContaining({
+          id: 'pay-1',
+          paymentMeans: 'CASH',
+          createdByName: 'Ana Cajera',
+          voidedAt: null,
+        }),
+        expect.objectContaining({
+          id: 'pay-2',
+          paymentMeans: 'BANK_TRANSFER',
+          voidedAt: '2026-09-18T15:00:00.000Z',
+        }),
+      ]);
     });
 
-    it('reports 0 when there is no abono', async () => {
-      expect((await service.findOne('q-1')).paidAmount).toBe(0);
+    it('reports 0 paid and empty lists when there is nothing', async () => {
+      const quotation = await service.findOne('q-1');
+
+      expect(quotation.paidAmount).toBe(0);
+      expect(quotation.payments).toEqual([]);
+      expect(quotation.quotationNotes).toEqual([]);
+    });
+
+    it('returns the notes history newest first, with who wrote each one', async () => {
+      notesRepository.find.mockResolvedValueOnce([
+        {
+          id: 'note-2',
+          quotation: { id: 'q-1' },
+          text: 'Pasa el viernes',
+          createdAt: new Date('2026-09-17T15:00:00.000Z'),
+          createdBy: cashier,
+        },
+        {
+          id: 'note-1',
+          quotation: { id: 'q-1' },
+          text: 'Se hizo un abono de $40.000',
+          createdAt: new Date('2026-09-16T15:00:00.000Z'),
+          createdBy: null,
+        },
+      ]);
+
+      const quotation = await service.findOne('q-1');
+
+      expect(notesRepository.find).toHaveBeenCalledWith(
+        expect.objectContaining({ order: { createdAt: 'DESC' } }),
+      );
+
+      expect(quotation.quotationNotes).toEqual([
+        {
+          id: 'note-2',
+          text: 'Pasa el viernes',
+          createdAt: '2026-09-17T15:00:00.000Z',
+          createdByName: 'Ana Cajera',
+        },
+        {
+          id: 'note-1',
+          text: 'Se hizo un abono de $40.000',
+          createdAt: '2026-09-16T15:00:00.000Z',
+          createdByName: null,
+        },
+      ]);
+    });
+  });
+
+  describe('addNote', () => {
+    it('saves the note under the quotation lock, without touching the quotation', async () => {
+      transactionManager.save.mockResolvedValueOnce({ id: 'note-new' });
+      notesRepository.findOneOrFail.mockResolvedValueOnce({
+        id: 'note-new',
+        text: 'Abonó $20.000',
+        createdAt: new Date('2026-09-16T15:00:00.000Z'),
+        createdBy: { firstName: 'Ana', lastName: 'Cajera' },
+      });
+
+      const note = await service.addNote(
+        'q-1',
+        { text: 'Abonó $20.000' },
+        'user-1',
+      );
+
+      expect(transactionManager.query).toHaveBeenCalledWith(
+        'SELECT pg_advisory_xact_lock(hashtext($1))',
+        ['quotation:q-1'],
+      );
+      expect(transactionManager.save).toHaveBeenCalledWith(QuotationNote, {
+        quotation: { id: 'q-1' },
+        text: 'Abonó $20.000',
+        createdBy: { id: 'user-1' },
+      });
+      expect(transactionManager.update).not.toHaveBeenCalled();
+      expect(note).toEqual({
+        id: 'note-new',
+        text: 'Abonó $20.000',
+        createdAt: '2026-09-16T15:00:00.000Z',
+        createdByName: 'Ana Cajera',
+      });
+    });
+
+    it('accepts a note on a closed quotation (invoiced, completed or cancelled)', async () => {
+      transactionManager.findOne.mockResolvedValueOnce(
+        openQuotation({ invoicedAt: new Date() }),
+      );
+      transactionManager.save.mockResolvedValueOnce({ id: 'note-new' });
+      notesRepository.findOneOrFail.mockResolvedValueOnce({
+        id: 'note-new',
+        text: 'Factura enviada',
+        createdAt: new Date(),
+        createdBy: null,
+      });
+
+      await service.addNote('q-1', { text: 'Factura enviada' }, 'user-1');
+
+      expect(transactionManager.save).toHaveBeenCalled();
+    });
+
+    it('rejects a note on a merged quotation', async () => {
+      transactionManager.findOne.mockResolvedValueOnce(
+        openQuotation({ mergedAt: new Date() }),
+      );
+
+      await expect(
+        service.addNote('q-1', { text: 'Hola' }, 'user-1'),
+      ).rejects.toThrow('se unió a otra');
+      expect(transactionManager.save).not.toHaveBeenCalled();
+    });
+
+    it('404s when the quotation does not exist', async () => {
+      transactionManager.findOne.mockResolvedValueOnce(null);
+
+      await expect(
+        service.addNote('q-x', { text: 'Hola' }, 'user-1'),
+      ).rejects.toThrow('Cotización no encontrada');
+    });
+  });
+
+  describe('removeNote', () => {
+    it('soft-deletes the note', async () => {
+      await service.removeNote('note-1');
+
+      expect(notesRepository.softDelete).toHaveBeenCalledWith('note-1');
+    });
+
+    it('404s when the note does not exist', async () => {
+      notesRepository.findOne.mockResolvedValueOnce(null);
+
+      await expect(service.removeNote('note-x')).rejects.toThrow(
+        'Nota no encontrada',
+      );
+      expect(notesRepository.softDelete).not.toHaveBeenCalled();
     });
   });
 
@@ -1246,10 +1432,11 @@ describe('QuotationsService', () => {
         'quotation_id IN (:...sourceIds)',
         { sourceIds: ['q-2'] },
       );
-      // Lines and abonos both move to the survivor.
+      // Lines, abonos and notes all move to the survivor.
       expect(itemsUpdateBuilder.update).toHaveBeenCalledWith(QuotationItem);
       expect(itemsUpdateBuilder.update).toHaveBeenCalledWith(QuotationPayment);
-      expect(itemsUpdateBuilder.execute).toHaveBeenCalledTimes(2);
+      expect(itemsUpdateBuilder.update).toHaveBeenCalledWith(QuotationNote);
+      expect(itemsUpdateBuilder.execute).toHaveBeenCalledTimes(3);
       // 2 × 50.000 + (35.000 − 5.000) — each line keeps its price and discount.
       expect(transactionManager.update).toHaveBeenCalledWith(Quotation, 'q-1', {
         totalAmount: 130000,

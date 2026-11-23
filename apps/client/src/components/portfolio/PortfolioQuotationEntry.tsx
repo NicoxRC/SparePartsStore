@@ -1,11 +1,8 @@
 import { Link } from 'react-router-dom';
 import { QuotationDayCounters } from '../QuotationDayCounters';
-import {
-  money,
-  PAYMENT_MEANS_LABEL,
-  quotationNumberLabel,
-  storeDateLabel,
-} from '../../lib/portfolio';
+import { QuotationNotesList } from '../QuotationNotes';
+import { money, quotationNumberLabel, storeDateLabel } from '../../lib/portfolio';
+import { PaymentHistory } from './PaymentHistory';
 import type { PortfolioQuotation, QuotationPayment } from '../../services/portfolio';
 
 interface PortfolioQuotationEntryProps {
@@ -17,7 +14,7 @@ interface PortfolioQuotationEntryProps {
   onVoidPayment: (payment: QuotationPayment) => void;
 }
 
-/** One open quotation on a customer's statement: its figures, its age, its abonos. */
+/** One open quotation on a customer's statement: its figures, its age, its abonos and notes. */
 export function PortfolioQuotationEntry({
   quotation,
   canRegisterPayment,
@@ -58,48 +55,19 @@ export function PortfolioQuotationEntry({
       </div>
 
       {quotation.payments.length > 0 && (
-        <ol className="divide-y divide-line border border-line">
-          {quotation.payments.map((payment) => {
-            const isVoided = !!payment.voidedAt;
-            return (
-              <li
-                key={payment.id}
-                className={`flex items-start justify-between gap-3 px-3 py-2 text-sm ${
-                  isVoided ? 'carbon-row text-fog' : ''
-                }`}
-              >
-                <div className="min-w-0">
-                  <p className={isVoided ? 'line-through' : 'text-ink'}>
-                    Abono {storeDateLabel(payment.createdAt)} ·{' '}
-                    {PAYMENT_MEANS_LABEL[payment.paymentMeans]}
-                  </p>
-                  <p className="text-xs text-fog">
-                    {payment.createdByName ? `Recibió ${payment.createdByName}` : 'Recibido'}
-                    {isVoided &&
-                      ` · Anulado${payment.voidedByName ? ` por ${payment.voidedByName}` : ''} el ${storeDateLabel(payment.voidedAt!)}`}
-                  </p>
-                  {payment.notes && (
-                    <p className="mt-0.5 text-xs text-steel">{payment.notes}</p>
-                  )}
-                </div>
-                <div className="flex shrink-0 items-center gap-2">
-                  <span className={`font-mono ${isVoided ? 'line-through' : 'text-ink'}`}>
-                    {money(payment.amount)}
-                  </span>
-                  {canVoidPayment && !isVoided && (
-                    <button
-                      type="button"
-                      onClick={() => onVoidPayment(payment)}
-                      className="min-h-10 px-2 text-xs font-medium text-rust underline underline-offset-4 hover:text-rust-2"
-                    >
-                      Anular
-                    </button>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
+        <PaymentHistory
+          payments={quotation.payments}
+          onVoid={canVoidPayment ? onVoidPayment : undefined}
+        />
+      )}
+
+      {quotation.quotationNotes.length > 0 && (
+        <div className="flex flex-col gap-1.5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-fog">
+            Notas de la cotización
+          </p>
+          <QuotationNotesList notes={quotation.quotationNotes} />
+        </div>
       )}
 
       {(canRegisterPayment || canOpenQuotation) && (

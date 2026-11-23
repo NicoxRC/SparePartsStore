@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Repository } from 'typeorm';
+import { QuotationNote } from '../quotations/entities/quotation-note.entity';
 import { QuotationPayment } from '../quotations/entities/quotation-payment.entity';
 import { Quotation } from '../quotations/entities/quotation.entity';
 import { PortfolioService } from './portfolio.service';
@@ -34,6 +35,7 @@ describe('PortfolioService', () => {
     find: jest.Mock;
     findOne: jest.Mock;
   };
+  let notesRepository: { find: jest.Mock };
   let transactionManager: {
     query: jest.Mock;
     findOne: jest.Mock;
@@ -106,6 +108,7 @@ describe('PortfolioService', () => {
       find: jest.fn().mockResolvedValue([]),
       findOne: jest.fn().mockResolvedValue(payment()),
     };
+    notesRepository = { find: jest.fn().mockResolvedValue([]) };
     transactionManager = {
       query: jest.fn().mockResolvedValue(undefined),
       findOne: jest.fn().mockResolvedValue(quotation()),
@@ -129,6 +132,7 @@ describe('PortfolioService', () => {
     service = new PortfolioService(
       quotationsRepository as unknown as Repository<Quotation>,
       paymentsRepository as unknown as Repository<QuotationPayment>,
+      notesRepository as unknown as Repository<QuotationNote>,
     );
   });
 
@@ -335,7 +339,46 @@ describe('PortfolioService', () => {
         paidAmount: 0,
         balance: 60000,
         payments: [],
+        quotationNotes: [],
       });
+    });
+
+    it("shows each quotation's notes, newest first, so cartera sees what the cashiers wrote", async () => {
+      const open = quotation({ id: 'q-1', number: 1 });
+      quotationsBuilder.getMany.mockResolvedValueOnce([open]);
+      notesRepository.find.mockResolvedValueOnce([
+        {
+          id: 'note-2',
+          quotation: open,
+          text: 'Pasa el viernes por el resto',
+          createdAt: new Date('2026-10-12T15:00:00.000Z'),
+          createdBy: { firstName: 'Ana', lastName: 'Ruiz' },
+        },
+        {
+          id: 'note-1',
+          quotation: open,
+          text: 'Se hizo un abono de $30.000',
+          createdAt: new Date('2026-10-11T15:00:00.000Z'),
+          createdBy: null,
+        },
+      ]);
+
+      const result = await service.getCustomer('1085000111', {});
+
+      expect(result.quotations[0].quotationNotes).toEqual([
+        {
+          id: 'note-2',
+          text: 'Pasa el viernes por el resto',
+          createdAt: '2026-10-12T15:00:00.000Z',
+          createdByName: 'Ana Ruiz',
+        },
+        {
+          id: 'note-1',
+          text: 'Se hizo un abono de $30.000',
+          createdAt: '2026-10-11T15:00:00.000Z',
+          createdByName: null,
+        },
+      ]);
     });
 
     it('still names a customer with nothing pending in range', async () => {
@@ -351,6 +394,7 @@ describe('PortfolioService', () => {
       expect(result.quotations).toEqual([]);
       expect(result.totals.balance).toBe(0);
       expect(paymentsRepository.find).not.toHaveBeenCalled();
+      expect(notesRepository.find).not.toHaveBeenCalled();
     });
 
     it('answers 404 for someone who never had a quotation', async () => {
@@ -424,7 +468,7 @@ describe('PortfolioService', () => {
 
       const result = await service.createPayment(
         'q-1',
-        { amount: 0.2, paymentMeans: 'CARD' },
+        { amount: 0.2, paymentMeans: 'BANK_TRANSFER' },
         'user-1',
       );
 

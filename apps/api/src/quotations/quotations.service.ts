@@ -22,20 +22,28 @@ import { InvoicesService } from '../invoicing/invoices/invoices.service';
 import { Product } from '../products/entities/product.entity';
 import { ProductsService } from '../products/products.service';
 import { CreateQuotationItemDto } from './dto/create-quotation-item.dto';
+import { CreateQuotationNoteDto } from './dto/create-quotation-note.dto';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { InvoiceQuotationDto } from './dto/invoice-quotation.dto';
 import { MergeQuotationsDto } from './dto/merge-quotations.dto';
 import { QueryQuotationsDto } from './dto/query-quotations.dto';
 import { OpenQuotationsSummaryDto } from './dto/open-quotations-summary.dto';
+import {
+  QuotationNoteResponseDto,
+  QuotationPaymentResponseDto,
+} from './dto/quotation-activity.dto';
 import { QuotationResponseDto } from './dto/quotation-response.dto';
 import { UpdateQuotationCustomerDto } from './dto/update-quotation-customer.dto';
 import { UpdateQuotationItemsDto } from './dto/update-quotation-items.dto';
 import { QuotationItem } from './entities/quotation-item.entity';
+import { QuotationNote } from './entities/quotation-note.entity';
 import { QuotationPayment } from './entities/quotation-payment.entity';
 import { Quotation } from './entities/quotation.entity';
 import { withQuotationLock } from './quotation-lock.util';
 import {
   formatCop,
+  loadNotesByQuotation,
+  loadPaymentsByQuotation,
   openQuotationCondition,
   sumPaidByQuotation,
   toCents,
@@ -62,6 +70,8 @@ export class QuotationsService {
     private readonly quotationItemsRepository: Repository<QuotationItem>,
     @InjectRepository(QuotationPayment)
     private readonly paymentsRepository: Repository<QuotationPayment>,
+    @InjectRepository(QuotationNote)
+    private readonly notesRepository: Repository<QuotationNote>,
     private readonly productsService: ProductsService,
     private readonly inventoryService: InventoryService,
     private readonly cashRegisterService: CashRegisterService,
@@ -252,14 +262,73 @@ export class QuotationsService {
 
   async findOne(id: string): Promise<QuotationResponseDto> {
     const quotation = await this.loadWithItems(id);
-    const paid = await sumPaidByQuotation(this.paymentsRepository, [
-      quotation.id,
+    const [paymentsByQuotation, notesByQuotation] = await Promise.all([
+      loadPaymentsByQuotation(this.paymentsRepository, [quotation.id]),
+      loadNotesByQuotation(this.notesRepository, [quotation.id]),
     ]);
-    return QuotationResponseDto.fromEntity(
-      quotation,
-      true,
-      paid.get(quotation.id) ?? 0,
+    const payments = paymentsByQuotation.get(quotation.id) ?? [];
+    const paidAmount = payments
+      .filter((payment) => !payment.voidedAt)
+      .reduce((sum, payment) => sum + payment.amount, 0);
+    const dto = QuotationResponseDto.fromEntity(quotation, true, paidAmount);
+    // The cashier sees what was already paid before charging the customer.
+    dto.payments = payments.map((payment) =>
+      QuotationPaymentResponseDto.fromEntity(payment),
     );
+    dto.quotationNotes = (notesByQuotation.get(quotation.id) ?? []).map(
+      (note) => QuotationNoteResponseDto.fromEntity(note),
+    );
+    return dto;
+  }
+
+  /**
+   * Adds a note to the quotation's history — on any status but merged (a
+   * merged one's notes moved to the survivor). Never changes the
+   * quotation's `updatedAt`: "último cambio" is about its items. Under the
+   * quotation's lock so it can't land on a quotation a merge is emptying.
+   */
+  async addNote(
+    quotationId: string,
+    dto: CreateQuotationNoteDto,
+    userId: string,
+  ): Promise<QuotationNoteResponseDto> {
+    const noteId = await withQuotationLock(
+      this.quotationsRepository.manager,
+      [quotationId],
+      async (manager) => {
+        const quotation = await manager.findOne(Quotation, {
+          where: { id: quotationId },
+        });
+        if (!quotation) {
+          throw new NotFoundException('Cotización no encontrada.');
+        }
+        if (quotation.mergedAt) {
+          throw new BadRequestException(
+            'Esta cotización se unió a otra; escribe la nota en esa.',
+          );
+        }
+        const note = await manager.save(QuotationNote, {
+          quotation: { id: quotationId } as Quotation,
+          text: dto.text,
+          createdBy: { id: userId } as QuotationNote['createdBy'],
+        });
+        return note.id;
+      },
+    );
+    const saved = await this.notesRepository.findOneOrFail({
+      where: { id: noteId },
+      relations: { createdBy: true },
+    });
+    return QuotationNoteResponseDto.fromEntity(saved);
+  }
+
+  /** Admin only: takes a note out of the history (soft delete). */
+  async removeNote(noteId: string): Promise<void> {
+    const note = await this.notesRepository.findOne({ where: { id: noteId } });
+    if (!note) {
+      throw new NotFoundException('Nota no encontrada.');
+    }
+    await this.notesRepository.softDelete(note.id);
   }
 
   /**
@@ -671,6 +740,13 @@ export class QuotationsService {
     await manager
       .createQueryBuilder()
       .update(QuotationPayment)
+      .set({ quotation: { id: target.id } })
+      .where('quotation_id IN (:...sourceIds)', { sourceIds })
+      .execute();
+    // So do the notes: the survivor keeps the whole conversation.
+    await manager
+      .createQueryBuilder()
+      .update(QuotationNote)
       .set({ quotation: { id: target.id } })
       .where('quotation_id IN (:...sourceIds)', { sourceIds })
       .execute();

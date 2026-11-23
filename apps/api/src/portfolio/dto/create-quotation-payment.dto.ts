@@ -9,7 +9,11 @@ import {
   Min,
 } from 'class-validator';
 
-export const PAYMENT_MEANS_VALUES = ['CASH', 'CARD', 'BANK_TRANSFER'] as const;
+/**
+ * Abonos are taken in cash or by transfer only (decided with the store).
+ * Older abonos may still say CARD.
+ */
+export const PAYMENT_MEANS_VALUES = ['CASH', 'BANK_TRANSFER'] as const;
 
 export class CreateQuotationPaymentDto {
   @ApiProperty({
@@ -23,7 +27,9 @@ export class CreateQuotationPaymentDto {
   amount: number;
 
   @ApiProperty({ enum: PAYMENT_MEANS_VALUES, example: 'CASH' })
-  @IsIn(PAYMENT_MEANS_VALUES)
+  @IsIn(PAYMENT_MEANS_VALUES, {
+    message: 'El abono es en efectivo o por transferencia.',
+  })
   paymentMeans: (typeof PAYMENT_MEANS_VALUES)[number];
 
   @ApiPropertyOptional({ example: 'Pagó la mitad, el resto el viernes' })

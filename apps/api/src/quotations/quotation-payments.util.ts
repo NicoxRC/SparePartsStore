@@ -1,4 +1,5 @@
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { QuotationNote } from './entities/quotation-note.entity';
 import { QuotationPayment } from './entities/quotation-payment.entity';
 import { Quotation } from './entities/quotation.entity';
 
@@ -59,4 +60,46 @@ export async function sumPaidByQuotation(
     paid.set(row.quotationId, Number(row.paid));
   }
   return paid;
+}
+
+function groupByQuotation<T extends { quotation: Quotation }>(
+  rows: T[],
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const row of rows) {
+    const id = row.quotation.id;
+    grouped.set(id, [...(grouped.get(id) ?? []), row]);
+  }
+  return grouped;
+}
+
+/**
+ * Every abono of each quotation — voided ones included — oldest first, with
+ * who received and who voided it.
+ */
+export async function loadPaymentsByQuotation(
+  paymentsRepository: Repository<QuotationPayment>,
+  quotationIds: string[],
+): Promise<Map<string, QuotationPayment[]>> {
+  if (quotationIds.length === 0) return new Map();
+  const payments = await paymentsRepository.find({
+    where: { quotation: { id: In(quotationIds) } },
+    relations: { quotation: true, createdBy: true, voidedBy: true },
+    order: { createdAt: 'ASC' },
+  });
+  return groupByQuotation(payments);
+}
+
+/** Each quotation's notes history, newest first, with who wrote each one. */
+export async function loadNotesByQuotation(
+  notesRepository: Repository<QuotationNote>,
+  quotationIds: string[],
+): Promise<Map<string, QuotationNote[]>> {
+  if (quotationIds.length === 0) return new Map();
+  const notes = await notesRepository.find({
+    where: { quotation: { id: In(quotationIds) } },
+    relations: { quotation: true, createdBy: true },
+    order: { createdAt: 'DESC' },
+  });
+  return groupByQuotation(notes);
 }
